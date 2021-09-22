@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package kratos.gateway;
+
+option go_package = "github.com/go-kratos/gateway/api";
+
+message Service {
+    string name = 1;
+    string version = 2;
+    repeated string host = 3;
+    string prefix = 4;
+    repeated HTTPEndpoint endpoint =5; 
+} 
+
+message HTTPEndpoint {
+    HTTPMatch match = 1;
+    Backend backend = 2;
+    repeated Middleware middleware = 3;
+}
+
+message HTTPMatch {
+    StringMatch uri = 1;
+	string method = 2;
+	map<string,StringMatch> header = 3;
+    map<string,StringMatch> query = 4;
+}
+
+message Backend  {
+    // hostname or servicename
+    repeated string target = 1;
+    // scheme is transport protocol like:grpc\http
+    string scheme = 2;
+    bool tls = 3;
+    string resolver = 4;
+    repeated string filter = 5;
+    string balancer = 6;
+}
+
+message Middleware {
+    string name = 1;
+    // middleware的配置
+    map<string,string> option = 4;
+}
+
+message StringMatch {
+    oneof match_type {
+        string exact = 1;
+        string prefix = 2;
+        // RE2 style regex-based match (https://github.com/google/re2/wiki/Syntax).
+        string regex = 3;
+      }
+}
