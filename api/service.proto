@@ -4,22 +4,30 @@ package kratos.gateway;
 
 option go_package = "github.com/go-kratos/gateway/api";
 
+// 网关本身的配置
+message Server {
+    // 静态配置
+    string address = 1;
+
+    // 可替换的动态service配置
+    repeated Service service = 2;
+}
+
 message Service {
     string name = 1;
     string version = 2;
     repeated string host = 3;
-    string prefix = 4;
-    repeated HTTPEndpoint endpoint =5; 
+    repeated Endpoint endpoint =5; 
 } 
 
-message HTTPEndpoint {
+message Endpoint {
     HTTPMatch match = 1;
-    Backend backend = 2;
-    repeated Middleware middleware = 3;
+    Backend backend = 3;
+    repeated Middleware middleware = 4;
 }
 
 message HTTPMatch {
-    StringMatch uri = 1;
+    StringMatch path = 1;
 	string method = 2;
 	map<string,StringMatch> header = 3;
     map<string,StringMatch> query = 4;
@@ -28,12 +36,14 @@ message HTTPMatch {
 message Backend  {
     // hostname or servicename
     repeated string target = 1;
+    // 实际转发的路径，默认透传
+    string uri_pattern = 2;
     // scheme is transport protocol like:grpc\http
-    string scheme = 2;
-    bool tls = 3;
-    string resolver = 4;
-    repeated string filter = 5;
-    string balancer = 6;
+    string scheme = 3;
+    bool tls = 4;
+    string resolver = 5;
+    repeated string filter = 6;
+    string balancer = 7;
 }
 
 message Middleware {
