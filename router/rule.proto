@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package kratos.gateway;
+
+option go_package = "github.com/go-kratos/gateway/router";
+
+message RouteRule {
+    string version = 1;
+    repeated Service service = 2;
+}
+
+message Service {
+    string name = 1;
+    repeated string host = 3;
+    repeated Endpoint endpoint = 4; 
+} 
+
+message Endpoint {
+    string path = 1;
+	string method = 2;
+	map<string,string> header = 3;
+    map<string,string> query = 4;
+
+    Backend backend = 5;
+    repeated Middleware middleware = 6;
+}
+
+
+message Backend  {
+    // hostname or servicename
+    repeated string target = 1;
+    // scheme is transport protocol like:grpc\http
+    string scheme = 3;
+    bool tls = 4;
+    string resolver = 5;
+    repeated string filter = 6;
+    string balancer = 7;
+}
+
+message Middleware {
+    string name = 1;
+    // middleware的配置
+    map<string,string> option = 4;
+}

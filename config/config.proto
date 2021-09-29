@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package kratos.gateway;
+
+import "router/rule.proto";
+
+option go_package = "github.com/go-kratos/gateway/config";
+
+
+// 网关本身的配置
+message Server {
+    // 静态配置
+    string address = 1;
+
+    // 可替换的动态service配置
+    RouteRule routeRule = 2;
+}
