@@ -19,6 +19,7 @@ vendor/
 *.o
 *.a
 *.so
+cmd/cmd
 
 # OS General
 Thumbs.db
