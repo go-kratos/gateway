@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
-	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/server"
+	"github.com/go-kratos/gateway/service"
+	"github.com/go-kratos/gateway/source"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -16,33 +16,6 @@ var flagconf string
 
 func init() {
 	flag.StringVar(&flagconf, "conf", "config.yaml", "config path, eg: -conf config.yaml")
-}
-
-type ruleSource struct {
-	cfg config.Config
-}
-
-func (source *ruleSource) Watch(f func(rule *router.RouteRule)) error {
-	return source.cfg.Watch("routeRule", func(k string, v config.Value) {
-		var routeRule router.RouteRule
-		err := v.Scan(&routeRule)
-		if err == nil {
-			f(&routeRule)
-		} else {
-			fmt.Println("watch key routeRule failed!")
-		}
-	})
-}
-
-func (source *ruleSource) Load() (*router.RouteRule, error) {
-	var routeRule router.RouteRule
-
-	err := source.cfg.Value("routeRule").Scan(&routeRule)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Printf("%+v", routeRule)
-	return &routeRule, nil
 }
 
 func main() {
@@ -56,10 +29,8 @@ func main() {
 	if err := c.Load(); err != nil {
 		panic(err)
 	}
-	source := &ruleSource{
-		cfg: c,
-	}
-	r, err := router.New(source)
+
+	r, err := service.New(source.NewRule(c))
 	if err != nil {
 		panic(err)
 	}

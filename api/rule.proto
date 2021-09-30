@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package kratos.gateway;
 
-option go_package = "github.com/go-kratos/gateway/router";
+option go_package = "github.com/go-kratos/gateway/api";
 
-message RouteRule {
+// dynamic route rules
+message Rule {
     string version = 1;
     repeated Service service = 2;
 }
@@ -16,15 +17,18 @@ message Service {
 } 
 
 message Endpoint {
+    // http match
     string path = 1;
 	string method = 2;
 	map<string,string> header = 3;
     map<string,string> query = 4;
 
-    Backend backend = 5;
-    repeated Middleware middleware = 6;
-}
+    // filter & plugins
+    repeated Middleware middleware = 5;
 
+    // upstream
+    Backend backend = 6;
+}
 
 message Backend  {
     // hostname or servicename

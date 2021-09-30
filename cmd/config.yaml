@@ -1,5 +1,5 @@
 address: ":8080"
-routeRule:
+rule:
   version: "v1"
   service:
   - name: "test"
