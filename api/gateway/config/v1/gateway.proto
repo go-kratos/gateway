@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package gateway.config.v1;
 
-option go_package = "github.com/go-kratos/gateway/api";
+option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
+
+import "gateway/config/v1/protocol.proto";
 
 message Gateway {
   string name = 1;
@@ -10,6 +12,12 @@ message Gateway {
 }
 
 message Listener {
-  string address = 1;
-  // TODO TLSConfig
+  Protocol protocol = 1;
+  string address = 2;
+  TLSConfig tls = 3;
+}
+
+message TLSConfig {
+  string public_key = 1;
+  string private_key = 2;
 }
