@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package kratos.gateway;
+package gateway.config.v1;
 
 option go_package = "github.com/go-kratos/gateway/api";
 
