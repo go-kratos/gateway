@@ -7,14 +7,9 @@ option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 import "gateway/config/v1/protocol.proto";
 
 message Gateway {
-  string name = 1;
-  repeated Listener listeners = 2;
-}
-
-message Listener {
   Protocol protocol = 1;
   string address = 2;
-  TLSConfig tls = 3;
+  TLSConfig tls_config = 3;
 }
 
 message TLSConfig {

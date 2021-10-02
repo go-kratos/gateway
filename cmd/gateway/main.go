@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 
-	"github.com/go-kratos/gateway/server"
-	"github.com/go-kratos/gateway/service"
-	"github.com/go-kratos/gateway/source"
+	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/gateway"
+	"github.com/go-kratos/gateway/router/mux"
 
-	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 )
@@ -30,17 +30,17 @@ func main() {
 		panic(err)
 	}
 
-	r, err := service.New(source.NewRule(c))
-	if err != nil {
+	bc := new(configv1.Bootstrap)
+	if err := c.Scan(bc); err != nil {
 		panic(err)
 	}
-	server, err := server.New(":8080", r)
-	if err != nil {
+
+	router := mux.NewRouter()
+
+	// TODO buildRoute
+
+	if err := gateway.Run(context.Background(), router, bc.Gateways...); err != nil {
 		panic(err)
 	}
-	app := kratos.New(kratos.Server(server))
-	err = app.Run()
-	if err != nil {
-		panic(err)
-	}
+
 }

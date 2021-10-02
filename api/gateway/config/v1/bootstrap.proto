@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package gateway.config.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
+
+import "gateway/config/v1/gateway.proto";
+import "gateway/config/v1/service.proto";
+
+message Bootstrap {
+  repeated Gateway gateways = 1;
+  repeated Service services = 2;
+}

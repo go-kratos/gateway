@@ -1,0 +1,17 @@
+
+gateways:
+- protocol: "HTTP"
+  address: ":8000"
+- protocol: "GRPC"
+  address: ":9000"
+
+services:
+- name: "echo"
+  hosts: 
+  - "127.0.0.1:8000"
+  backends:
+  - target: "http://google.com"
+  endpoints:
+  - path: "/v1/api/echo"
+    method: "GET"
+    protocol: "HTTP"

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package gateway.config.v1;
 
-option go_package = "github.com/go-kratos/gateway/api";
+option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
 import "google/protobuf/struct.proto";
 import "gateway/config/v1/protocol.proto";
@@ -11,8 +11,7 @@ message Service {
   string name = 1;
   repeated string hosts = 2;
   repeated Endpoint endpoints = 3; 
-  // default middleware
-  repeated Middleware middlewares = 4;
+  repeated Backend backends = 7;
 }
 
 message Endpoint {
@@ -22,7 +21,6 @@ message Endpoint {
   string output = 4;
   Protocol protocol = 5;
   repeated Middleware middlewares = 6;
-  repeated Backend backends = 7;
 }
 
 message Middleware {
