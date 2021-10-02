@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package kratos.gateway;
+
+option go_package = "github.com/go-kratos/gateway/api";
+
+message Gateway {
+  string name = 1;
+  repeated Listener listeners = 2;
+}
+
+message Listener {
+  string address = 1;
+  // TODO TLSConfig
+}

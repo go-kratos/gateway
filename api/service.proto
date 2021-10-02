@@ -4,30 +4,19 @@ package kratos.gateway;
 
 option go_package = "github.com/go-kratos/gateway/api";
 
-// dynamic route rules
-message Rule {
-    string version = 1;
-    repeated Service service = 2;
-}
-
 message Service {
     string name = 1;
-    repeated string host = 3;
-    repeated Endpoint endpoint = 4; 
-} 
+    repeated string hosts = 2;
+    repeated Endpoint endpoints = 3; 
+}
 
 message Endpoint {
-    // http match
     string path = 1;
 	string method = 2;
-	map<string,string> header = 3;
-    map<string,string> query = 4;
-
-    // filter & plugins
-    repeated Middleware middleware = 5;
-
-    // upstream
-    Backend backend = 6;
+    string input = 3;
+    string output = 4;
+    repeated Middleware middlewares = 5;
+    repeated Backend backends = 6;
 }
 
 message Backend  {
@@ -43,6 +32,5 @@ message Backend  {
 
 message Middleware {
     string name = 1;
-    // middleware的配置
-    map<string,string> option = 4;
+    map<string, string> option = 4;
 }
