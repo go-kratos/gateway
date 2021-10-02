@@ -5,32 +5,32 @@ package gateway.config.v1;
 option go_package = "github.com/go-kratos/gateway/api";
 
 message Service {
-    string name = 1;
-    repeated string hosts = 2;
-    repeated Endpoint endpoints = 3; 
+  string name = 1;
+  repeated string hosts = 2;
+  repeated Endpoint endpoints = 3; 
 }
 
 message Endpoint {
-    string path = 1;
-	string method = 2;
-    string input = 3;
-    string output = 4;
-    repeated Middleware middlewares = 5;
-    repeated Backend backends = 6;
+  string path = 1;
+  string method = 2;
+  string input = 3;
+  string output = 4;
+  repeated Middleware middlewares = 5;
+  repeated Backend backends = 6;
 }
 
 message Backend  {
-    // hostname or servicename
-    repeated string target = 1;
-    // scheme is transport protocol like:grpc\http
-    string scheme = 3;
-    bool tls = 4;
-    string resolver = 5;
-    repeated string filter = 6;
-    string balancer = 7;
+  // hostname or servicename
+  repeated string target = 1;
+  // scheme is transport protocol like:grpc\http
+  string scheme = 3;
+  bool tls = 4;
+  string resolver = 5;
+  repeated string filter = 6;
+  string balancer = 7;
 }
 
 message Middleware {
-    string name = 1;
-    map<string, string> option = 4;
+  string name = 1;
+  map<string, string> option = 4;
 }
