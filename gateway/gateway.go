@@ -23,9 +23,13 @@ func Run(ctx context.Context, handler http.Handler, cs ...*config.Gateway) error
 			ReadHeaderTimeout: time.Second * 5,
 			IdleTimeout:       time.Second * 120,
 		}
-		log.Printf("gateway [%s] listening on %s\n", c.Protocol, c.Address)
+		log.Printf("gateway listening on %s\n", c.Address)
 		go func() {
-			done <- srv.ListenAndServe()
+			if c.TlsConfig != nil {
+				done <- srv.ListenAndServeTLS(c.TlsConfig.PrivateKey, c.TlsConfig.PublicKey)
+			} else {
+				done <- srv.ListenAndServe()
+			}
 		}()
 		go func() {
 			<-ctx.Done()

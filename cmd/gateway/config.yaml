@@ -1,9 +1,6 @@
 
 gateways:
-- protocol: "HTTP"
-  address: ":8000"
-- protocol: "GRPC"
-  address: ":9000"
+- address: ":8000"
 
 services:
 - name: "echo"
