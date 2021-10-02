@@ -4,6 +4,8 @@ package gateway.config.v1;
 
 option go_package = "github.com/go-kratos/gateway/api";
 
+import "google/protobuf/struct.proto";
+
 message Service {
   string name = 1;
   repeated string hosts = 2;
@@ -19,18 +21,15 @@ message Endpoint {
   repeated Backend backends = 6;
 }
 
-message Backend  {
-  // hostname or servicename
-  repeated string target = 1;
-  // scheme is transport protocol like:grpc\http
-  string scheme = 3;
-  bool tls = 4;
-  string resolver = 5;
-  repeated string filter = 6;
-  string balancer = 7;
-}
-
 message Middleware {
   string name = 1;
-  map<string, string> option = 4;
+  map<string, google.protobuf.Struct> options = 2;
+}
+
+message Backend  {
+  // http/grpc
+  string protocol = 1;
+  // host:port
+  // discovery://service_name
+  string target = 2;
 }
