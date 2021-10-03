@@ -9,6 +9,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var _ = new(router.Router)
+
 type muxRouter struct {
 	*mux.Router
 }
@@ -22,7 +24,7 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.Router.ServeHTTP(w, req)
 }
 
-func (r *muxRouter) Handle(pattern string, method string, endpoint endpoint.Endpoint) {
+func (r *muxRouter) Handle(pattern, method string, endpoint endpoint.Endpoint) {
 	next := r.Router.NewRoute().Handler(endpoint)
 	if strings.HasSuffix(pattern, "*") {
 		// /api/echo/*
