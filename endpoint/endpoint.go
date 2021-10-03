@@ -6,4 +6,4 @@ import "net/http"
 type Endpoint http.Handler
 
 // Middleware is a function which receives an http.Handler and returns another http.Handler.
-type Middleware func(http.Handler) http.Handler
+type Middleware func(Endpoint) Endpoint
