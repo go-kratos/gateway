@@ -5,7 +5,7 @@ import (
 	"flag"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/router/mux"
+	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
 
 	"github.com/go-kratos/kratos/v2/config"
@@ -35,11 +35,12 @@ func main() {
 		panic(err)
 	}
 
-	router := mux.NewRouter()
+	p, err := proxy.New(bc.Services)
+	if err != nil {
+		panic(err)
+	}
 
-	// TODO buildRoute
-
-	if err := server.Run(context.Background(), router, bc.Gateways...); err != nil {
+	if err := server.Run(context.Background(), p, bc.Gateways); err != nil {
 		panic(err)
 	}
 

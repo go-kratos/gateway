@@ -12,7 +12,7 @@ import (
 )
 
 // Run run a gateway server.
-func Run(ctx context.Context, handler http.Handler, cs ...*config.Gateway) error {
+func Run(ctx context.Context, handler http.Handler, cs []*config.Gateway) error {
 	done := make(chan error)
 	for _, c := range cs {
 		srv := &http.Server{
