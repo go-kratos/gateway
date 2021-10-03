@@ -2,6 +2,7 @@ package mux
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-kratos/gateway/router"
 	"github.com/gorilla/mux"
@@ -20,6 +21,18 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.Router.ServeHTTP(w, req)
 }
 
-func (r *muxRouter) Handle(pattern, method string, handler http.Handler) {
-	r.Router.Handle(pattern, handler).Methods(method)
+func (r *muxRouter) Handle(pattern string, method string, handler http.Handler) {
+	next := r.Router.NewRoute().Handler(handler)
+	if strings.HasSuffix(pattern, "*") {
+		// /api/echo/*
+		next = next.PathPrefix(strings.TrimRight(pattern, "*"))
+	} else {
+		// /api/echo/hello
+		// /api/echo/[a-z]+
+		// /api/echo/{name}
+		next = next.Path(pattern)
+	}
+	if method != "" {
+		next = next.Methods(method)
+	}
 }

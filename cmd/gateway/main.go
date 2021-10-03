@@ -5,8 +5,8 @@ import (
 	"flag"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/gateway"
 	"github.com/go-kratos/gateway/router/mux"
+	"github.com/go-kratos/gateway/server"
 
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -39,7 +39,7 @@ func main() {
 
 	// TODO buildRoute
 
-	if err := gateway.Run(context.Background(), router, bc.Gateways...); err != nil {
+	if err := server.Run(context.Background(), router, bc.Gateways...); err != nil {
 		panic(err)
 	}
 

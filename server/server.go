@@ -1,4 +1,4 @@
-package gateway
+package server
 
 import (
 	"context"
@@ -16,8 +16,10 @@ func Run(ctx context.Context, handler http.Handler, cs ...*config.Gateway) error
 	done := make(chan error)
 	for _, c := range cs {
 		srv := &http.Server{
-			Addr:              c.Address,
-			Handler:           h2c.NewHandler(handler, &http2.Server{}),
+			Addr: c.Address,
+			Handler: h2c.NewHandler(handler, &http2.Server{
+				IdleTimeout: time.Second * 120,
+			}),
 			ReadTimeout:       time.Second * 5,
 			WriteTimeout:      time.Second * 5,
 			ReadHeaderTimeout: time.Second * 5,
