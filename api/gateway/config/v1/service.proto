@@ -29,9 +29,11 @@ message Middleware {
 }
 
 message Backend  {
-  // http/grpc
-  Protocol protocol = 1;
   // host:port
   // discovery://service_name
-  string target = 2;
+  string target = 1;
+  // TCP/HTTP/GRPC
+  HealthCheck health_check = 2;
 }
+
+message HealthCheck {}
