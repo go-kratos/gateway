@@ -35,11 +35,13 @@ func main() {
 		panic(err)
 	}
 
-	p, err := proxy.New(bc.Services)
+	p, err := proxy.New()
 	if err != nil {
 		panic(err)
 	}
-
+	if err := p.Update(bc.Services); err != nil {
+		panic(err)
+	}
 	if err := server.Run(context.Background(), p, bc.Gateways); err != nil {
 		panic(err)
 	}
