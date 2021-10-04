@@ -18,13 +18,6 @@ type MiddlewareFactory func(ms []*config.Middleware, handler http.Handler) (http
 // Option is proxy option func.
 type Option func(*Proxy)
 
-// WithClientFactory with client factory.
-func WithClientFactory(f ClientFactory) Option {
-	return func(o *Proxy) {
-		o.clientFactory = f
-	}
-}
-
 // WithMiddewareFactory with middleware factory.
 func WithMiddewareFactory(f MiddlewareFactory) Option {
 	return func(o *Proxy) {

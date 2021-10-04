@@ -34,7 +34,8 @@ func main() {
 		panic(err)
 	}
 
-	p, err := proxy.New()
+	// TODO add client manager
+	p, err := proxy.New(nil)
 	if err != nil {
 		panic(err)
 	}

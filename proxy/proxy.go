@@ -17,8 +17,9 @@ type Proxy struct {
 }
 
 // New new a gateway proxy.
-func New(opts ...Option) (*Proxy, error) {
+func New(clientFactory ClientFactory, opts ...Option) (*Proxy, error) {
 	p := &Proxy{
+		clientFactory:     clientFactory,
 		middlewareFactory: defaultMiddlewareFactory,
 	}
 	for _, o := range opts {
