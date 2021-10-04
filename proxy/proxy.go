@@ -5,33 +5,9 @@ import (
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 )
-
-// ClientFactory is returns service client.
-type ClientFactory func(service *config.Service) (client.Client, error)
-
-// MiddlewareFactory is returns middleware handler.
-type MiddlewareFactory func(ms []*config.Middleware, handler http.Handler) (http.Handler, error)
-
-// Option is proxy option func.
-type Option func(*Proxy)
-
-// WithClientFactory with client factory.
-func WithClientFactory(f ClientFactory) Option {
-	return func(o *Proxy) {
-		o.clientFactory = f
-	}
-}
-
-// WithMiddewareFactory with middleware factory.
-func WithMiddewareFactory(f MiddlewareFactory) Option {
-	return func(o *Proxy) {
-		o.middlewareFactory = f
-	}
-}
 
 // Proxy is a gateway proxy.
 type Proxy struct {
@@ -41,8 +17,13 @@ type Proxy struct {
 }
 
 // New new a gateway proxy.
-func New() (*Proxy, error) {
-	p := &Proxy{}
+func New(opts ...Option) (*Proxy, error) {
+	p := &Proxy{
+		middlewareFactory: defaultMiddlewareFactory,
+	}
+	for _, o := range opts {
+		o(p)
+	}
 	p.router.Store(mux.NewRouter())
 	return p, nil
 }
