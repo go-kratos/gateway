@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"net/http"
 	"sync/atomic"
 
@@ -36,6 +37,8 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler http.Handler) (
 		switch m.Name {
 		case cors.Name:
 			handler = cors.Middleware(m)(handler)
+		default:
+			return nil, fmt.Errorf("not found middleware: %s", m.Name)
 		}
 	}
 	return handler, nil

@@ -20,7 +20,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-
 	c := config.New(
 		config.WithSource(
 			file.NewSource(flagconf),
@@ -45,5 +44,4 @@ func main() {
 	if err := server.Run(context.Background(), p, bc.Gateways); err != nil {
 		panic(err)
 	}
-
 }
