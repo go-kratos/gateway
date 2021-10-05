@@ -6,15 +6,16 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 )
 
 // ClientFactory is returns service client.
-type ClientFactory func(service *config.Service) (client.Client, error)
+type ClientFactory func(*config.Service) (client.Client, error)
 
 // MiddlewareFactory is returns middleware handler.
-type MiddlewareFactory func(ms []*config.Middleware, handler http.Handler) (http.Handler, error)
+type MiddlewareFactory func(*config.Middleware) (middleware.Middleware, error)
 
 // Proxy is a gateway proxy.
 type Proxy struct {
@@ -34,9 +35,17 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 }
 
 func (p *Proxy) buildEndpoint(caller client.Client, endpoint *config.Endpoint) (http.Handler, error) {
-	return p.middlewareFactory(endpoint.Middlewares, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		caller.Invoke(w, req)
 	}))
+	for _, mc := range endpoint.Middlewares {
+		m, err := p.middlewareFactory(mc)
+		if err != nil {
+			return nil, err
+		}
+		handler = m(handler)
+	}
+	return handler, nil
 }
 
 // Update updates service endpoint.

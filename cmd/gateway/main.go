@@ -4,10 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/middleware/cors"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
@@ -22,16 +22,13 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "config.yaml", "config path, eg: -conf config.yaml")
 }
 
-func middlewares(ms []*configv1.Middleware, handler http.Handler) (http.Handler, error) {
-	for _, m := range ms {
-		switch m.Name {
-		case cors.Name:
-			handler = cors.Middleware(m)(handler)
-		default:
-			return nil, fmt.Errorf("not found middleware: %s", m.Name)
-		}
+func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
+	switch c.Name {
+	case cors.Name:
+		return cors.Middleware(c)
+	default:
+		return nil, fmt.Errorf("not found middleware: %s", c.Name)
 	}
-	return handler, nil
 }
 
 func main() {

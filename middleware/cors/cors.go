@@ -11,11 +11,11 @@ import (
 const Name = "cors"
 
 // Middleware automatically sets the allow response header.
-func Middleware(c *config.Middleware) middleware.Middleware {
+func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// TODO
 			next.ServeHTTP(w, req)
 		})
-	}
+	}, nil
 }
