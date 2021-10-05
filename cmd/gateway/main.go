@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
 
@@ -34,8 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	// TODO add client manager
-	p, err := proxy.New(nil)
+	p, err := proxy.New(client.NewFactory())
 	if err != nil {
 		panic(err)
 	}

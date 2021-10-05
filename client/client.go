@@ -11,7 +11,10 @@ type Client interface {
 	Invoke(w http.ResponseWriter, req *http.Request)
 }
 
-// NewClient new a proxy client.
-func NewClient(c *config.Service) (Client, error) {
-	return nil, nil
+// NewFactory new a client factory.
+func NewFactory() func(service *config.Service) (Client, error) {
+	return func(service *config.Service) (Client, error) {
+		// TODO new a proxy client
+		return nil, nil
+	}
 }

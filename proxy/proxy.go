@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 )
@@ -29,6 +30,12 @@ func New(clientFactory ClientFactory, opts ...Option) (*Proxy, error) {
 	return p, nil
 }
 
+func (p *Proxy) buildEndpoint(caller client.Client, endpoint *config.Endpoint) (http.Handler, error) {
+	return p.middlewareFactory(endpoint.Middlewares, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		caller.Invoke(w, req)
+	}))
+}
+
 // Update updates service endpoint.
 func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
@@ -38,9 +45,7 @@ func (p *Proxy) Update(services []*config.Service) error {
 			return err
 		}
 		for _, e := range s.Endpoints {
-			handler, err := p.middlewareFactory(e.Middlewares, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				caller.Invoke(w, req)
-			}))
+			handler, err := p.buildEndpoint(caller, e)
 			if err != nil {
 				return err
 			}
