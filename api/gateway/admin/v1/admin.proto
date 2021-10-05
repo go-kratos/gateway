@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package gateway.admin.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/admin/v1";
+
+import "gateway/config/v1/gateway.proto";
+import "gateway/config/v1/service.proto";
+
+service Admin {
+  // gateway
+  rpc AddGateway(AddGatewayRequest) returns (AddGatewayReply) {}
+  rpc DeleteGateway(DeleteGatewayRequest) returns (DeleteGatewayReply) {}
+  rpc ListGateway(ListGatewayRequest) returns (ListGatewayReply) {}
+  // service
+  rpc AddService(AddServiceRequest) returns (AddServiceReply) {}
+  rpc DeleteService(DeleteServiceRequest) returns (DeleteServiceReply) {}
+  rpc ListService(DeleteServiceRequest) returns (ListServiceReply) {}
+}
+
+message AddGatewayRequest {
+  repeated gateway.config.v1.Gateway gateways = 1;
+}
+message AddGatewayReply {}
+
+message DeleteGatewayRequest {
+  repeated string gateway_addresses = 1;
+}
+message DeleteGatewayReply {}
+
+message ListGatewayRequest {}
+message ListGatewayReply {}
+
+message AddServiceRequest {
+  repeated gateway.config.v1.Service services = 1;
+}
+message AddServiceReply {}
+
+message DeleteServiceRequest {
+  repeated string service_names = 1;
+}
+message DeleteServiceReply {}
+
+message ListServiceRequest {}
+message ListServiceReply {}
