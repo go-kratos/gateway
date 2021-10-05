@@ -169,7 +169,7 @@ func (x *Endpoint) GetProtocol() Protocol {
 	if x != nil {
 		return x.Protocol
 	}
-	return Protocol_UNKNOWN
+	return Protocol_HTTP
 }
 
 func (x *Endpoint) GetMiddlewares() []*Middleware {

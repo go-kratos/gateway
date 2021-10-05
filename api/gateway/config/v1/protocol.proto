@@ -5,7 +5,6 @@ package gateway.config.v1;
 option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
 enum Protocol {
-  UNKNOWN = 0;
-  HTTP = 1;
-  GRPC = 2;
+  HTTP = 0;
+  GRPC = 1;
 }

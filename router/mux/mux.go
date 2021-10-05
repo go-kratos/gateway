@@ -34,7 +34,7 @@ func (r *muxRouter) Handle(pattern, method string, handler http.Handler) {
 		// /api/echo/{name}
 		next = next.Path(pattern)
 	}
-	if method != "" {
+	if method != "" && method != "*" {
 		next = next.Methods(method)
 	}
 }
