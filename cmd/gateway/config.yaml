@@ -1,4 +1,7 @@
 
+admin:
+  address: ":9000"
+
 gateways:
 - address: ":8000"
 
