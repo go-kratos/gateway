@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -9,7 +10,7 @@ import (
 
 // Client is a proxy client.
 type Client interface {
-	Invoke(w http.ResponseWriter, req *http.Request)
+	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
 type clientImpl struct{}

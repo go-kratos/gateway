@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"io"
 	"net/http"
 	"sync/atomic"
 
@@ -36,7 +37,19 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 
 func (p *Proxy) buildEndpoint(caller client.Client, endpoint *config.Endpoint) (http.Handler, error) {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		caller.Invoke(w, req)
+		resp, err := caller.Invoke(req.Context(), req)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		defer resp.Body.Close()
+		header := w.Header()
+		for k, v := range resp.Header {
+			header[k] = v
+		}
+		w.WriteHeader(resp.StatusCode)
+		_, err = io.Copy(w, resp.Body)
 	}))
 	for _, mc := range endpoint.Middlewares {
 		m, err := p.middlewareFactory(mc)
