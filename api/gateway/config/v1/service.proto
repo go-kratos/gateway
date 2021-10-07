@@ -16,8 +16,9 @@ message Service {
 message Endpoint {
   string path = 1;
   string method = 2;
-  repeated Middleware middlewares = 3;
-  repeated Backend backends = 4;
+  string description = 3;
+  repeated Middleware middlewares = 4;
+  repeated Backend backends = 5;
 }
 
 message Middleware {
@@ -30,7 +31,7 @@ message Backend  {
   // host:port
   // discovery://service_name
   string target = 2;
-  // TCP/HTTP/GRPC
+  // HTTP/GRPC
   HealthCheck health_check = 3;
 }
 
