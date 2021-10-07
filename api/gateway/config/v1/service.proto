@@ -11,16 +11,13 @@ message Service {
   string name = 1;
   repeated string hosts = 2;
   repeated Endpoint endpoints = 3; 
-  repeated Backend backends = 7;
 }
 
 message Endpoint {
   string path = 1;
   string method = 2;
-  string input = 3;
-  string output = 4;
-  Protocol protocol = 5;
   repeated Middleware middlewares = 6;
+  repeated Backend backends = 7;
 }
 
 message Middleware {
@@ -34,6 +31,7 @@ message Backend  {
   string target = 1;
   // TCP/HTTP/GRPC
   HealthCheck health_check = 2;
+  Protocol protocol = 5;
 }
 
 message HealthCheck {}
