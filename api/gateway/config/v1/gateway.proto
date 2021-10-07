@@ -4,12 +4,17 @@ package gateway.config.v1;
 
 option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
-import "gateway/config/v1/protocol.proto";
+import "google/protobuf/duration.proto";
 
 message Gateway {
-  Protocol protocol = 1;
-  string address = 2;
-  TLSConfig tls_config = 3;
+  // :80
+  string address = 1;
+  // TLS config
+  TLSConfig tls_config = 2;
+  // default is 15s
+  google.protobuf.Duration timeout = 3;
+  // default is 300s
+  google.protobuf.Duration idle_timeout = 4;
 }
 
 message TLSConfig {

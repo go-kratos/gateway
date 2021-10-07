@@ -5,6 +5,7 @@ package gateway.config.v1;
 option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
 import "google/protobuf/struct.proto";
+import "google/protobuf/duration.proto";
 import "gateway/config/v1/protocol.proto";
 
 message Service {
@@ -17,8 +18,9 @@ message Endpoint {
   string path = 1;
   string method = 2;
   string description = 3;
-  repeated Middleware middlewares = 4;
-  repeated Backend backends = 5;
+  google.protobuf.Duration timeout = 4;
+  repeated Middleware middlewares = 5;
+  repeated Backend backends = 6;
 }
 
 message Middleware {

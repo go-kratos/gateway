@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"sync/atomic"
@@ -13,7 +14,7 @@ import (
 )
 
 // ClientFactory is returns service client.
-type ClientFactory func(*config.Service) (client.Client, error)
+type ClientFactory func(*config.Endpoint) (client.Client, error)
 
 // MiddlewareFactory is returns middleware handler.
 type MiddlewareFactory func(*config.Middleware) (middleware.Middleware, error)
@@ -37,7 +38,9 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 
 func (p *Proxy) buildEndpoint(caller client.Client, endpoint *config.Endpoint) (http.Handler, error) {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		resp, err := caller.Invoke(req.Context(), req)
+		ctx, cancel := context.WithTimeout(req.Context(), endpoint.Timeout.AsDuration())
+		defer cancel()
+		resp, err := caller.Invoke(ctx, req)
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte(err.Error()))
@@ -65,11 +68,11 @@ func (p *Proxy) buildEndpoint(caller client.Client, endpoint *config.Endpoint) (
 func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
 	for _, s := range services {
-		caller, err := p.clientFactory(s)
-		if err != nil {
-			return err
-		}
 		for _, e := range s.Endpoints {
+			caller, err := p.clientFactory(e)
+			if err != nil {
+				return err
+			}
 			handler, err := p.buildEndpoint(caller, e)
 			if err != nil {
 				return err

@@ -22,8 +22,8 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Respo
 }
 
 // NewFactory new a client factory.
-func NewFactory() func(service *config.Service) (Client, error) {
-	return func(service *config.Service) (Client, error) {
+func NewFactory() func(c *config.Endpoint) (Client, error) {
+	return func(c *config.Endpoint) (Client, error) {
 		// TODO new a proxy client
 		return &clientImpl{}, nil
 	}
