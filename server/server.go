@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/proxy"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -20,6 +22,11 @@ func Run(ctx context.Context, handler http.Handler, cs []*config.Gateway) error 
 			Handler: h2c.NewHandler(handler, &http2.Server{
 				IdleTimeout: time.Second * 120,
 			}),
+			ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+				return proxy.NewContext(ctx, &proxy.Context{
+					Labels: make(map[string]string),
+				})
+			},
 			ReadTimeout:       time.Second * 5,
 			WriteTimeout:      time.Second * 5,
 			ReadHeaderTimeout: time.Second * 5,

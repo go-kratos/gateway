@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -15,8 +16,9 @@ type Client interface {
 
 type clientImpl struct{}
 
-func (c *clientImpl) Invoke(w http.ResponseWriter, req *http.Request) {
+func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
 	log.Printf("invoke [%s] %s\n", req.Method, req.URL.Path)
+	return nil, fmt.Errorf("not implemented")
 }
 
 // NewFactory new a client factory.
