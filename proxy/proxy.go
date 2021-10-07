@@ -61,6 +61,10 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		} else {
 			w.WriteHeader(resp.StatusCode)
 		}
+		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
+		for k, v := range resp.Trailer {
+			sets[k] = v
+		}
 	}))
 	for _, mc := range endpoint.Middlewares {
 		m, err := p.middlewareFactory(mc)
