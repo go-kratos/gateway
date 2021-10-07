@@ -8,15 +8,10 @@ gateways:
 services:
 - name: "echo"
   hosts: 
-  - "127.0.0.1:8000"
-  backends:
-  - target: "http://google.com"
+  - "localhost"
   endpoints:
   - path: "/v1/api/echo/*"
     method: "*"
-  - path: "/v1/api/echo/hello"
-    method: "GET"
-  - path: "/v1/api/echo/{name}"
-    method: "GET"
-  - path: "/v1/api/echo/[a-zA-Z]+"
-    method: "GET"
+    timeout: "1s"
+    backends:
+      - target: "http://google.com"

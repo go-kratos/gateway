@@ -4,18 +4,18 @@ import "context"
 
 type contextKey struct{}
 
-// Context is a proxy context.
-type Context struct {
+// RequestOptions is a request option.
+type RequestOptions struct {
 	Labels map[string]string
 }
 
 // NewContext returns a new Context that carries value.
-func NewContext(ctx context.Context, c *Context) context.Context {
-	return context.WithValue(ctx, contextKey{}, c)
+func NewContext(ctx context.Context, o *RequestOptions) context.Context {
+	return context.WithValue(ctx, contextKey{}, o)
 }
 
 // FromContext returns the Context value stored in ctx, if any.
-func FromContext(ctx context.Context) (c *Context, ok bool) {
-	c, ok = ctx.Value(contextKey{}).(*Context)
+func FromContext(ctx context.Context) (o *RequestOptions, ok bool) {
+	o, ok = ctx.Value(contextKey{}).(*RequestOptions)
 	return
 }

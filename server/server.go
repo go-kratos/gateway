@@ -27,7 +27,7 @@ func Run(ctx context.Context, handler http.Handler, cs []*config.Gateway) error 
 				IdleTimeout: c.IdleTimeout.AsDuration(),
 			}),
 			ConnContext: func(ctx context.Context, c net.Conn) context.Context {
-				return proxy.NewContext(ctx, &proxy.Context{
+				return proxy.NewContext(ctx, &proxy.RequestOptions{
 					Labels: make(map[string]string),
 				})
 			},

@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"sync/atomic"
 
@@ -36,23 +37,29 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 	return p, nil
 }
 
-func (p *Proxy) buildEndpoint(caller client.Client, endpoint *config.Endpoint) (http.Handler, error) {
+func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
+	caller, err := p.clientFactory(endpoint)
+	if err != nil {
+		return nil, err
+	}
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), endpoint.Timeout.AsDuration())
 		defer cancel()
 		resp, err := caller.Invoke(ctx, req)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer resp.Body.Close()
-		header := w.Header()
+		sets := w.Header()
 		for k, v := range resp.Header {
-			header[k] = v
+			sets[k] = v
 		}
-		w.WriteHeader(resp.StatusCode)
-		_, err = io.Copy(w, resp.Body)
+		if _, err = io.Copy(w, resp.Body); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(resp.StatusCode)
+		}
 	}))
 	for _, mc := range endpoint.Middlewares {
 		m, err := p.middlewareFactory(mc)
@@ -69,11 +76,7 @@ func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
 	for _, s := range services {
 		for _, e := range s.Endpoints {
-			caller, err := p.clientFactory(e)
-			if err != nil {
-				return err
-			}
-			handler, err := p.buildEndpoint(caller, e)
+			handler, err := p.buildEndpoint(e)
 			if err != nil {
 				return err
 			}
@@ -85,5 +88,11 @@ func (p *Proxy) Update(services []*config.Service) error {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println(err)
+		}
+	}()
 	p.router.Load().(router.Router).ServeHTTP(w, r)
 }
