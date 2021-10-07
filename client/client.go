@@ -11,12 +11,12 @@ import (
 
 // Client is a proxy client.
 type Client interface {
-	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
+	Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (*http.Response, error)
 }
 
 type clientImpl struct{}
 
-func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (*http.Response, error) {
 	log.Printf("invoke [%s] %s\n", req.Method, req.URL.Path)
 	return nil, fmt.Errorf("not implemented")
 }

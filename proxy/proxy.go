@@ -43,9 +43,10 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		return nil, err
 	}
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		opts, _ := FromContext(req.Context())
 		ctx, cancel := context.WithTimeout(req.Context(), endpoint.Timeout.AsDuration())
 		defer cancel()
-		resp, err := caller.Invoke(ctx, req)
+		resp, err := caller.Invoke(ctx, req, client.WithLabels(opts.Labels))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
