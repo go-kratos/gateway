@@ -10,6 +10,7 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/middleware/cors"
 	"github.com/go-kratos/gateway/middleware/dyeing"
+	"github.com/go-kratos/gateway/middleware/tracing/otel"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
 
@@ -29,6 +30,8 @@ func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
 		return cors.Middleware(c)
 	case dyeing.Name:
 		return dyeing.Middleware(c)
+	case otel.Name:
+		return otel.Middleware(c)
 	default:
 		return nil, fmt.Errorf("not found middleware: %s", c.Name)
 	}
