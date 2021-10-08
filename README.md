@@ -18,6 +18,8 @@ HTTP -> Proxy -> Router -> Middleware -> Client -> Selector -> Node
 
 ## Middleware
 * cors
+* auth
+* datacenter
 * dyeing
 * logging
 * tracing
