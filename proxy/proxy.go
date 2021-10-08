@@ -84,6 +84,14 @@ func (p *Proxy) Update(services []*config.Service) error {
 			if err != nil {
 				return err
 			}
+			// setup default middlewares
+			for _, mc := range s.Middlewares {
+				m, err := p.middlewareFactory(mc)
+				if err != nil {
+					return err
+				}
+				handler = m(handler)
+			}
 			router.Handle(e.Path, e.Method, handler)
 		}
 	}
