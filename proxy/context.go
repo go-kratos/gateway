@@ -1,12 +1,16 @@
 package proxy
 
-import "context"
+import (
+	"context"
+
+	"github.com/go-kratos/kratos/v2/selector"
+)
 
 type contextKey struct{}
 
 // RequestOptions is a request option.
 type RequestOptions struct {
-	Labels map[string]string
+	Filters []selector.Filter
 }
 
 // NewContext returns a new Context that carries value.

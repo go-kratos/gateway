@@ -1,14 +1,15 @@
 package client
 
+import "github.com/go-kratos/kratos/v2/selector"
+
 // callInfo contains all related configuration and information about an RPC.
 type callInfo struct {
-	labels map[string]string
+	filters []selector.Filter
 }
 
 // csAttempt implements a single transport stream attempt within a
 // clientStream.
-type csAttempt struct {
-}
+type csAttempt struct{}
 
 // CallOption configures a Call before it starts or extracts information from
 // a Call after it completes.
@@ -24,17 +25,21 @@ type CallOption interface {
 
 // LabelOption .
 type LabelOption struct {
-	Labels map[string]string
+	Filters []selector.Filter
 }
 
 func (o LabelOption) before(c *callInfo) error {
-	o.Labels = c.labels
+	c.filters = o.Filters
 	return nil
 }
 
 func (o LabelOption) after(*callInfo, *csAttempt) {}
 
-// WithLabels .
-func WithLabels(labels map[string]string) CallOption {
-	return LabelOption{Labels: labels}
+// WithFilter .
+func WithFilter(filters []selector.Filter) CallOption {
+	return LabelOption{Filters: filters}
+}
+
+func defaultCallInfo() callInfo {
+	return callInfo{}
 }

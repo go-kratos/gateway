@@ -9,9 +9,12 @@ services:
 - name: "echo"
   hosts: 
   - "localhost"
+  - "127.0.0.1"
   endpoints:
-  - path: "/v1/api/echo/*"
+  - path: "/v1/echo/*"
     method: "*"
     timeout: "1s"
+    middlewares:
+      - name: "dyeing"
     backends:
-      - target: "http://google.com"
+      - target: "www.baidu.com"

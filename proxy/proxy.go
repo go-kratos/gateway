@@ -15,7 +15,7 @@ import (
 )
 
 // ClientFactory is returns service client.
-type ClientFactory func(*config.Endpoint) (client.Client, error)
+type ClientFactory func(backends []*config.Backend) (client.Client, error)
 
 // MiddlewareFactory is returns middleware handler.
 type MiddlewareFactory func(*config.Middleware) (middleware.Middleware, error)
@@ -38,7 +38,7 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 }
 
 func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
-	caller, err := p.clientFactory(endpoint)
+	caller, err := p.clientFactory(endpoint.Backends)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		opts, _ := FromContext(req.Context())
 		ctx, cancel := context.WithTimeout(req.Context(), endpoint.Timeout.AsDuration())
 		defer cancel()
-		resp, err := caller.Invoke(ctx, req, client.WithLabels(opts.Labels))
+		resp, err := caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -56,10 +56,9 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		for k, v := range resp.Header {
 			sets[k] = v
 		}
+		w.WriteHeader(resp.StatusCode)
 		if _, err = io.Copy(w, resp.Body); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(resp.StatusCode)
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {

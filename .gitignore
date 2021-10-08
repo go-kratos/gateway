@@ -20,6 +20,7 @@ vendor/
 *.a
 *.so
 cmd/cmd
+cmd/gateway/gateway
 
 # OS General
 Thumbs.db
