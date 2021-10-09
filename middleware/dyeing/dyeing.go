@@ -35,6 +35,14 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 							filtered = append(filtered, n)
 						}
 					}
+					if len(filtered) == 0 {
+						for _, n := range nodes {
+							md := n.Metadata()
+							if _, ok := md[colorLabel]; !ok {
+								filtered = append(filtered, n)
+							}
+						}
+					}
 					return filtered
 				}
 				if options, ok := proxy.FromContext(req.Context()); ok {
