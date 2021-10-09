@@ -11,17 +11,15 @@ message Service {
   string name = 1;
   repeated string hosts = 2;
   repeated Endpoint endpoints = 3;
-  // default middewares
+  // default middlewares
   repeated Middleware middlewares = 4;
 }
 
 message Endpoint {
   string method = 1;
   string path = 2;
-  // service api protocol
-  // HTTP/GRPC
-  Protocol protocol = 3;
-  string description = 4;
+  string description = 3;
+  Protocol protocol = 4;
   google.protobuf.Duration timeout = 5;
   repeated Middleware middlewares = 6;
   repeated Backend backends = 7;

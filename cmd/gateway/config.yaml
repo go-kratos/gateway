@@ -10,20 +10,19 @@ services:
   hosts: 
   - "localhost"
   - "127.0.0.1"
+  middlewares:
+  - name: "cors"
+  - name: "dyeing"
   endpoints:
   - path: "/helloworld/*"
     method: "*"
     timeout: "1s"
-    middlewares:
-      - name: "dyeing"
-    backends:
-      - target: "127.0.0.1:8000"
     protocol: "HTTP"
+    backends:
+    - target: "127.0.0.1:8000"
   - path: "/helloworld.Greeter/*"
     method: "*"
     timeout: "1s"
-    middlewares:
-      - name: "dyeing"
-    backends:
-      - target: "127.0.0.1:9000"
     protocol: "GRPC"
+    backends:
+    - target: "127.0.0.1:9000"

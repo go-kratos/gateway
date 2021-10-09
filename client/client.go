@@ -81,9 +81,9 @@ func NewFactory() func(endpoint *config.Endpoint) (Client, error) {
 				}
 			}
 			node := &node{
+				protocol: endpoint.Protocol,
 				address:  backend.Target,
 				client:   client,
-				protocol: endpoint.Protocol,
 				weight:   backend.Weight,
 			}
 			nodes = append(nodes, node)
