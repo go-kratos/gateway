@@ -58,7 +58,6 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 	resp, err := node.client.Do(req)
 	if err != nil {
 		log.Printf("invoke error: %s\n", err.Error())
-
 		return nil, err
 	}
 	return resp, nil
