@@ -22,7 +22,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			colorLabel = v.GetStringValue()
 		}
 	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			color := req.Header.Get(colorLabel)
@@ -49,7 +48,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					options.Filters = append(options.Filters, f)
 				}
 			}
-			// TODO
 			next.ServeHTTP(w, req)
 		})
 	}, nil
