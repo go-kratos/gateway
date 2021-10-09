@@ -3,16 +3,14 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net"
 	"net/http"
-	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"golang.org/x/net/http2"
-
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
+
+	"golang.org/x/net/http2"
 )
 
 // Client is a proxy client.
@@ -38,14 +36,12 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
 	node := c.nodes[selected.Address()]
-	scheme := "http"
-	req.URL.Scheme = scheme
+	req.URL.Scheme = "http"
 	req.URL.Host = selected.Address()
 	req.Host = selected.Address()
 	req.RequestURI = ""
 	resp, err := node.client.Do(req)
 	if err != nil {
-		log.Printf("invoke error: %s\n", err.Error())
 		return nil, err
 	}
 	return resp, nil
@@ -54,30 +50,24 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 // NewFactory new a client factory.
 func NewFactory() func(endpoint *config.Endpoint) (Client, error) {
 	return func(endpoint *config.Endpoint) (Client, error) {
-		s := wrr.New()
 		c := &clientImpl{
-			selector: s,
+			selector: wrr.New(),
 			nodes:    make(map[string]*node),
 		}
 		var nodes []selector.Node
 		for _, backend := range endpoint.Backends {
-			var client *http.Client
+			client := &http.Client{
+				Timeout: endpoint.Timeout.AsDuration(),
+			}
 			if endpoint.Protocol == config.Protocol_GRPC {
-				client = &http.Client{
-					Timeout: time.Second * 15,
-					Transport: &http2.Transport{
-						// So http2.Transport doesn't complain the URL scheme isn't 'https'
-						AllowHTTP: true,
-						// Pretend we are dialing a TLS endpoint.
-						// Note, we ignore the passed tls.Config
-						DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-							return net.Dial(network, addr)
-						},
+				client.Transport = &http2.Transport{
+					// So http2.Transport doesn't complain the URL scheme isn't 'https'
+					AllowHTTP: true,
+					// Pretend we are dialing a TLS endpoint.
+					// Note, we ignore the passed tls.Config
+					DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+						return net.Dial(network, addr)
 					},
-				}
-			} else {
-				client = &http.Client{
-					Timeout: time.Second * 15,
 				}
 			}
 			node := &node{
@@ -89,7 +79,7 @@ func NewFactory() func(endpoint *config.Endpoint) (Client, error) {
 			nodes = append(nodes, node)
 			c.nodes[backend.Target] = node
 		}
-		s.Apply(nodes)
+		c.selector.Apply(nodes)
 		return c, nil
 	}
 }
