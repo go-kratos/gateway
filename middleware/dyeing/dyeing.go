@@ -14,11 +14,11 @@ import (
 // Name is the middleware name.
 const Name = "dyeing"
 
-// Middleware automatically sets the allow response header.
+// Middleware .
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
-	colorLabel := "dyeing_color"
+	colorLabel := "color"
 	if c.Options != nil {
-		if v := c.Options.Fields["color_label"]; v != nil {
+		if v := c.Options.Fields["label"]; v != nil {
 			colorLabel = v.GetStringValue()
 		}
 	}
