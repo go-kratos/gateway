@@ -3,7 +3,7 @@ admin:
   address: ":7000"
 
 gateways:
-- address: ":8000"
+- address: ":8080"
 
 services:
 - name: "echo"
@@ -11,10 +11,23 @@ services:
   - "localhost"
   - "127.0.0.1"
   endpoints:
-  - path: "/v1/echo/*"
+  - path: "/helloworld/*"
     method: "*"
     timeout: "1s"
     middlewares:
       - name: "dyeing"
     backends:
-      - target: "www.baidu.com"
+      - target: "127.0.0.1:8000"
+- name: "helloworld"
+  hosts: 
+  - "localhost"
+  - "127.0.0.1"
+  protocol: 1
+  endpoints:
+  - path: "/helloworld.Greeter/*"
+    method: "*"
+    timeout: "1s"
+    middlewares:
+      - name: "dyeing"
+    backends:
+      - target: "127.0.0.1:9000"

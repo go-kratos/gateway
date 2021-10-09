@@ -15,7 +15,7 @@ import (
 )
 
 // ClientFactory is returns service client.
-type ClientFactory func(backends []*config.Backend) (client.Client, error)
+type ClientFactory func(protocol config.Protocol, backends []*config.Backend) (client.Client, error)
 
 // MiddlewareFactory is returns middleware handler.
 type MiddlewareFactory func(*config.Middleware) (middleware.Middleware, error)
@@ -37,8 +37,8 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 	return p, nil
 }
 
-func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
-	caller, err := p.clientFactory(endpoint.Backends)
+func (p *Proxy) buildEndpoint(protocol config.Protocol, endpoint *config.Endpoint) (http.Handler, error) {
+	caller, err := p.clientFactory(protocol, endpoint.Backends)
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +48,7 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		defer cancel()
 		resp, err := caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
 		if err != nil {
+
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -56,6 +57,11 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		for k, v := range resp.Header {
 			sets[k] = v
 		}
+		if protocol == config.Protocol_GRPC {
+			w.Header().Set("Trailer", "Grpc-Message")
+			w.Header().Add("Trailer", "Grpc-Status")
+		}
+
 		w.WriteHeader(resp.StatusCode)
 		if _, err = io.Copy(w, resp.Body); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -80,7 +86,7 @@ func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
 	for _, s := range services {
 		for _, e := range s.Endpoints {
-			handler, err := p.buildEndpoint(e)
+			handler, err := p.buildEndpoint(s.Protocol, e)
 			if err != nil {
 				return err
 			}

@@ -13,6 +13,9 @@ message Service {
   repeated Endpoint endpoints = 3;
   // default middewares
   repeated Middleware middlewares = 4;
+  // service api protocol
+  // HTTP/GRPC
+  Protocol protocol = 5;
 }
 
 message Endpoint {
@@ -30,13 +33,12 @@ message Middleware {
 }
 
 message Backend  {
-  Protocol protocol = 1;
   // localhost
   // 127.0.0.1:8000
   // discovery://service_name
-  string target = 2;
-  // HTTP/GRPC
-  HealthCheck health_check = 3;
+  string target = 1;
+  HealthCheck health_check = 2;
+  optional int64 weight = 3;
 }
 
 enum Protocol {
@@ -44,4 +46,6 @@ enum Protocol {
   GRPC = 1;
 }
 
-message HealthCheck {}
+message HealthCheck {
+  string path = 1;
+}

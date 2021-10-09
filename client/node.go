@@ -1,6 +1,12 @@
 package client
 
-import "github.com/go-kratos/kratos/v2/selector"
+import (
+	"net/http"
+
+	"github.com/go-kratos/kratos/v2/selector"
+
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+)
 
 var _ selector.Node = &node{}
 
@@ -10,6 +16,9 @@ type node struct {
 	weight   *int64
 	version  string
 	metadata map[string]string
+
+	client   *http.Client
+	protocol config.Protocol
 }
 
 func (n *node) Address() string {
