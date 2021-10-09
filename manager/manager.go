@@ -4,7 +4,7 @@ import (
 	"context"
 
 	pb "github.com/go-kratos/gateway/api/gateway/admin/v1"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // ConfigStore is a kv config store.
@@ -31,7 +31,7 @@ func NewManager() *Manager {
 // AddService .
 func (m *Manager) AddService(ctx context.Context, req *pb.AddServiceRequest) (*pb.AddServiceReply, error) {
 	for _, s := range req.Services {
-		v, err := proto.Marshal(s)
+		v, err := protojson.Marshal(s)
 		if err != nil {
 			return nil, err
 		}
