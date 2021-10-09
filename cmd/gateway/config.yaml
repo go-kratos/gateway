@@ -6,7 +6,7 @@ gateways:
 - address: ":8080"
 
 services:
-- name: "echo"
+- name: "helloworld"
   hosts: 
   - "localhost"
   - "127.0.0.1"
@@ -18,12 +18,7 @@ services:
       - name: "dyeing"
     backends:
       - target: "127.0.0.1:8000"
-- name: "helloworld"
-  hosts: 
-  - "localhost"
-  - "127.0.0.1"
-  protocol: 1
-  endpoints:
+    protocol: "HTTP"
   - path: "/helloworld.Greeter/*"
     method: "*"
     timeout: "1s"
@@ -31,3 +26,4 @@ services:
       - name: "dyeing"
     backends:
       - target: "127.0.0.1:9000"
+    protocol: "GRPC"

@@ -13,18 +13,18 @@ message Service {
   repeated Endpoint endpoints = 3;
   // default middewares
   repeated Middleware middlewares = 4;
-  // service api protocol
-  // HTTP/GRPC
-  Protocol protocol = 5;
 }
 
 message Endpoint {
-  string path = 1;
-  string method = 2;
-  string description = 3;
-  google.protobuf.Duration timeout = 4;
-  repeated Middleware middlewares = 5;
-  repeated Backend backends = 6;
+  string method = 1;
+  string path = 2;
+  // service api protocol
+  // HTTP/GRPC
+  Protocol protocol = 3;
+  string description = 4;
+  google.protobuf.Duration timeout = 5;
+  repeated Middleware middlewares = 6;
+  repeated Backend backends = 7;
 }
 
 message Middleware {

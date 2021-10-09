@@ -37,8 +37,8 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 	return p, nil
 }
 
-func (p *Proxy) buildEndpoint(protocol config.Protocol, endpoint *config.Endpoint) (http.Handler, error) {
-	caller, err := p.clientFactory(protocol, endpoint.Backends)
+func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
+	caller, err := p.clientFactory(endpoint.Protocol, endpoint.Backends)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (p *Proxy) buildEndpoint(protocol config.Protocol, endpoint *config.Endpoin
 		for k, v := range resp.Header {
 			sets[k] = v
 		}
-		if protocol == config.Protocol_GRPC {
+		if endpoint.Protocol == config.Protocol_GRPC {
 			w.Header().Set("Trailer", "Grpc-Message")
 			w.Header().Add("Trailer", "Grpc-Status")
 		}
@@ -86,7 +86,7 @@ func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
 	for _, s := range services {
 		for _, e := range s.Endpoints {
-			handler, err := p.buildEndpoint(s.Protocol, e)
+			handler, err := p.buildEndpoint(e)
 			if err != nil {
 				return err
 			}
