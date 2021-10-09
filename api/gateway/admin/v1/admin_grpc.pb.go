@@ -18,11 +18,6 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AdminClient interface {
-	// gateway
-	AddGateway(ctx context.Context, in *AddGatewayRequest, opts ...grpc.CallOption) (*AddGatewayReply, error)
-	DeleteGateway(ctx context.Context, in *DeleteGatewayRequest, opts ...grpc.CallOption) (*DeleteGatewayReply, error)
-	ListGateway(ctx context.Context, in *ListGatewayRequest, opts ...grpc.CallOption) (*ListGatewayReply, error)
-	// service
 	AddService(ctx context.Context, in *AddServiceRequest, opts ...grpc.CallOption) (*AddServiceReply, error)
 	DeleteService(ctx context.Context, in *DeleteServiceRequest, opts ...grpc.CallOption) (*DeleteServiceReply, error)
 	ListService(ctx context.Context, in *DeleteServiceRequest, opts ...grpc.CallOption) (*ListServiceReply, error)
@@ -34,33 +29,6 @@ type adminClient struct {
 
 func NewAdminClient(cc grpc.ClientConnInterface) AdminClient {
 	return &adminClient{cc}
-}
-
-func (c *adminClient) AddGateway(ctx context.Context, in *AddGatewayRequest, opts ...grpc.CallOption) (*AddGatewayReply, error) {
-	out := new(AddGatewayReply)
-	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/AddGateway", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *adminClient) DeleteGateway(ctx context.Context, in *DeleteGatewayRequest, opts ...grpc.CallOption) (*DeleteGatewayReply, error) {
-	out := new(DeleteGatewayReply)
-	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/DeleteGateway", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *adminClient) ListGateway(ctx context.Context, in *ListGatewayRequest, opts ...grpc.CallOption) (*ListGatewayReply, error) {
-	out := new(ListGatewayReply)
-	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/ListGateway", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *adminClient) AddService(ctx context.Context, in *AddServiceRequest, opts ...grpc.CallOption) (*AddServiceReply, error) {
@@ -94,11 +62,6 @@ func (c *adminClient) ListService(ctx context.Context, in *DeleteServiceRequest,
 // All implementations must embed UnimplementedAdminServer
 // for forward compatibility
 type AdminServer interface {
-	// gateway
-	AddGateway(context.Context, *AddGatewayRequest) (*AddGatewayReply, error)
-	DeleteGateway(context.Context, *DeleteGatewayRequest) (*DeleteGatewayReply, error)
-	ListGateway(context.Context, *ListGatewayRequest) (*ListGatewayReply, error)
-	// service
 	AddService(context.Context, *AddServiceRequest) (*AddServiceReply, error)
 	DeleteService(context.Context, *DeleteServiceRequest) (*DeleteServiceReply, error)
 	ListService(context.Context, *DeleteServiceRequest) (*ListServiceReply, error)
@@ -109,15 +72,6 @@ type AdminServer interface {
 type UnimplementedAdminServer struct {
 }
 
-func (UnimplementedAdminServer) AddGateway(context.Context, *AddGatewayRequest) (*AddGatewayReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddGateway not implemented")
-}
-func (UnimplementedAdminServer) DeleteGateway(context.Context, *DeleteGatewayRequest) (*DeleteGatewayReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteGateway not implemented")
-}
-func (UnimplementedAdminServer) ListGateway(context.Context, *ListGatewayRequest) (*ListGatewayReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListGateway not implemented")
-}
 func (UnimplementedAdminServer) AddService(context.Context, *AddServiceRequest) (*AddServiceReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddService not implemented")
 }
@@ -138,60 +92,6 @@ type UnsafeAdminServer interface {
 
 func RegisterAdminServer(s grpc.ServiceRegistrar, srv AdminServer) {
 	s.RegisterService(&Admin_ServiceDesc, srv)
-}
-
-func _Admin_AddGateway_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddGatewayRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AdminServer).AddGateway(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gateway.admin.v1.Admin/AddGateway",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServer).AddGateway(ctx, req.(*AddGatewayRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Admin_DeleteGateway_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteGatewayRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AdminServer).DeleteGateway(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gateway.admin.v1.Admin/DeleteGateway",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServer).DeleteGateway(ctx, req.(*DeleteGatewayRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Admin_ListGateway_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListGatewayRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AdminServer).ListGateway(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gateway.admin.v1.Admin/ListGateway",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServer).ListGateway(ctx, req.(*ListGatewayRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _Admin_AddService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -255,18 +155,6 @@ var Admin_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "gateway.admin.v1.Admin",
 	HandlerType: (*AdminServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "AddGateway",
-			Handler:    _Admin_AddGateway_Handler,
-		},
-		{
-			MethodName: "DeleteGateway",
-			Handler:    _Admin_DeleteGateway_Handler,
-		},
-		{
-			MethodName: "ListGateway",
-			Handler:    _Admin_ListGateway_Handler,
-		},
 		{
 			MethodName: "AddService",
 			Handler:    _Admin_AddService_Handler,

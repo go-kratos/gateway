@@ -22,7 +22,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			colorLabel = v.GetStringValue()
 		}
 	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			color := req.Header.Get(colorLabel)
@@ -35,13 +34,20 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 							filtered = append(filtered, n)
 						}
 					}
+					if len(filtered) == 0 {
+						for _, n := range nodes {
+							md := n.Metadata()
+							if _, ok := md[colorLabel]; !ok {
+								filtered = append(filtered, n)
+							}
+						}
+					}
 					return filtered
 				}
 				if options, ok := proxy.FromContext(req.Context()); ok {
 					options.Filters = append(options.Filters, f)
 				}
 			}
-			// TODO
 			next.ServeHTTP(w, req)
 		})
 	}, nil
