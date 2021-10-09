@@ -10,6 +10,9 @@ HTTP -> Proxy -> Router -> Middleware -> Client -> Selector -> Node
 ## Encoding
 * Protobuf Schemas
 
+## Service
+Service -> Endpoint -> Backend
+
 ## Endpoint
 * prefix: /api/echo/*
 * path: /api/echo/hello
