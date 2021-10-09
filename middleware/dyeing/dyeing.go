@@ -26,7 +26,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			color := req.Header.Get(colorLabel)
-			useFilter := true
 			if color != "" {
 				f := func(_ context.Context, nodes []selector.Node) []selector.Node {
 					filtered := make([]selector.Node, 0, len(nodes))
@@ -44,10 +43,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 							}
 						}
 					}
-					useFilter = len(filtered) > 0
 					return filtered
 				}
-				if options, ok := proxy.FromContext(req.Context()); useFilter && ok {
+				if options, ok := proxy.FromContext(req.Context()); ok {
 					options.Filters = append(options.Filters, f)
 				}
 			}
