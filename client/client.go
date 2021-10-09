@@ -32,7 +32,6 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 			return nil, err
 		}
 	}
-
 	selected, done, err := c.selector.Select(ctx, selector.WithFilter(callInfo.filters...))
 	if err != nil {
 		return nil, err
@@ -44,17 +43,6 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 	req.URL.Host = selected.Address()
 	req.Host = selected.Address()
 	req.RequestURI = ""
-	// url := fmt.Sprintf("%s://%s%s", scheme, selected.Address(), req.URL.Path)
-	/*header := req.Header
-	req, err = http.NewRequest(req.Method, url, req.Body)
-	if err != nil {
-		return nil, err
-	}
-	for k, values := range header {
-		req.Header[k] = values
-	}*/
-	log.Printf("invoke [%s] %s\n", req.Method, req.URL.String())
-
 	resp, err := node.client.Do(req)
 	if err != nil {
 		log.Printf("invoke error: %s\n", err.Error())
@@ -64,17 +52,17 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 }
 
 // NewFactory new a client factory.
-func NewFactory() func(protocol config.Protocol, backends []*config.Backend) (Client, error) {
-	return func(protocol config.Protocol, backends []*config.Backend) (Client, error) {
+func NewFactory() func(endpoint *config.Endpoint) (Client, error) {
+	return func(endpoint *config.Endpoint) (Client, error) {
 		s := wrr.New()
 		c := &clientImpl{
 			selector: s,
 			nodes:    make(map[string]*node),
 		}
 		var nodes []selector.Node
-		for _, backend := range backends {
+		for _, backend := range endpoint.Backends {
 			var client *http.Client
-			if protocol == config.Protocol_GRPC {
+			if endpoint.Protocol == config.Protocol_GRPC {
 				client = &http.Client{
 					Timeout: time.Second * 15,
 					Transport: &http2.Transport{
@@ -95,14 +83,13 @@ func NewFactory() func(protocol config.Protocol, backends []*config.Backend) (Cl
 			node := &node{
 				address:  backend.Target,
 				client:   client,
-				protocol: protocol,
+				protocol: endpoint.Protocol,
 				weight:   backend.Weight,
 			}
 			nodes = append(nodes, node)
 			c.nodes[backend.Target] = node
 		}
 		s.Apply(nodes)
-
 		return c, nil
 	}
 }

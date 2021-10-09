@@ -15,7 +15,7 @@ import (
 )
 
 // ClientFactory is returns service client.
-type ClientFactory func(protocol config.Protocol, backends []*config.Backend) (client.Client, error)
+type ClientFactory func(endpoint *config.Endpoint) (client.Client, error)
 
 // MiddlewareFactory is returns middleware handler.
 type MiddlewareFactory func(*config.Middleware) (middleware.Middleware, error)
@@ -38,7 +38,7 @@ func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Pro
 }
 
 func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
-	caller, err := p.clientFactory(endpoint.Protocol, endpoint.Backends)
+	caller, err := p.clientFactory(endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +87,12 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 			sets[k] = v
 		}
 	}))
-	for _, mc := range endpoint.Middlewares {
-		m, err := p.middlewareFactory(mc)
+	return p.buildMiddleware(endpoint.Middlewares, handler)
+}
+
+func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler http.Handler) (http.Handler, error) {
+	for _, c := range ms {
+		m, err := p.middlewareFactory(c)
 		if err != nil {
 			return nil, err
 		}
@@ -106,13 +110,9 @@ func (p *Proxy) Update(services []*config.Service) error {
 			if err != nil {
 				return err
 			}
-			// setup default middlewares
-			for _, mc := range s.Middlewares {
-				m, err := p.middlewareFactory(mc)
-				if err != nil {
-					return err
-				}
-				handler = m(handler)
+			handler, err = p.buildMiddleware(s.Middlewares, handler)
+			if err != nil {
+				return err
 			}
 			router.Handle(e.Path, e.Method, handler)
 		}
