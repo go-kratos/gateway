@@ -49,7 +49,14 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		opts, _ := FromContext(req.Context())
 		resp, err := caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
 		if err != nil {
-			w.WriteHeader(http.StatusBadGateway)
+			switch err {
+			case context.Canceled:
+				w.WriteHeader(499)
+			case context.DeadlineExceeded:
+				w.WriteHeader(504)
+			default:
+				w.WriteHeader(502)
+			}
 			return
 		}
 		defer resp.Body.Close()
