@@ -24,9 +24,9 @@ func Run(ctx context.Context, handler http.Handler, cs []*config.Gateway) error 
 			Handler: h2c.NewHandler(handler, &http2.Server{
 				IdleTimeout: c.IdleTimeout.AsDuration(),
 			}),
-			ReadTimeout:       c.Timeout.AsDuration(),
-			WriteTimeout:      c.Timeout.AsDuration(),
-			ReadHeaderTimeout: c.Timeout.AsDuration(),
+			ReadTimeout:       c.ReadTimeout.AsDuration(),
+			ReadHeaderTimeout: c.ReadHeaderTimeout.AsDuration(),
+			WriteTimeout:      c.WriteTimeout.AsDuration(),
 			IdleTimeout:       c.IdleTimeout.AsDuration(),
 		}
 		log.Printf("gateway listening on %s\n", c.Address)
@@ -46,8 +46,14 @@ func Run(ctx context.Context, handler http.Handler, cs []*config.Gateway) error 
 }
 
 func validateConfig(c *config.Gateway) error {
-	if c.Timeout == nil {
-		c.Timeout = durationpb.New(time.Second * 15)
+	if c.ReadTimeout == nil {
+		c.ReadTimeout = durationpb.New(time.Second * 15)
+	}
+	if c.ReadHeaderTimeout == nil {
+		c.ReadHeaderTimeout = durationpb.New(time.Second * 15)
+	}
+	if c.WriteTimeout == nil {
+		c.WriteTimeout = durationpb.New(time.Second * 15)
 	}
 	if c.IdleTimeout == nil {
 		c.IdleTimeout = durationpb.New(time.Second * 300)

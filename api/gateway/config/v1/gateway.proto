@@ -12,9 +12,11 @@ message Gateway {
   // TLS config
   TLSConfig tls_config = 2;
   // default is 15s
-  google.protobuf.Duration timeout = 3;
+  google.protobuf.Duration read_timeout = 3;
+  google.protobuf.Duration read_header_timeout = 4;
+  google.protobuf.Duration write_timeout = 5;
   // default is 300s
-  google.protobuf.Duration idle_timeout = 4;
+  google.protobuf.Duration idle_timeout = 6;
 }
 
 message TLSConfig {

@@ -4,7 +4,7 @@ package gateway.config.v1;
 
 option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
-import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 
 message Service {
@@ -27,7 +27,7 @@ message Endpoint {
 
 message Middleware {
   string name = 1;
-  google.protobuf.Struct options = 2;
+  google.protobuf.Any options = 2;
 }
 
 message Backend  {

@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package gateway.middleware.cors.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1";
+
+// Cors middleware config.
+message Cors {
+
+}
