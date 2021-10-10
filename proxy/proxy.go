@@ -12,6 +12,7 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
+	"github.com/go-kratos/kratos/v2/selector"
 )
 
 // ClientFactory is returns service client.
@@ -90,7 +91,6 @@ func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
 	for _, s := range services {
 		for _, e := range s.Endpoints {
-			log.Printf("build endpoint:%s %s %v\n", e.Method, e.Path, e.Protocol)
 			handler, err := p.buildEndpoint(e)
 			if err != nil {
 				return err
@@ -102,18 +102,22 @@ func (p *Proxy) Update(services []*config.Service) error {
 			if err = router.Handle(e.Path, e.Method, handler); err != nil {
 				return err
 			}
+			log.Printf("build endpoint: [%s] %s %s\n", e.Protocol, e.Method, e.Path)
 		}
 	}
 	p.router.Store(router)
 	return nil
 }
 
-func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			log.Println(err)
 		}
 	}()
-	p.router.Load().(router.Router).ServeHTTP(w, r)
+	ctx := NewContext(req.Context(), &RequestOptions{
+		Filters: []selector.Filter{},
+	})
+	p.router.Load().(router.Router).ServeHTTP(w, req.WithContext(ctx))
 }
