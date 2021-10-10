@@ -1,4 +1,4 @@
-
+# This is a gateway config.
 admin:
   address: ":7000"
 
@@ -12,7 +12,13 @@ services:
   - "127.0.0.1"
   middlewares:
   - name: "cors"
+    options:
+      "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors"
   - name: "dyeing"
+    options:
+      "@type": "type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing"
+      header: "x-md-global-color"
+      label: "color"
   endpoints:
   - path: "/helloworld/*"
     method: "*"
