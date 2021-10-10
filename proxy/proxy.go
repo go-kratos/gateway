@@ -60,15 +60,15 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 			return
 		}
 		defer resp.Body.Close()
-		sets := w.Header()
+		headers := w.Header()
 		for k, v := range resp.Header {
-			sets[k] = v
+			headers[k] = v
 		}
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.Copy(w, resp.Body)
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {
-			sets[http.TrailerPrefix+k] = v
+			headers[http.TrailerPrefix+k] = v
 		}
 	}))
 	return p.buildMiddleware(endpoint.Middlewares, handler)

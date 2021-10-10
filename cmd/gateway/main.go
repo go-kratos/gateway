@@ -38,52 +38,46 @@ func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
 
 func main() {
 	flag.Parse()
+	log := log.NewHelper(log.NewStdLogger(os.Stdout))
 	c := config.New(
 		config.WithSource(
 			file.NewSource(flagconf),
 		),
 	)
 	if err := c.Load(); err != nil {
-		panic(err)
+		log.Fatalf("failed to load config: %v", err)
 	}
-	log := log.NewHelper(log.NewStdLogger(os.Stdout))
-
 	bc := new(configv1.Bootstrap)
 	if err := c.Scan(bc); err != nil {
-		log.Fatalf("config scan Bootstrap failed!err:=%v", err)
+		log.Fatalf("failed to scan config: %v", err)
 	}
-
 	p, err := proxy.New(client.NewFactory(), middlewares)
 	if err != nil {
-		log.Fatalf("new proxy failed!err:=%v", err)
+		log.Fatalf("failed to new proxy: %v", err)
 	}
 	if err := p.Update(bc.Services); err != nil {
-		log.Fatalf("update services failed!err:=%v", err)
+		log.Fatalf("failed to update service config: %v", err)
 	}
 	c.Watch("services", func(_ string, v config.Value) {
 		vals, err := v.Slice()
 		if err != nil {
-			log.Errorf("watch config change failed!err:=%v", err)
+			log.Errorf("failed to watch config change: %v", err)
 			return
 		}
 		var services []*configv1.Service
 		for _, val := range vals {
-			var ser configv1.Service
-			err = val.Scan(&ser)
-			if err != nil {
-				log.Errorf("watch config change failed!err:=%v", err)
+			var sc configv1.Service
+			if err = val.Scan(&sc); err != nil {
+				log.Errorf("failed to watch config change: %v", err)
 				return
 			}
-			services = append(services, &ser)
+			services = append(services, &sc)
 		}
-
-		err = p.Update(services)
-		if err != nil {
-			log.Errorf("update service config failed!err:=%v", err)
-			return
+		if err = p.Update(services); err != nil {
+			log.Errorf("failed to update service config: %v", err)
 		}
 	})
 	if err := server.Run(context.Background(), p, bc.Gateways); err != nil {
-		log.Errorf("server run failed!err:=%v", err)
+		log.Errorf("failed to run servers: %v", err)
 	}
 }
