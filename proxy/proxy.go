@@ -45,7 +45,6 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), endpoint.Timeout.AsDuration())
 		defer cancel()
-
 		opts, _ := FromContext(req.Context())
 		resp, err := caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
 		if err != nil {
@@ -64,28 +63,13 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		for k, v := range resp.Header {
 			sets[k] = v
 		}
-
-		if endpoint.Protocol == config.Protocol_GRPC {
-			// Predeclare trailers we'll set later in WriteStatus (after the body).
-			// This is a SHOULD in the HTTP RFC, and the way you add (known)
-			// Trailers per the net/http.ResponseWriter contract.
-			// See https://golang.org/pkg/net/http/#ResponseWriter
-			w.Header().Add("Trailer", "Grpc-Message")
-			w.Header().Add("Trailer", "Grpc-Status")
-			w.Header().Add("Trailer", "Grpc-Status-Details-Bin")
-		}
 		w.WriteHeader(resp.StatusCode)
-		if _, err = io.Copy(w, resp.Body); err != nil {
-			if endpoint.Protocol == config.Protocol_GRPC {
-				w.Header().Set("Grpc-Status", "13")
-				w.Header().Set("Grpc-Message", "Gateway Internal Server Error")
-			}
-			return
-		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {
+			w.Header().Add("Trailer", k)
 			sets[k] = v
 		}
+		_, _ = io.Copy(w, resp.Body)
 	}))
 	return p.buildMiddleware(endpoint.Middlewares, handler)
 }
@@ -115,7 +99,9 @@ func (p *Proxy) Update(services []*config.Service) error {
 			if err != nil {
 				return err
 			}
-			router.Handle(e.Path, e.Method, handler)
+			if err = router.Handle(e.Path, e.Method, handler); err != nil {
+				return err
+			}
 		}
 	}
 	p.router.Store(router)
