@@ -26,7 +26,7 @@ type Gateway struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// :80
+	// :8080
 	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 	// TLS config
 	TlsConfig *TLSConfig `protobuf:"bytes,2,opt,name=tls_config,json=tlsConfig,proto3" json:"tls_config,omitempty"`
