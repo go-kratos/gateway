@@ -49,14 +49,7 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 		opts, _ := FromContext(req.Context())
 		resp, err := caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
 		if err != nil {
-			if endpoint.Protocol == config.Protocol_GRPC {
-				w.Header().Set("Content-Type", "application/grpc")
-				w.Header().Set("Grpc-Status", "13")
-				w.Header().Set("Grpc-Message", "Gateway Internal Server Error")
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
@@ -65,12 +58,11 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 			sets[k] = v
 		}
 		w.WriteHeader(resp.StatusCode)
+		_, _ = io.Copy(w, resp.Body)
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {
-			w.Header().Add("Trailer", k)
-			sets[k] = v
+			sets[http.TrailerPrefix+k] = v
 		}
-		_, _ = io.Copy(w, resp.Body)
 	}))
 	return p.buildMiddleware(endpoint.Middlewares, handler)
 }
