@@ -98,7 +98,9 @@ func (p *Proxy) Update(services []*config.Service) error {
 			if err != nil {
 				return err
 			}
-			router.Handle(e.Path, e.Method, handler)
+			if err = router.Handle(e.Path, e.Method, handler); err != nil {
+				return err
+			}
 		}
 	}
 	p.router.Store(router)
