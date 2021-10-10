@@ -3,7 +3,7 @@ package cors
 import (
 	"net/http"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	config "github.com/go-kratos/gateway/api/gateway/core/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	"github.com/go-kratos/gateway/middleware"
 )

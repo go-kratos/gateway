@@ -23,21 +23,21 @@ type CallOption interface {
 	after(*callInfo, *csAttempt)
 }
 
-// LabelOption .
-type LabelOption struct {
+// FilterOption .
+type FilterOption struct {
 	Filters []selector.Filter
 }
 
-func (o LabelOption) before(c *callInfo) error {
+func (o FilterOption) before(c *callInfo) error {
 	c.filters = o.Filters
 	return nil
 }
 
-func (o LabelOption) after(*callInfo, *csAttempt) {}
+func (o FilterOption) after(*callInfo, *csAttempt) {}
 
 // WithFilter .
 func WithFilter(filters []selector.Filter) CallOption {
-	return LabelOption{Filters: filters}
+	return FilterOption{Filters: filters}
 }
 
 func defaultCallInfo() callInfo {

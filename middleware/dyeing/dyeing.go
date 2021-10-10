@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	config "github.com/go-kratos/gateway/api/gateway/core/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/kratos/v2/selector"
@@ -23,9 +23,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			color := req.Header.Get(options.Header)
-			if color != "" {
-				f := func(_ context.Context, nodes []selector.Node) []selector.Node {
+			if color := req.Header.Get(options.Header); color != "" {
+				filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
 					filtered := make([]selector.Node, 0, len(nodes))
 					for _, n := range nodes {
 						md := n.Metadata()
@@ -44,7 +43,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					return filtered
 				}
 				if options, ok := proxy.FromContext(req.Context()); ok {
-					options.Filters = append(options.Filters, f)
+					options.Filters = append(options.Filters, filter)
 				}
 			}
 			next.ServeHTTP(w, req)

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package gateway.core.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/core/v1";
+
+import "gateway/core/v1/gateway.proto";
+import "gateway/core/v1/service.proto";
+
+message Admin {
+  string address = 1;
+}
+
+message Bootstrap {
+  Admin admin = 1;
+  repeated Gateway gateways = 2;
+  repeated Service services = 3;
+}

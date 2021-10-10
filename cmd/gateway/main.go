@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	core "github.com/go-kratos/gateway/api/gateway/core/v1"
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/middleware/cors"
@@ -25,7 +25,7 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "config.yaml", "config path, eg: -conf config.yaml")
 }
 
-func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
+func middlewares(c *core.Middleware) (middleware.Middleware, error) {
 	switch c.Name {
 	case cors.Name:
 		return cors.Middleware(c)
@@ -47,7 +47,7 @@ func main() {
 	if err := c.Load(); err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	bc := new(configv1.Bootstrap)
+	bc := new(core.Bootstrap)
 	if err := c.Scan(bc); err != nil {
 		log.Fatalf("failed to scan config: %v", err)
 	}
@@ -58,15 +58,15 @@ func main() {
 	if err := p.Update(bc.Services); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
-	c.Watch("services", func(_ string, v config.Value) {
+	c.Watch("services", func(k string, v config.Value) {
 		vals, err := v.Slice()
 		if err != nil {
 			log.Errorf("failed to watch config change: %v", err)
 			return
 		}
-		var services []*configv1.Service
+		var services []*core.Service
 		for _, val := range vals {
-			var sc configv1.Service
+			var sc core.Service
 			if err = val.Scan(&sc); err != nil {
 				log.Errorf("failed to watch config change: %v", err)
 				return

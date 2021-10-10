@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	config "github.com/go-kratos/gateway/api/gateway/core/v1"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 

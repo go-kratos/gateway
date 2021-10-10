@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	config "github.com/go-kratos/gateway/api/gateway/core/v1"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/types/known/durationpb"

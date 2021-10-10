@@ -16,7 +16,9 @@ type muxRouter struct {
 
 // NewRouter new a mux router.
 func NewRouter() router.Router {
-	return &muxRouter{Router: mux.NewRouter()}
+	return &muxRouter{
+		Router: mux.NewRouter().StrictSlash(true),
+	}
 }
 
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
