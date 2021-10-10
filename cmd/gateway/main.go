@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
+	"github.com/go-kratos/kratos/v2/log"
 )
 
 var flagconf string
@@ -44,20 +46,44 @@ func main() {
 	if err := c.Load(); err != nil {
 		panic(err)
 	}
+	log := log.NewHelper(log.NewStdLogger(os.Stdout))
 
 	bc := new(configv1.Bootstrap)
 	if err := c.Scan(bc); err != nil {
-		panic(err)
+		log.Fatalf("config scan Bootstrap failed!err:=%v", err)
 	}
 
 	p, err := proxy.New(client.NewFactory(), middlewares)
 	if err != nil {
-		panic(err)
+		log.Fatalf("new proxy failed!err:=%v", err)
 	}
 	if err := p.Update(bc.Services); err != nil {
-		panic(err)
+		log.Fatalf("update services failed!err:=%v", err)
 	}
+	c.Watch("services", func(_ string, v config.Value) {
+		vals, err := v.Slice()
+		if err != nil {
+			log.Errorf("watch config change failed!err:=%v", err)
+			return
+		}
+		var services []*configv1.Service
+		for _, val := range vals {
+			var ser configv1.Service
+			err = val.Scan(&ser)
+			if err != nil {
+				log.Errorf("watch config change failed!err:=%v", err)
+				return
+			}
+			services = append(services, &ser)
+		}
+
+		err = p.Update(services)
+		if err != nil {
+			log.Errorf("update service config failed!err:=%v", err)
+			return
+		}
+	})
 	if err := server.Run(context.Background(), p, bc.Gateways); err != nil {
-		panic(err)
+		log.Errorf("server run failed!err:=%v", err)
 	}
 }

@@ -106,6 +106,7 @@ func (p *Proxy) Update(services []*config.Service) error {
 	router := mux.NewRouter()
 	for _, s := range services {
 		for _, e := range s.Endpoints {
+			log.Printf("build endpoint:%s %s %v\n", e.Method, e.Path, e.Protocol)
 			handler, err := p.buildEndpoint(e)
 			if err != nil {
 				return err

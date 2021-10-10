@@ -20,8 +20,8 @@ github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-kratos/aegis v0.1.1/go.mod h1:jYeSQ3Gesba478zEnujOiG5QdsyF3Xk/8owFUeKcHxw=
-github.com/go-kratos/kratos/v2 v2.0.0-20210928032904-74e630c21a5b h1:t5gjwCHqYxsZO8+CjHv6GppJpPGqsubntPlFTLEd0uM=
-github.com/go-kratos/kratos/v2 v2.0.0-20210928032904-74e630c21a5b/go.mod h1:9CCt6A+by+9/L6aL8veLgPEpEiZfpzMzwbw1ahlC6xY=
+github.com/go-kratos/kratos/v2 v2.0.0-20211010065212-69fc5cca876c h1:XAXlj/+HCg2c2V2tiefS1pqtz6YmqzjWTjR3GzGSU6c=
+github.com/go-kratos/kratos/v2 v2.0.0-20211010065212-69fc5cca876c/go.mod h1:aJv7++0gDtfncp+2e3Ae32ElyFd77WS+pdXCRTSFll0=
 github.com/go-ole/go-ole v1.2.5/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-playground/assert/v2 v2.0.1/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
 github.com/go-playground/form/v4 v4.2.0/go.mod h1:q1a2BY+AQUUzhl6xA/6hBetay6dEIhMHjgvJiGo6K7U=
