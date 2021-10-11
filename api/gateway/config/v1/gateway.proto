@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package gateway.core.v1;
+package gateway.config.v1;
 
-option go_package = "github.com/go-kratos/gateway/api/gateway/core/v1";
+option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 
-message Service {
+message Gateway {
   string name = 1;
   repeated string hosts = 2;
   repeated Endpoint endpoints = 3;

@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/selector"
 
-	config "github.com/go-kratos/gateway/api/gateway/core/v1"
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
 var _ selector.Node = &node{}

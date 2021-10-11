@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package gateway.admin.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/admin/v1";
+
+service Admin {
+  rpc ListEndpoint (ListEndpointRequest) returns (ListEndpointReply)  {}
+}
+
+message ListEndpointRequest {}
+message ListEndpointReply {}

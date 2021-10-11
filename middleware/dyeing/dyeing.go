@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	config "github.com/go-kratos/gateway/api/gateway/core/v1"
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/kratos/v2/selector"

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	config "github.com/go-kratos/gateway/api/gateway/core/v1"
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
@@ -86,23 +86,21 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler http.Handler) (
 }
 
 // Update updates service endpoint.
-func (p *Proxy) Update(services []*config.Service) error {
+func (p *Proxy) Update(c *config.Gateway) error {
 	router := mux.NewRouter()
-	for _, s := range services {
-		for _, e := range s.Endpoints {
-			handler, err := p.buildEndpoint(e)
-			if err != nil {
-				return err
-			}
-			handler, err = p.buildMiddleware(s.Middlewares, handler)
-			if err != nil {
-				return err
-			}
-			if err = router.Handle(e.Path, e.Method, handler); err != nil {
-				return err
-			}
-			log.Printf("build endpoint: [%s] %s %s\n", e.Protocol, e.Method, e.Path)
+	for _, e := range c.Endpoints {
+		handler, err := p.buildEndpoint(e)
+		if err != nil {
+			return err
 		}
+		handler, err = p.buildMiddleware(c.Middlewares, handler)
+		if err != nil {
+			return err
+		}
+		if err = router.Handle(e.Path, e.Method, handler); err != nil {
+			return err
+		}
+		log.Printf("build endpoint: [%s] %s %s\n", e.Protocol, e.Method, e.Path)
 	}
 	p.router.Store(router)
 	return nil
