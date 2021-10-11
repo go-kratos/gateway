@@ -13,7 +13,9 @@ import (
 	"github.com/go-kratos/gateway/middleware/dyeing"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
+	"github.com/hashicorp/consul/api"
 
+	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
@@ -51,7 +53,24 @@ func main() {
 	if err := c.Scan(bc); err != nil {
 		log.Fatalf("failed to scan config: %v", err)
 	}
-	p, err := proxy.New(client.NewFactory(), middlewares)
+	var r *consul.Registry
+	if bc.Consul != nil {
+		consulCfg := api.DefaultConfig()
+		consulCfg.Address = bc.Consul.Address
+		if bc.Consul.Token != "" {
+			consulCfg.Token = bc.Consul.Token
+		}
+		if bc.Consul.Datacenter != "" {
+			consulCfg.Datacenter = bc.Consul.Datacenter
+		}
+		consulCli, err := api.NewClient(api.DefaultConfig())
+		if err != nil {
+			log.Fatalf("failed to new consul: %v", err)
+		}
+		r = consul.New(consulCli)
+	}
+
+	p, err := proxy.New(client.NewFactory(r), middlewares)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}

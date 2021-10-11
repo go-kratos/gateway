@@ -27,10 +27,12 @@ services:
     timeout: "1s"
     protocol: "HTTP"
     backends:
-    - target: "127.0.0.1:8000"
+    - target: "consul:///helloworld"
   - path: "/helloworld.Greeter/*"
     method: "*"
     timeout: "1s"
     protocol: "GRPC"
     backends:
-    - target: "127.0.0.1:9000"
+    - target: "consul:///helloworld"
+consul:
+  address: "127.0.0.1:8500"

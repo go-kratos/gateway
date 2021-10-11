@@ -15,4 +15,11 @@ message Bootstrap {
   Admin admin = 1;
   repeated Gateway gateways = 2;
   repeated Service services = 3;
+  Consul consul = 7;
+}
+
+message Consul {
+  string address = 1;
+  string token = 2;
+  string datacenter = 3;
 }
