@@ -4,11 +4,11 @@ hosts:
 - "localhost"
 - "127.0.0.1"
 middlewares:
-#- name: "cors"
-#  options:
-#    "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors"
-#    allowedOrigins:
-#    - ".google.com"
+- name: "cors"
+  options:
+    "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors"
+    allowedOrigins:
+    - ".google.com"
 - name: "dyeing"
   options:
     "@type": "type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing"

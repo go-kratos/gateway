@@ -2,13 +2,11 @@ package cors
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
-	"github.com/go-kratos/gateway/middleware"
+	"github.com/go-kratos/gateway/endpoint"
 	"github.com/gorilla/handlers"
 	"github.com/pkg/errors"
 )
@@ -17,7 +15,7 @@ import (
 const Name = "cors"
 
 // Middleware automatically sets the allow response header.
-func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Cors{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, errors.WithStack(err)
@@ -46,10 +44,10 @@ func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 		opts = append(opts, handlers.AllowCredentials())
 	}
 
-	corsMiddleware := handlers.CORS(opts...)
-	fmt.Println(corsMiddleware)
-	return func(handler middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, req *http.Request) (reply middleware.Response, err error) {
+	//corsMiddleware := handlers.CORS(opts...)
+
+	return func(handler endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req endpoint.Request) (reply endpoint.Response, err error) {
 			return handler(ctx, req)
 		}
 	}, nil
