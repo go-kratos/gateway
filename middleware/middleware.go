@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"net/url"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
@@ -17,14 +16,14 @@ type Handler func(ctx context.Context, req *http.Request) (Response, error)
 // Middleware is HTTP/gRPC transport middleware.
 type Middleware func(Handler) Handler
 
-type Request interface {
+/*type Request interface {
 	Method() string
 	Protocol() config.Protocol
 	Endpoint() *url.URL
 	Header() http.Header
 	Body() io.ReadCloser
 	Host() string
-}
+}*/
 
 type Response interface {
 	HTTPStatus() int
