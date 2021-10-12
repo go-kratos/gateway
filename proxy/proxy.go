@@ -111,7 +111,7 @@ func (p *Proxy) Update(c *config.Gateway) error {
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusBadGateway)
 			p.log.Error(err)
 		}
 	}()
