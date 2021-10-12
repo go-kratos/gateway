@@ -2,23 +2,17 @@ package client
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
+	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
+	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
-
-	"golang.org/x/net/http2"
 )
 
 // Client is a proxy client.
@@ -58,7 +52,7 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 }
 
 // NewFactory new a client factory.
-func NewFactory(consulClient *consul.Registry) func(endpoint *config.Endpoint) (Client, error) {
+func NewFactory(r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
 	return func(endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{
 			selector: wrr.New(),
@@ -70,12 +64,13 @@ func NewFactory(consulClient *consul.Registry) func(endpoint *config.Endpoint) (
 			if err != nil {
 				return nil, err
 			}
-			if target.Scheme == "direct" {
+			switch target.Scheme {
+			case "direct":
 				node := buildNode(backend.Target, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
 				nodes = append(nodes, node)
 				atomicNodes[backend.Target] = node
-			} else if target.Scheme == "consul" {
-				w, err := consulClient.Watch(context.Background(), target.Endpoint)
+			case "discovery":
+				w, err := r.Watch(context.Background(), target.Endpoint)
 				if err != nil {
 					return nil, err
 				}
@@ -105,82 +100,12 @@ func NewFactory(consulClient *consul.Registry) func(endpoint *config.Endpoint) (
 						}
 					}
 				}()
-			} else if target.Scheme == "discovery" {
+			default:
+				return nil, fmt.Errorf("unknown scheme: %s", target.Scheme)
 			}
 		}
 		c.selector.Apply(nodes)
 		c.nodes.Store(atomicNodes)
 		return c, nil
 	}
-}
-
-func buildNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	if protocol == config.Protocol_GRPC {
-		client.Transport = &http2.Transport{
-			// So http2.Transport doesn't complain the URL scheme isn't 'https'
-			AllowHTTP: true,
-			// Pretend we are dialing a TLS endpoint.
-			// Note, we ignore the passed tls.Config
-			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return net.Dial(network, addr)
-			},
-		}
-	}
-	node := &node{
-		protocol: protocol,
-		address:  addr,
-		client:   client,
-		weight:   weight,
-	}
-	return node
-}
-
-// Target is resolver target
-type Target struct {
-	Scheme    string
-	Authority string
-	Endpoint  string
-}
-
-func parseTarget(endpoint string) (*Target, error) {
-	if !strings.Contains(endpoint, "://") {
-		endpoint = "direct:///" + endpoint
-	}
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, err
-	}
-	target := &Target{Scheme: u.Scheme, Authority: u.Host}
-	if len(u.Path) > 1 {
-		target.Endpoint = u.Path[1:]
-	}
-	return target, nil
-}
-
-// parseEndpoint parses an Endpoint URL.
-func parseEndpoint(endpoints []string, scheme string, isSecure bool) (string, error) {
-	for _, e := range endpoints {
-		u, err := url.Parse(e)
-		if err != nil {
-			return "", err
-		}
-		if u.Scheme == scheme {
-			if IsSecure(u) == isSecure {
-				return u.Host, nil
-			}
-		}
-	}
-	return "", nil
-}
-
-// IsSecure parses isSecure for Endpoint URL.
-func IsSecure(u *url.URL) bool {
-	ok, err := strconv.ParseBool(u.Query().Get("isSecure"))
-	if err != nil {
-		return false
-	}
-	return ok
 }

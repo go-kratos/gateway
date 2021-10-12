@@ -38,9 +38,12 @@ func init() {
 	flag.StringVar(&bind, "bind", ":8080", "server address, eg: 127.0.0.1:8080")
 	flag.DurationVar(&timeout, "timeout", time.Second*15, "server timeout, eg: 15s")
 	flag.DurationVar(&idleTimeout, "idleTimeout", time.Second*300, "server idleTimeout, eg: 300s")
+	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
+	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
+	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
 }
 
-func registry() (*consul.Registry, error) {
+func registry() *consul.Registry {
 	if consulAddress != "" {
 		c := api.DefaultConfig()
 		c.Address = consulAddress
@@ -48,11 +51,11 @@ func registry() (*consul.Registry, error) {
 		c.Datacenter = consulDatacenter
 		client, err := api.NewClient(c)
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
-		return consul.New(client), nil
+		return consul.New(client)
 	}
-	return nil, nil
+	return nil
 }
 
 func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
@@ -82,12 +85,7 @@ func main() {
 		log.Fatalf("failed to scan config: %v", err)
 	}
 
-	r, err := registry()
-	if err != nil {
-		log.Fatalf("failed to create consul registry: %v", err)
-	}
-
-	p, err := proxy.New(client.NewFactory(r), middlewares)
+	p, err := proxy.New(client.NewFactory(registry()), middlewares)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
