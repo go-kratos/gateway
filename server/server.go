@@ -12,7 +12,6 @@ import (
 
 // Run run a gateway server.
 func Run(ctx context.Context, log *log.Helper, handler http.Handler, addr string, timeout time.Duration, idleTimeout time.Duration) error {
-	done := make(chan error)
 	srv := &http.Server{
 		Addr: addr,
 		Handler: h2c.NewHandler(handler, &http2.Server{
@@ -23,13 +22,10 @@ func Run(ctx context.Context, log *log.Helper, handler http.Handler, addr string
 		WriteTimeout:      timeout,
 		IdleTimeout:       idleTimeout,
 	}
-	log.Infof("gateway listening on %s\n", addr)
-	go func() {
-		done <- srv.ListenAndServe()
-	}()
+	log.Infof("gateway listening on %s", addr)
 	go func() {
 		<-ctx.Done()
-		done <- srv.Shutdown(context.Background())
+		srv.Shutdown(context.Background())
 	}()
-	return <-done
+	return srv.ListenAndServe()
 }
