@@ -2,16 +2,16 @@ package server
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
 // Run run a gateway server.
-func Run(ctx context.Context, handler http.Handler, addr string, timeout time.Duration, idleTimeout time.Duration) error {
+func Run(ctx context.Context, log *log.Helper, handler http.Handler, addr string, timeout time.Duration, idleTimeout time.Duration) error {
 	done := make(chan error)
 	srv := &http.Server{
 		Addr: addr,
@@ -23,7 +23,7 @@ func Run(ctx context.Context, handler http.Handler, addr string, timeout time.Du
 		WriteTimeout:      timeout,
 		IdleTimeout:       idleTimeout,
 	}
-	log.Printf("gateway listening on %s\n", addr)
+	log.Infof("gateway listening on %s\n", addr)
 	go func() {
 		done <- srv.ListenAndServe()
 	}()

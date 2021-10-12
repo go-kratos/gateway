@@ -58,7 +58,7 @@ func registry() *consul.Registry {
 	return nil
 }
 
-func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
+func middlewareFactory(c *configv1.Middleware) (middleware.Middleware, error) {
 	switch c.Name {
 	case cors.Name:
 		return cors.Middleware(c)
@@ -71,7 +71,8 @@ func middlewares(c *configv1.Middleware) (middleware.Middleware, error) {
 
 func main() {
 	flag.Parse()
-	log := log.NewHelper(log.NewStdLogger(os.Stdout))
+	logger := log.NewStdLogger(os.Stdout)
+	log := log.NewHelper(logger)
 	c := config.New(
 		config.WithSource(
 			file.NewSource(conf),
@@ -84,15 +85,15 @@ func main() {
 	if err := c.Scan(bc); err != nil {
 		log.Fatalf("failed to scan config: %v", err)
 	}
-
-	p, err := proxy.New(client.NewFactory(registry()), middlewares)
+	clientFactory := client.NewFactory(logger, registry())
+	p, err := proxy.New(logger, clientFactory, middlewareFactory)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
-	if err := server.Run(context.Background(), p, bind, timeout, idleTimeout); err != nil {
+	if err := server.Run(context.Background(), log, p, bind, timeout, idleTimeout); err != nil {
 		log.Errorf("failed to run servers: %v", err)
 	}
 }

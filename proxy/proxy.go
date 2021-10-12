@@ -3,7 +3,6 @@ package proxy
 import (
 	"context"
 	"io"
-	"log"
 	"net/http"
 	"sync/atomic"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
@@ -24,13 +24,15 @@ type MiddlewareFactory func(*config.Middleware) (middleware.Middleware, error)
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
+	log               *log.Helper
 	clientFactory     ClientFactory
 	middlewareFactory MiddlewareFactory
 }
 
 // New new a gateway proxy.
-func New(clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
+func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
 	p := &Proxy{
+		log:               log.NewHelper(logger),
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 	}
@@ -100,7 +102,7 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		if err = router.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
-		log.Printf("build endpoint: [%s] %s %s\n", e.Protocol, e.Method, e.Path)
+		p.log.Infof("build endpoint: [%s] %s %s\n", e.Protocol, e.Method, e.Path)
 	}
 	p.router.Store(router)
 	return nil
@@ -110,7 +112,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Println(err)
+			p.log.Error(err)
 		}
 	}()
 	ctx := NewContext(req.Context(), &RequestOptions{

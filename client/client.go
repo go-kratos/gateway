@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
@@ -43,7 +43,6 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 	req.URL.Host = selected.Address()
 	req.Host = selected.Address()
 	req.RequestURI = ""
-	log.Printf("client invoke %s", req.URL.String())
 	resp, err := node.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -52,7 +51,8 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 }
 
 // NewFactory new a client factory.
-func NewFactory(r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
+func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
+	log := log.NewHelper(logger)
 	return func(endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{
 			selector: wrr.New(),
@@ -79,25 +79,27 @@ func NewFactory(r registry.Discovery) func(endpoint *config.Endpoint) (Client, e
 					// only one backend configuration allowed when using service discovery
 					for {
 						services, err := w.Next()
-						if err != nil && errors.Is(context.Canceled, err) {
+						if err != nil && errors.Is(err, context.Canceled) {
 							return
 						}
-						if len(services) != 0 {
-							var nodes []selector.Node
-							var atomicNodes map[string]*node = make(map[string]*node, 0)
-							for _, ser := range services {
-								addr, err := parseEndpoint(ser.Endpoints, strings.ToLower(endpoint.Protocol.String()), false)
-								if err != nil {
-									log.Printf("parse endpoint failed!err:=%v", err)
-									continue
-								}
-								node := buildNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
-								nodes = append(nodes, node)
-								atomicNodes[addr] = node
-							}
-							c.selector.Apply(nodes)
-							c.nodes.Store(atomicNodes)
+						if len(services) == 0 {
+							continue
 						}
+						var nodes []selector.Node
+						var atomicNodes = make(map[string]*node, 0)
+						for _, ser := range services {
+							scheme := strings.ToLower(endpoint.Protocol.String())
+							addr, err := parseEndpoint(ser.Endpoints, scheme, false)
+							if err != nil {
+								log.Errorf("failed to parse endpoint: %v", err)
+								continue
+							}
+							node := buildNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+							nodes = append(nodes, node)
+							atomicNodes[addr] = node
+						}
+						c.selector.Apply(nodes)
+						c.nodes.Store(atomicNodes)
 					}
 				}()
 			default:
