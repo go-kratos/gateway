@@ -4,7 +4,22 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 )
+
+var reqPool = &sync.Pool{
+	New: func() interface{} {
+		return new(httpRequest)
+	},
+}
+
+// FreeRequest free request object.
+func FreeRequest(req Request) {
+	if r, ok := req.(*httpRequest); ok {
+		r.reset(nil)
+		reqPool.Put(r)
+	}
+}
 
 type httpRequest struct {
 	*http.Request
@@ -12,7 +27,13 @@ type httpRequest struct {
 
 // NewRequest new an HTTP request.
 func NewRequest(req *http.Request) Request {
-	return &httpRequest{req}
+	r := reqPool.Get().(*httpRequest)
+	r.reset(req)
+	return r
+}
+
+func (r *httpRequest) reset(req *http.Request) {
+	r.Request = req
 }
 
 func (r *httpRequest) Path() string {

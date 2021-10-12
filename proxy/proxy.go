@@ -64,10 +64,12 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
-	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ctx, cancel := context.WithTimeout(req.Context(), e.Timeout.AsDuration())
+	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), e.Timeout.AsDuration())
 		defer cancel()
-		resp, err := handler(ctx, endpoint.NewRequest(req))
+		req := endpoint.NewRequest(r)
+		defer endpoint.FreeRequest(req)
+		resp, err := handler(ctx, req)
 		if err != nil {
 			switch err {
 			case context.Canceled:
@@ -80,6 +82,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			return
 		}
 		defer resp.Body().Close()
+		defer endpoint.FreeResponse(resp)
 		headers := w.Header()
 		for k, v := range resp.Header() {
 			headers[k] = v

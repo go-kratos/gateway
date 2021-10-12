@@ -3,7 +3,22 @@ package endpoint
 import (
 	"io"
 	"net/http"
+	"sync"
 )
+
+var resPool = &sync.Pool{
+	New: func() interface{} {
+		return new(httpResponse)
+	},
+}
+
+// FreeResponse free response object.
+func FreeResponse(res Response) {
+	if r, ok := res.(*httpResponse); ok {
+		r.reset(nil)
+		resPool.Put(r)
+	}
+}
 
 type httpResponse struct {
 	*http.Response
@@ -11,7 +26,13 @@ type httpResponse struct {
 
 // NewResponse new an HTTP response.
 func NewResponse(res *http.Response) Response {
-	return &httpResponse{res}
+	r := resPool.Get().(*httpResponse)
+	r.reset(res)
+	return r
+}
+
+func (r *httpResponse) reset(res *http.Response) {
+	r.Response = res
 }
 
 func (r *httpResponse) StatusCode() int {
