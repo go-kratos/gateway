@@ -3,6 +3,7 @@ package endpoint
 import (
 	"io"
 	"net/http"
+	"net/url"
 )
 
 type httpRequest struct {
@@ -19,6 +20,9 @@ func (r *httpRequest) Path() string {
 }
 func (r *httpRequest) Method() string {
 	return r.Request.Method
+}
+func (r *httpRequest) Query() url.Values {
+	return r.Request.URL.Query()
 }
 func (r *httpRequest) Header() http.Header {
 	return r.Request.Header

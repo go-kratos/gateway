@@ -4,12 +4,14 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // Request is an HTTP request.
 type Request interface {
 	Path() string
 	Method() string
+	Query() url.Values
 	Header() http.Header
 	Body() io.ReadCloser
 }
