@@ -85,7 +85,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			headers[k] = v
 		}
 		w.WriteHeader(resp.StatusCode())
-		_, _ = io.Copy(w, resp.Body())
+		if body := resp.Body(); body != nil {
+			_, _ = io.Copy(w, body)
+		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer() {
 			headers[http.TrailerPrefix+k] = v
