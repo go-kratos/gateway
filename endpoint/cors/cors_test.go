@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/d5/tengo/assert"
-	config "github.com/go-kratos/gateway/api/gateway/core/v1"
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	"github.com/gorilla/handlers"
 	"google.golang.org/protobuf/types/known/anypb"

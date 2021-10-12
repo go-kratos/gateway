@@ -9,15 +9,17 @@ import (
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/endpoint"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
+
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 )
 
 // Client is a proxy client.
 type Client interface {
-	Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (*http.Response, error)
+	Invoke(ctx context.Context, req endpoint.Request) (endpoint.Response, error)
 }
 
 type clientImpl struct {
@@ -25,29 +27,27 @@ type clientImpl struct {
 	nodes    atomic.Value
 }
 
-func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (*http.Response, error) {
-	callInfo := defaultCallInfo()
-	for _, o := range opts {
-		if err := o.before(&callInfo); err != nil {
-			return nil, err
-		}
-	}
-	selected, done, err := c.selector.Select(ctx, selector.WithFilter(callInfo.filters...))
+func (c *clientImpl) Invoke(ctx context.Context, req endpoint.Request) (endpoint.Response, error) {
+	opts, _ := endpoint.FromContext(ctx)
+	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
 	}
-
 	defer done(ctx, selector.DoneInfo{Err: err})
 	node := c.nodes.Load().(map[string]*node)[selected.Address()]
-	req.URL.Scheme = "http"
-	req.URL.Host = selected.Address()
-	req.Host = selected.Address()
-	req.RequestURI = ""
-	resp, err := node.client.Do(req)
+	r, err := http.NewRequestWithContext(ctx, req.Method(), req.Path(), req.Body())
 	if err != nil {
 		return nil, err
 	}
-	return resp, nil
+	r.Header = req.Header()
+	r.URL.Scheme = "http"
+	r.URL.Host = selected.Address()
+	r.Host = selected.Address()
+	resp, err := node.client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	return endpoint.NewResponse(resp), nil
 }
 
 // NewFactory new a client factory.
@@ -57,7 +57,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 		c := &clientImpl{
 			selector: wrr.New(),
 		}
-		var nodes []selector.Node
+		nodes := []selector.Node{}
 		atomicNodes := make(map[string]*node, 0)
 		for _, backend := range endpoint.Backends {
 			target, err := parseTarget(backend.Target)
@@ -66,7 +66,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 			}
 			switch target.Scheme {
 			case "direct":
-				node := buildNode(backend.Target, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+				node := newNode(backend.Target, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
 				nodes = append(nodes, node)
 				atomicNodes[backend.Target] = node
 			case "discovery":
@@ -86,7 +86,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 							continue
 						}
 						var nodes []selector.Node
-						var atomicNodes = make(map[string]*node, 0)
+						atomicNodes := make(map[string]*node, 0)
 						for _, ser := range services {
 							scheme := strings.ToLower(endpoint.Protocol.String())
 							addr, err := parseEndpoint(ser.Endpoints, scheme, false)
@@ -94,7 +94,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 								log.Errorf("failed to parse endpoint: %v", err)
 								continue
 							}
-							node := buildNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+							node := newNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
 							nodes = append(nodes, node)
 							atomicNodes[addr] = node
 						}

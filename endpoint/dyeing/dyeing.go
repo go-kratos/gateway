@@ -2,28 +2,26 @@ package dyeing
 
 import (
 	"context"
-	"net/http"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
-	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/kratos/v2/selector"
 
-	"github.com/go-kratos/gateway/middleware"
+	"github.com/go-kratos/gateway/endpoint"
 )
 
 // Name is the middleware name.
 const Name = "dyeing"
 
 // Middleware .
-func Middleware(c *config.Middleware) (middleware.Middleware, error) {
+func Middleware(c *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Dyeing{}
 	if err := c.Options.UnmarshalTo(options); err != nil {
 		return nil, err
 	}
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if color := req.Header.Get(options.Header); color != "" {
+	return func(handler endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req endpoint.Request) (reply endpoint.Response, err error) {
+			if color := req.Header().Get(options.Header); color != "" {
 				filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
 					filtered := make([]selector.Node, 0, len(nodes))
 					for _, n := range nodes {
@@ -42,11 +40,11 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					}
 					return filtered
 				}
-				if options, ok := proxy.FromContext(req.Context()); ok {
+				if options, ok := endpoint.FromContext(ctx); ok {
 					options.Filters = append(options.Filters, filter)
 				}
 			}
-			next.ServeHTTP(w, req)
-		})
+			return handler(ctx, req)
+		}
 	}, nil
 }
