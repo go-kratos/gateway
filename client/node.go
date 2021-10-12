@@ -51,7 +51,7 @@ func (n *node) Metadata() map[string]string {
 	return n.metadata
 }
 
-func buildNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
+func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
 	client := &http.Client{
 		Timeout: timeout,
 	}

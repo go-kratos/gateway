@@ -66,7 +66,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 			}
 			switch target.Scheme {
 			case "direct":
-				node := buildNode(backend.Target, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+				node := newNode(backend.Target, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
 				nodes = append(nodes, node)
 				atomicNodes[backend.Target] = node
 			case "discovery":
@@ -94,7 +94,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 								log.Errorf("failed to parse endpoint: %v", err)
 								continue
 							}
-							node := buildNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+							node := newNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
 							nodes = append(nodes, node)
 							atomicNodes[addr] = node
 						}
