@@ -43,7 +43,6 @@ func (c *clientImpl) Invoke(ctx context.Context, req endpoint.Request) (endpoint
 	r.URL.Scheme = "http"
 	r.URL.Host = selected.Address()
 	r.Host = selected.Address()
-	r.RequestURI = ""
 	resp, err := node.client.Do(r)
 	if err != nil {
 		return nil, err
