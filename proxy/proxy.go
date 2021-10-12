@@ -117,7 +117,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			p.log.Error(err)
 		}
 	}()
-	ctx := NewContext(req.Context(), &RequestOptions{
+	ctx := endpoint.NewContext(req.Context(), &endpoint.RequestOptions{
 		Filters: []selector.Filter{},
 	})
 	p.router.Load().(router.Router).ServeHTTP(w, req.WithContext(ctx))

@@ -28,7 +28,8 @@ type clientImpl struct {
 }
 
 func (c *clientImpl) Invoke(ctx context.Context, req endpoint.Request) (endpoint.Response, error) {
-	selected, done, err := c.selector.Select(ctx)
+	opts, _ := endpoint.FromContext(ctx)
+	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
 	}
