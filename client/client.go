@@ -9,23 +9,26 @@ import (
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
+
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 )
 
 // Client is a proxy client.
 type Client interface {
-	Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (*http.Response, error)
+	Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (middleware.Response, error)
 }
 
 type clientImpl struct {
 	selector selector.Selector
 	nodes    atomic.Value
+	log      *log.Helper
 }
 
-func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...CallOption) (*http.Response, error) {
+func (c *clientImpl) Invoke(ctx context.Context, r *http.Request, opts ...CallOption) (middleware.Response, error) {
 	callInfo := defaultCallInfo()
 	for _, o := range opts {
 		if err := o.before(&callInfo); err != nil {
@@ -39,15 +42,21 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request, opts ...Call
 
 	defer done(ctx, selector.DoneInfo{Err: err})
 	node := c.nodes.Load().(map[string]*node)[selected.Address()]
-	req.URL.Scheme = "http"
-	req.URL.Host = selected.Address()
-	req.Host = selected.Address()
-	req.RequestURI = ""
-	resp, err := node.client.Do(req)
+	/*req, err := http.NewRequest(r.Method(), fmt.Sprintf("http://%s%s", selected.Address(), r.Endpoint().String()), r.Body())
 	if err != nil {
 		return nil, err
 	}
-	return resp, nil
+	c.log.Infof("client invoke %s", req.URL.String())*/
+	r.URL.Scheme = "http"
+	r.URL.Host = selected.Address()
+	r.Host = selected.Address()
+	r.RequestURI = ""
+	c.log.Infof("client invoke %s", r.URL.String())
+	resp, err := node.client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	return &Response{protocol: node.protocol, Response: resp}, nil
 }
 
 // NewFactory new a client factory.
@@ -56,6 +65,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 	return func(endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{
 			selector: wrr.New(),
+			log:      log,
 		}
 		var nodes []selector.Node
 		atomicNodes := make(map[string]*node, 0)
@@ -86,7 +96,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 							continue
 						}
 						var nodes []selector.Node
-						var atomicNodes = make(map[string]*node, 0)
+						atomicNodes := make(map[string]*node, 0)
 						for _, ser := range services {
 							scheme := strings.ToLower(endpoint.Protocol.String())
 							addr, err := parseEndpoint(ser.Endpoints, scheme, false)

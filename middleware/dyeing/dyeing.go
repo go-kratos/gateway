@@ -21,8 +21,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	if err := c.Options.UnmarshalTo(options); err != nil {
 		return nil, err
 	}
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	return func(handler middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, req *http.Request) (reply middleware.Response, err error) {
 			if color := req.Header.Get(options.Header); color != "" {
 				filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
 					filtered := make([]selector.Node, 0, len(nodes))
@@ -46,7 +46,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					options.Filters = append(options.Filters, filter)
 				}
 			}
-			next.ServeHTTP(w, req)
-		})
+
+			return handler(ctx, req)
+		}
 	}, nil
 }

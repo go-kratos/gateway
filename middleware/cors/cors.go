@@ -1,6 +1,8 @@
 package cors
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -45,9 +47,10 @@ func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 	}
 
 	corsMiddleware := handlers.CORS(opts...)
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			corsMiddleware(next).ServeHTTP(w, req)
-		})
+	fmt.Println(corsMiddleware)
+	return func(handler middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, req *http.Request) (reply middleware.Response, err error) {
+			return handler(ctx, req)
+		}
 	}, nil
 }

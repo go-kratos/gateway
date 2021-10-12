@@ -40,16 +40,34 @@ func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory Middl
 	return p, nil
 }
 
-func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
+func (p *Proxy) buildEndpoint(endpoint *config.Endpoint, parents []*config.Middleware) (http.Handler, error) {
 	caller, err := p.clientFactory(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := func(ctx context.Context, req *http.Request) (middleware.Response, error) {
+		opts, _ := FromContext(ctx)
+		return caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
+	}
+	for _, c := range parents {
+		m, err := p.middlewareFactory(c)
+		if err != nil {
+			return nil, err
+		}
+		handler = m(handler)
+	}
+	for _, c := range endpoint.Middlewares {
+		m, err := p.middlewareFactory(c)
+		if err != nil {
+			return nil, err
+		}
+		handler = m(handler)
+	}
+
+	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), endpoint.Timeout.AsDuration())
 		defer cancel()
-		opts, _ := FromContext(req.Context())
-		resp, err := caller.Invoke(ctx, req, client.WithFilter(opts.Filters))
+		resp, err := handler(ctx, req)
 		if err != nil {
 			switch err {
 			case context.Canceled:
@@ -61,44 +79,33 @@ func (p *Proxy) buildEndpoint(endpoint *config.Endpoint) (http.Handler, error) {
 			}
 			return
 		}
-		defer resp.Body.Close()
+		defer resp.Body().Close()
 		headers := w.Header()
-		for k, v := range resp.Header {
+		for k, v := range resp.Header() {
 			headers[k] = v
 		}
-		w.WriteHeader(resp.StatusCode)
-		_, _ = io.Copy(w, resp.Body)
+
+		w.WriteHeader(resp.HTTPStatus())
+		_, _ = io.Copy(w, resp.Body())
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
-		for k, v := range resp.Trailer {
+		for k, v := range resp.Trailer() {
 			headers[http.TrailerPrefix+k] = v
 		}
-	}))
-	return p.buildMiddleware(endpoint.Middlewares, handler)
-}
-
-func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler http.Handler) (http.Handler, error) {
-	for _, c := range ms {
-		m, err := p.middlewareFactory(c)
-		if err != nil {
-			return nil, err
-		}
-		handler = m(handler)
-	}
-	return handler, nil
+	})), nil
 }
 
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) error {
 	router := mux.NewRouter()
 	for _, e := range c.Endpoints {
-		handler, err := p.buildEndpoint(e)
+		handler, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
 			return err
 		}
-		handler, err = p.buildMiddleware(c.Middlewares, handler)
-		if err != nil {
-			return err
-		}
+		/*	handler, err = p.buildMiddleware(c.Middlewares, handler)
+			if err != nil {
+				return err
+			}*/
 		if err = router.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
