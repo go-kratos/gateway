@@ -27,12 +27,12 @@ var (
 	bind        string
 	timeout     time.Duration
 	idleTimeout time.Duration
+	// service
+	serviceName string
 	// consul
 	consulAddress    string
 	consulToken      string
 	consulDatacenter string
-
-	serviceName string
 )
 
 func init() {
@@ -40,10 +40,10 @@ func init() {
 	flag.StringVar(&bind, "bind", ":8080", "server address, eg: 127.0.0.1:8080")
 	flag.DurationVar(&timeout, "timeout", time.Second*15, "server timeout, eg: 15s")
 	flag.DurationVar(&idleTimeout, "idleTimeout", time.Second*300, "server idleTimeout, eg: 300s")
+	flag.StringVar(&serviceName, "service.name", "gateway", "service name, eg: gateway")
 	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
-	flag.StringVar(&serviceName, "serviceName", "kratos-gateway", "service name, eg: kratos-gateway")
 }
 
 func registry() *consul.Registry {
@@ -96,8 +96,7 @@ func main() {
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
-	srv := server.New(log, p, bind, timeout, idleTimeout)
-
+	srv := server.New(logger, p, bind, timeout, idleTimeout)
 	app := kratos.New(
 		kratos.Name(serviceName),
 		kratos.Server(srv),
