@@ -29,7 +29,7 @@ func (r *response) Body() io.ReadCloser {
 	return nil
 }
 
-func NewResponse(statusCode int, headers ...http.Header) *response {
+func newResponse(statusCode int, headers ...http.Header) *response {
 	var header http.Header
 	if len(headers) == 0 {
 		header = make(http.Header)
