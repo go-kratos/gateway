@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/hashicorp/consul/api"
 
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
+	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
@@ -31,6 +31,8 @@ var (
 	consulAddress    string
 	consulToken      string
 	consulDatacenter string
+
+	serviceName string
 )
 
 func init() {
@@ -41,6 +43,7 @@ func init() {
 	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
+	flag.StringVar(&serviceName, "serviceName", "kratos-gateway", "service name, eg: kratos-gateway")
 }
 
 func registry() *consul.Registry {
@@ -93,7 +96,13 @@ func main() {
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
-	if err := server.Run(context.Background(), log, p, bind, timeout, idleTimeout); err != nil {
+	srv := server.New(log, p, bind, timeout, idleTimeout)
+
+	app := kratos.New(
+		kratos.Name(serviceName),
+		kratos.Server(srv),
+	)
+	if err := app.Run(); err != nil {
 		log.Errorf("failed to run servers: %v", err)
 	}
 }
