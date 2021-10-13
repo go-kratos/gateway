@@ -11,6 +11,7 @@ require (
 	github.com/hashicorp/consul/api v1.11.0
 	github.com/pkg/errors v0.8.1
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
+	google.golang.org/grpc v1.39.1
 	google.golang.org/protobuf v1.27.1
 )
 
