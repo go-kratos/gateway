@@ -68,8 +68,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx, cancel := context.WithTimeout(r.Context(), e.Timeout.AsDuration())
 		defer cancel()
 		req := endpoint.NewRequest(r)
-		defer endpoint.FreeRequest(req)
 		resp, err := handler(ctx, req)
+		endpoint.FreeRequest(req)
 		if err != nil {
 			switch err {
 			case context.Canceled:
@@ -81,8 +81,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			}
 			return
 		}
-		defer resp.Body().Close()
-		defer endpoint.FreeResponse(resp)
 		headers := w.Header()
 		for k, v := range resp.Header() {
 			headers[k] = v
@@ -95,6 +93,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		for k, v := range resp.Trailer() {
 			headers[http.TrailerPrefix+k] = v
 		}
+		resp.Body().Close()
+		endpoint.FreeResponse(resp)
 	})), nil
 }
 
