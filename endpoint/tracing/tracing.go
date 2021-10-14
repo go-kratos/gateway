@@ -1,6 +1,11 @@
 package tracing
 
-import "io"
+import (
+	"io"
+)
+
+// Name of the middleware tracing
+const Otel = "opentelemetery"
 
 type Tracer interface {
 	io.Closer
@@ -12,7 +17,7 @@ type Tracer interface {
 type NoopTracer struct {
 }
 
-func (n NoopTracer) Closer() error {
+func (n NoopTracer) Close() error {
 	return nil
 }
 

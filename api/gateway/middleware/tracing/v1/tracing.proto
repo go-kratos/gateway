@@ -4,10 +4,16 @@ package gateway.middleware.tracing.v1;
 
 option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1";
 
+import "google/protobuf/duration.proto";
+
 // tracing middleware config
 message tracing {
 	// report endpoint url
 	string http_endpoint = 1;
-	// sample ration
-	float sample_ratio = 2;
+	// sample ratio
+	optional float sample_ratio = 2;
+	// service name to report
+	optional string service_name = 3;
+	// report timeout
+	google.protobuf.Duration timeout = 4;
 }
