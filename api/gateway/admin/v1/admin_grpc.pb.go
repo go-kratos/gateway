@@ -18,9 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AdminClient interface {
-	AddService(ctx context.Context, in *AddServiceRequest, opts ...grpc.CallOption) (*AddServiceReply, error)
-	DeleteService(ctx context.Context, in *DeleteServiceRequest, opts ...grpc.CallOption) (*DeleteServiceReply, error)
-	ListService(ctx context.Context, in *DeleteServiceRequest, opts ...grpc.CallOption) (*ListServiceReply, error)
+	ListEndpoint(ctx context.Context, in *ListEndpointRequest, opts ...grpc.CallOption) (*ListEndpointReply, error)
 }
 
 type adminClient struct {
@@ -31,27 +29,9 @@ func NewAdminClient(cc grpc.ClientConnInterface) AdminClient {
 	return &adminClient{cc}
 }
 
-func (c *adminClient) AddService(ctx context.Context, in *AddServiceRequest, opts ...grpc.CallOption) (*AddServiceReply, error) {
-	out := new(AddServiceReply)
-	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/AddService", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *adminClient) DeleteService(ctx context.Context, in *DeleteServiceRequest, opts ...grpc.CallOption) (*DeleteServiceReply, error) {
-	out := new(DeleteServiceReply)
-	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/DeleteService", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *adminClient) ListService(ctx context.Context, in *DeleteServiceRequest, opts ...grpc.CallOption) (*ListServiceReply, error) {
-	out := new(ListServiceReply)
-	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/ListService", in, out, opts...)
+func (c *adminClient) ListEndpoint(ctx context.Context, in *ListEndpointRequest, opts ...grpc.CallOption) (*ListEndpointReply, error) {
+	out := new(ListEndpointReply)
+	err := c.cc.Invoke(ctx, "/gateway.admin.v1.Admin/ListEndpoint", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +42,7 @@ func (c *adminClient) ListService(ctx context.Context, in *DeleteServiceRequest,
 // All implementations must embed UnimplementedAdminServer
 // for forward compatibility
 type AdminServer interface {
-	AddService(context.Context, *AddServiceRequest) (*AddServiceReply, error)
-	DeleteService(context.Context, *DeleteServiceRequest) (*DeleteServiceReply, error)
-	ListService(context.Context, *DeleteServiceRequest) (*ListServiceReply, error)
+	ListEndpoint(context.Context, *ListEndpointRequest) (*ListEndpointReply, error)
 	mustEmbedUnimplementedAdminServer()
 }
 
@@ -72,14 +50,8 @@ type AdminServer interface {
 type UnimplementedAdminServer struct {
 }
 
-func (UnimplementedAdminServer) AddService(context.Context, *AddServiceRequest) (*AddServiceReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddService not implemented")
-}
-func (UnimplementedAdminServer) DeleteService(context.Context, *DeleteServiceRequest) (*DeleteServiceReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteService not implemented")
-}
-func (UnimplementedAdminServer) ListService(context.Context, *DeleteServiceRequest) (*ListServiceReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListService not implemented")
+func (UnimplementedAdminServer) ListEndpoint(context.Context, *ListEndpointRequest) (*ListEndpointReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEndpoint not implemented")
 }
 func (UnimplementedAdminServer) mustEmbedUnimplementedAdminServer() {}
 
@@ -94,56 +66,20 @@ func RegisterAdminServer(s grpc.ServiceRegistrar, srv AdminServer) {
 	s.RegisterService(&Admin_ServiceDesc, srv)
 }
 
-func _Admin_AddService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddServiceRequest)
+func _Admin_ListEndpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListEndpointRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AdminServer).AddService(ctx, in)
+		return srv.(AdminServer).ListEndpoint(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/gateway.admin.v1.Admin/AddService",
+		FullMethod: "/gateway.admin.v1.Admin/ListEndpoint",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServer).AddService(ctx, req.(*AddServiceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Admin_DeleteService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteServiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AdminServer).DeleteService(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gateway.admin.v1.Admin/DeleteService",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServer).DeleteService(ctx, req.(*DeleteServiceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Admin_ListService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteServiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AdminServer).ListService(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gateway.admin.v1.Admin/ListService",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdminServer).ListService(ctx, req.(*DeleteServiceRequest))
+		return srv.(AdminServer).ListEndpoint(ctx, req.(*ListEndpointRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -156,16 +92,8 @@ var Admin_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AdminServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "AddService",
-			Handler:    _Admin_AddService_Handler,
-		},
-		{
-			MethodName: "DeleteService",
-			Handler:    _Admin_DeleteService_Handler,
-		},
-		{
-			MethodName: "ListService",
-			Handler:    _Admin_ListService_Handler,
+			MethodName: "ListEndpoint",
+			Handler:    _Admin_ListEndpoint_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -4,25 +4,9 @@ package gateway.admin.v1;
 
 option go_package = "github.com/go-kratos/gateway/api/gateway/admin/v1";
 
-import "gateway/config/v1/service.proto";
-
 service Admin {
-  rpc AddService(AddServiceRequest) returns (AddServiceReply) {}
-  rpc DeleteService(DeleteServiceRequest) returns (DeleteServiceReply) {}
-  rpc ListService(DeleteServiceRequest) returns (ListServiceReply) {}
+  rpc ListEndpoint (ListEndpointRequest) returns (ListEndpointReply)  {}
 }
 
-message AddServiceRequest {
-  repeated gateway.config.v1.Service services = 1;
-}
-message AddServiceReply {}
-
-message DeleteServiceRequest {
-  repeated string service_names = 1;
-}
-message DeleteServiceReply {}
-
-message ListServiceRequest {}
-message ListServiceReply {
-  repeated gateway.config.v1.Service services = 1;
-}
+message ListEndpointRequest {}
+message ListEndpointReply {}

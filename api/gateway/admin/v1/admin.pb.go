@@ -7,7 +7,6 @@
 package v1
 
 import (
-	v1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,16 +20,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type AddServiceRequest struct {
+type ListEndpointRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-
-	Services []*v1.Service `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
 }
 
-func (x *AddServiceRequest) Reset() {
-	*x = AddServiceRequest{}
+func (x *ListEndpointRequest) Reset() {
+	*x = ListEndpointRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_admin_v1_admin_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -38,13 +35,13 @@ func (x *AddServiceRequest) Reset() {
 	}
 }
 
-func (x *AddServiceRequest) String() string {
+func (x *ListEndpointRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AddServiceRequest) ProtoMessage() {}
+func (*ListEndpointRequest) ProtoMessage() {}
 
-func (x *AddServiceRequest) ProtoReflect() protoreflect.Message {
+func (x *ListEndpointRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_admin_v1_admin_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,26 +53,19 @@ func (x *AddServiceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AddServiceRequest.ProtoReflect.Descriptor instead.
-func (*AddServiceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListEndpointRequest.ProtoReflect.Descriptor instead.
+func (*ListEndpointRequest) Descriptor() ([]byte, []int) {
 	return file_gateway_admin_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AddServiceRequest) GetServices() []*v1.Service {
-	if x != nil {
-		return x.Services
-	}
-	return nil
-}
-
-type AddServiceReply struct {
+type ListEndpointReply struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 }
 
-func (x *AddServiceReply) Reset() {
-	*x = AddServiceReply{}
+func (x *ListEndpointReply) Reset() {
+	*x = ListEndpointReply{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_admin_v1_admin_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -83,13 +73,13 @@ func (x *AddServiceReply) Reset() {
 	}
 }
 
-func (x *AddServiceReply) String() string {
+func (x *ListEndpointReply) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AddServiceReply) ProtoMessage() {}
+func (*ListEndpointReply) ProtoMessage() {}
 
-func (x *AddServiceReply) ProtoReflect() protoreflect.Message {
+func (x *ListEndpointReply) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_admin_v1_admin_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -101,179 +91,9 @@ func (x *AddServiceReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AddServiceReply.ProtoReflect.Descriptor instead.
-func (*AddServiceReply) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListEndpointReply.ProtoReflect.Descriptor instead.
+func (*ListEndpointReply) Descriptor() ([]byte, []int) {
 	return file_gateway_admin_v1_admin_proto_rawDescGZIP(), []int{1}
-}
-
-type DeleteServiceRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ServiceNames []string `protobuf:"bytes,1,rep,name=service_names,json=serviceNames,proto3" json:"service_names,omitempty"`
-}
-
-func (x *DeleteServiceRequest) Reset() {
-	*x = DeleteServiceRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_admin_v1_admin_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeleteServiceRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteServiceRequest) ProtoMessage() {}
-
-func (x *DeleteServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_admin_v1_admin_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteServiceRequest.ProtoReflect.Descriptor instead.
-func (*DeleteServiceRequest) Descriptor() ([]byte, []int) {
-	return file_gateway_admin_v1_admin_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *DeleteServiceRequest) GetServiceNames() []string {
-	if x != nil {
-		return x.ServiceNames
-	}
-	return nil
-}
-
-type DeleteServiceReply struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *DeleteServiceReply) Reset() {
-	*x = DeleteServiceReply{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_admin_v1_admin_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeleteServiceReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteServiceReply) ProtoMessage() {}
-
-func (x *DeleteServiceReply) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_admin_v1_admin_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteServiceReply.ProtoReflect.Descriptor instead.
-func (*DeleteServiceReply) Descriptor() ([]byte, []int) {
-	return file_gateway_admin_v1_admin_proto_rawDescGZIP(), []int{3}
-}
-
-type ListServiceRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *ListServiceRequest) Reset() {
-	*x = ListServiceRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_admin_v1_admin_proto_msgTypes[4]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ListServiceRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListServiceRequest) ProtoMessage() {}
-
-func (x *ListServiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_admin_v1_admin_proto_msgTypes[4]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListServiceRequest.ProtoReflect.Descriptor instead.
-func (*ListServiceRequest) Descriptor() ([]byte, []int) {
-	return file_gateway_admin_v1_admin_proto_rawDescGZIP(), []int{4}
-}
-
-type ListServiceReply struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Services []*v1.Service `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
-}
-
-func (x *ListServiceReply) Reset() {
-	*x = ListServiceReply{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_admin_v1_admin_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ListServiceReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListServiceReply) ProtoMessage() {}
-
-func (x *ListServiceReply) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_admin_v1_admin_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListServiceReply.ProtoReflect.Descriptor instead.
-func (*ListServiceReply) Descriptor() ([]byte, []int) {
-	return file_gateway_admin_v1_admin_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *ListServiceReply) GetServices() []*v1.Service {
-	if x != nil {
-		return x.Services
-	}
-	return nil
 }
 
 var File_gateway_admin_v1_admin_proto protoreflect.FileDescriptor
@@ -282,48 +102,19 @@ var file_gateway_admin_v1_admin_proto_rawDesc = []byte{
 	0x0a, 0x1c, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2f, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2f,
 	0x76, 0x31, 0x2f, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x10,
 	0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x76, 0x31,
-	0x1a, 0x1f, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67,
-	0x2f, 0x76, 0x31, 0x2f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x22, 0x4b, 0x0a, 0x11, 0x41, 0x64, 0x64, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x36, 0x0a, 0x08, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63,
-	0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77,
-	0x61, 0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x65, 0x72,
-	0x76, 0x69, 0x63, 0x65, 0x52, 0x08, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x22, 0x11,
-	0x0a, 0x0f, 0x41, 0x64, 0x64, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x65, 0x70, 0x6c,
-	0x79, 0x22, 0x3b, 0x0a, 0x14, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x23, 0x0a, 0x0d, 0x73, 0x65, 0x72,
-	0x76, 0x69, 0x63, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09,
-	0x52, 0x0c, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x22, 0x14,
-	0x0a, 0x12, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52,
-	0x65, 0x70, 0x6c, 0x79, 0x22, 0x14, 0x0a, 0x12, 0x4c, 0x69, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76,
-	0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x4a, 0x0a, 0x10, 0x4c, 0x69,
-	0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x36,
-	0x0a, 0x08, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x1a, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69,
-	0x67, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x08, 0x73, 0x65,
-	0x72, 0x76, 0x69, 0x63, 0x65, 0x73, 0x32, 0x9d, 0x02, 0x0a, 0x05, 0x41, 0x64, 0x6d, 0x69, 0x6e,
-	0x12, 0x56, 0x0a, 0x0a, 0x41, 0x64, 0x64, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x23,
-	0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x76,
-	0x31, 0x2e, 0x41, 0x64, 0x64, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x61, 0x64,
-	0x6d, 0x69, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x41, 0x64, 0x64, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
-	0x65, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x5f, 0x0a, 0x0d, 0x44, 0x65, 0x6c, 0x65,
-	0x74, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x26, 0x2e, 0x67, 0x61, 0x74, 0x65,
-	0x77, 0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x6c,
-	0x65, 0x74, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x24, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69,
-	0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x5b, 0x0a, 0x0b, 0x4c, 0x69, 0x73,
-	0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x26, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77,
-	0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x6c, 0x65,
-	0x74, 0x65, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x22, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69, 0x6e,
-	0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x52,
-	0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x42, 0x33, 0x5a, 0x31, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
-	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x6f, 0x2d, 0x6b, 0x72, 0x61, 0x74, 0x6f, 0x73, 0x2f, 0x67,
-	0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x67, 0x61, 0x74, 0x65, 0x77,
-	0x61, 0x79, 0x2f, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x33,
+	0x22, 0x15, 0x0a, 0x13, 0x4c, 0x69, 0x73, 0x74, 0x45, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x13, 0x0a, 0x11, 0x4c, 0x69, 0x73, 0x74, 0x45,
+	0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x32, 0x65, 0x0a, 0x05,
+	0x41, 0x64, 0x6d, 0x69, 0x6e, 0x12, 0x5c, 0x0a, 0x0c, 0x4c, 0x69, 0x73, 0x74, 0x45, 0x6e, 0x64,
+	0x70, 0x6f, 0x69, 0x6e, 0x74, 0x12, 0x25, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e,
+	0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x45, 0x6e, 0x64,
+	0x70, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x67,
+	0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x76, 0x31, 0x2e,
+	0x4c, 0x69, 0x73, 0x74, 0x45, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x65, 0x70, 0x6c,
+	0x79, 0x22, 0x00, 0x42, 0x33, 0x5a, 0x31, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
+	0x6d, 0x2f, 0x67, 0x6f, 0x2d, 0x6b, 0x72, 0x61, 0x74, 0x6f, 0x73, 0x2f, 0x67, 0x61, 0x74, 0x65,
+	0x77, 0x61, 0x79, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2f,
+	0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -338,30 +129,19 @@ func file_gateway_admin_v1_admin_proto_rawDescGZIP() []byte {
 	return file_gateway_admin_v1_admin_proto_rawDescData
 }
 
-var file_gateway_admin_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_gateway_admin_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_gateway_admin_v1_admin_proto_goTypes = []interface{}{
-	(*AddServiceRequest)(nil),    // 0: gateway.admin.v1.AddServiceRequest
-	(*AddServiceReply)(nil),      // 1: gateway.admin.v1.AddServiceReply
-	(*DeleteServiceRequest)(nil), // 2: gateway.admin.v1.DeleteServiceRequest
-	(*DeleteServiceReply)(nil),   // 3: gateway.admin.v1.DeleteServiceReply
-	(*ListServiceRequest)(nil),   // 4: gateway.admin.v1.ListServiceRequest
-	(*ListServiceReply)(nil),     // 5: gateway.admin.v1.ListServiceReply
-	(*v1.Service)(nil),           // 6: gateway.config.v1.Service
+	(*ListEndpointRequest)(nil), // 0: gateway.admin.v1.ListEndpointRequest
+	(*ListEndpointReply)(nil),   // 1: gateway.admin.v1.ListEndpointReply
 }
 var file_gateway_admin_v1_admin_proto_depIdxs = []int32{
-	6, // 0: gateway.admin.v1.AddServiceRequest.services:type_name -> gateway.config.v1.Service
-	6, // 1: gateway.admin.v1.ListServiceReply.services:type_name -> gateway.config.v1.Service
-	0, // 2: gateway.admin.v1.Admin.AddService:input_type -> gateway.admin.v1.AddServiceRequest
-	2, // 3: gateway.admin.v1.Admin.DeleteService:input_type -> gateway.admin.v1.DeleteServiceRequest
-	2, // 4: gateway.admin.v1.Admin.ListService:input_type -> gateway.admin.v1.DeleteServiceRequest
-	1, // 5: gateway.admin.v1.Admin.AddService:output_type -> gateway.admin.v1.AddServiceReply
-	3, // 6: gateway.admin.v1.Admin.DeleteService:output_type -> gateway.admin.v1.DeleteServiceReply
-	5, // 7: gateway.admin.v1.Admin.ListService:output_type -> gateway.admin.v1.ListServiceReply
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: gateway.admin.v1.Admin.ListEndpoint:input_type -> gateway.admin.v1.ListEndpointRequest
+	1, // 1: gateway.admin.v1.Admin.ListEndpoint:output_type -> gateway.admin.v1.ListEndpointReply
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_gateway_admin_v1_admin_proto_init() }
@@ -371,7 +151,7 @@ func file_gateway_admin_v1_admin_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_gateway_admin_v1_admin_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddServiceRequest); i {
+			switch v := v.(*ListEndpointRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -383,55 +163,7 @@ func file_gateway_admin_v1_admin_proto_init() {
 			}
 		}
 		file_gateway_admin_v1_admin_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddServiceReply); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_admin_v1_admin_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeleteServiceRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_admin_v1_admin_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeleteServiceReply); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_admin_v1_admin_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListServiceRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_admin_v1_admin_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListServiceReply); i {
+			switch v := v.(*ListEndpointReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -449,7 +181,7 @@ func file_gateway_admin_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_gateway_admin_v1_admin_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

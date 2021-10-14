@@ -1,20 +1,29 @@
-
-admin:
-  address: ":7000"
-
-gateways:
-- address: ":8000"
-
-services:
-- name: "echo"
-  hosts: 
-  - "localhost"
-  - "127.0.0.1"
-  endpoints:
-  - path: "/v1/echo/*"
-    method: "*"
-    timeout: "1s"
-    middlewares:
-      - name: "dyeing"
-    backends:
-      - target: "www.baidu.com"
+# This is a gateway config.
+name: "helloworld"
+hosts: 
+- "localhost"
+- "127.0.0.1"
+middlewares:
+- name: "cors"
+  options:
+    "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors"
+    allowedOrigins:
+    - ".google.com"
+- name: "dyeing"
+  options:
+    "@type": "type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing"
+    header: "x-md-global-color"
+    label: "color"
+endpoints:
+- path: "/helloworld/*"
+  method: "*"
+  timeout: "1s"
+  protocol: "HTTP"
+  backends:
+  - target: "127.0.0.1:8000"
+- path: "/helloworld.Greeter/*"
+  method: "*"
+  timeout: "1s"
+  protocol: "GRPC"
+  backends:
+  - target: "127.0.0.1:9000"

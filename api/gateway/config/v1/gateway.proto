@@ -4,20 +4,46 @@ package gateway.config.v1;
 
 option go_package = "github.com/go-kratos/gateway/api/gateway/config/v1";
 
+import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 
 message Gateway {
-  // :80
-  string address = 1;
-  // TLS config
-  TLSConfig tls_config = 2;
-  // default is 15s
-  google.protobuf.Duration timeout = 3;
-  // default is 300s
-  google.protobuf.Duration idle_timeout = 4;
+  string name = 1;
+  repeated string hosts = 2;
+  repeated Endpoint endpoints = 3;
+  // default middlewares
+  repeated Middleware middlewares = 4;
 }
 
-message TLSConfig {
-  string public_key = 1;
-  string private_key = 2;
+message Endpoint {
+  string method = 1;
+  string path = 2;
+  string description = 3;
+  Protocol protocol = 4;
+  google.protobuf.Duration timeout = 5;
+  repeated Middleware middlewares = 6;
+  repeated Backend backends = 7;
+}
+
+message Middleware {
+  string name = 1;
+  google.protobuf.Any options = 2;
+}
+
+message Backend  {
+  // localhost
+  // 127.0.0.1:8000
+  // discovery://service_name
+  string target = 1;
+  HealthCheck health_check = 2;
+  optional int64 weight = 3;
+}
+
+enum Protocol {
+  HTTP = 0;
+  GRPC = 1;
+}
+
+message HealthCheck {
+  string path = 1;
 }
