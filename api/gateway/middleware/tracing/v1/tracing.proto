@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package gateway.middleware.tracing.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1";
+
+// tracing middleware config
+message tracing {
+	// report endpoint url
+	string http_endpoint = 1;
+	// sample ration
+	float sample_ratio = 2;
+}
