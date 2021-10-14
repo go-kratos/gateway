@@ -12,12 +12,11 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 )
-
-// Name is the middleware name
-const Name = "opentelemetry"
 
 func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Tracing{}
@@ -25,12 +24,21 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	tracer := NewTracer(context.Background(), options)
-	// propagator := propagation.NewCompositeTextMapPropagator()
+	// TODO: use a global tracer?
+	tp := NewTracerProvider(context.Background(), options)
+	tracer := tp.Tracer("gateway")
+
+	// propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
+	// otel.SetTracerProvider(tp)
+	// otel.SetTextMapPropagator(propagator)
 
 	return func(handler endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req endpoint.Request) (reply endpoint.Response, err error) {
 			ctx, span := tracer.Start(ctx, req.Path(), trace.WithSpanKind(trace.SpanKindClient))
+			span.SetAttributes(
+				semconv.HTTPMethodKey.String(req.Method()),
+				semconv.HTTPTargetKey.String(req.Path()),
+			)
 			defer func() {
 				if err != nil {
 					span.RecordError(err)
@@ -45,21 +53,25 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	}, nil
 }
 
-func NewTracer(ctx context.Context, options *v1.Tracing) trace.Tracer {
+func NewTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerProvider {
 	var (
 		serviceName = "gateway"
 		timeout     = time.Duration(10 * time.Second)
 	)
 
-	var sampler sdktrace.Sampler
-	if options.SampleRatio != nil {
-		sampler = sdktrace.TraceIDRatioBased(float64(*options.SampleRatio))
-	} else {
-		sampler = sdktrace.AlwaysSample()
+	if options.ServiceName != nil {
+		serviceName = *options.ServiceName
 	}
 
 	if options.Timeout != nil {
 		timeout = options.Timeout.AsDuration()
+	}
+
+	var sampler sdktrace.Sampler
+	if options.SampleRatio == nil {
+		sampler = sdktrace.AlwaysSample()
+	} else {
+		sampler = sdktrace.TraceIDRatioBased(float64(*options.SampleRatio))
 	}
 
 	client := otlptracehttp.NewClient(
@@ -72,14 +84,14 @@ func NewTracer(ctx context.Context, options *v1.Tracing) trace.Tracer {
 		log.Fatalf("creating OTLP trace exporter: %v", err)
 	}
 
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sampler),
-		sdktrace.WithBatcher(exporter),
+	resources := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(serviceName),
 	)
 
-	if options.ServiceName != nil {
-		serviceName = *options.ServiceName
-	}
-
-	return tp.Tracer(serviceName)
+	return sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sampler),
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resources),
+	)
 }
