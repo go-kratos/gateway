@@ -9,6 +9,7 @@ import (
 
 // Request is an HTTP request.
 type Request interface {
+	Host() string
 	Path() string
 	Method() string
 	Query() url.Values

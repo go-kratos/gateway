@@ -53,7 +53,8 @@ func (n *node) Metadata() map[string]string {
 
 func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
 	client := &http.Client{
-		Timeout: timeout,
+		Timeout:   timeout,
+		Transport: http.DefaultTransport,
 	}
 	if protocol == config.Protocol_GRPC {
 		client.Transport = &http2.Transport{
