@@ -62,7 +62,7 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 			}).DialContext,
 			ForceAttemptHTTP2:     true,
 			MaxIdleConns:          100,
-			MaxConnsPerHost:       100,
+			MaxIdleConnsPerHost:   100,
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   timeout,
 			ExpectContinueTimeout: timeout,
