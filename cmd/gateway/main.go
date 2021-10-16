@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"time"
 
@@ -33,6 +35,8 @@ var (
 	consulAddress    string
 	consulToken      string
 	consulDatacenter string
+	// debug
+	pprofAddr string
 )
 
 func init() {
@@ -44,6 +48,7 @@ func init() {
 	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
+	flag.StringVar(&pprofAddr, "pprof", "", "pprof addr, eg: localhost:8088")
 }
 
 func registry() *consul.Registry {
@@ -76,6 +81,10 @@ func main() {
 	flag.Parse()
 	logger := log.NewStdLogger(os.Stdout)
 	log := log.NewHelper(logger)
+	if pprofAddr != "" {
+		go pprofServer(log)
+	}
+
 	c := config.New(
 		config.WithSource(
 			file.NewSource(conf),
@@ -103,5 +112,19 @@ func main() {
 	)
 	if err := app.Run(); err != nil {
 		log.Errorf("failed to run servers: %v", err)
+	}
+}
+
+func pprofServer(log *log.Helper) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	log.Infof("pprof server start listening on: %s", pprofAddr)
+	err := http.ListenAndServe(pprofAddr, mux)
+	if err != nil {
+		log.Errorf("failed to run pprof server: %v", err)
 	}
 }
