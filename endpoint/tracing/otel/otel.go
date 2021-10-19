@@ -3,20 +3,28 @@ package otel
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"github.com/go-kratos/gateway/endpoint"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var globaltp = &struct {
+	provider trace.TracerProvider
+	initOnce sync.Once
+}{}
 
 func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Tracing{}
@@ -24,13 +32,16 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	// TODO: use a global tracer?
-	tp := NewTracerProvider(context.Background(), options)
-	tracer := tp.Tracer("gateway")
+	if globaltp.provider == nil {
+		globaltp.initOnce.Do(func() {
+			globaltp.provider = NewTracerProvider(context.Background(), options)
+			propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
+			otel.SetTracerProvider(globaltp.provider)
+			otel.SetTextMapPropagator(propagator)
+		})
+	}
 
-	// propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
-	// otel.SetTracerProvider(tp)
-	// otel.SetTextMapPropagator(propagator)
+	tracer := otel.Tracer("gateway")
 
 	return func(handler endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req endpoint.Request) (reply endpoint.Response, err error) {
