@@ -36,6 +36,10 @@ func (r *httpRequest) reset(req *http.Request) {
 	r.Request = req
 }
 
+func (r *httpRequest) Host() string {
+	return r.Request.Host
+}
+
 func (r *httpRequest) Path() string {
 	return r.Request.RequestURI
 }
