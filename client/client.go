@@ -34,6 +34,7 @@ func (c *clientImpl) Invoke(ctx context.Context, req endpoint.Request) (endpoint
 		return nil, err
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
+	opts.UsedNodes = append(opts.UsedNodes, selected)
 	node := c.nodes.Load().(map[string]*node)[selected.Address()]
 	r, err := http.NewRequestWithContext(ctx, req.Method(), req.Path(), req.Body())
 	if err != nil {

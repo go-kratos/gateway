@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package gateway.middleware.retry.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/retry/v1";
+
+import "google/protobuf/wrappers.proto";
+
+// Retry middleware config.
+message Retry {
+    // default 1
+    google.protobuf.UInt32Value num_retries = 1;
+
+    // http code for retry
+    repeated uint32 retriable_status_codes = 2;
+
+    // grpc code for retry
+    repeated uint32 retriable_grpc_status = 3;
+
+    // response header trigger
+    repeated string retriable_headers = 4;
+
+    bool previous_hosts = 5;
+}
