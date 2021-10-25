@@ -65,7 +65,10 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), e.Timeout.AsDuration())
+		ctx := endpoint.NewContext(r.Context(), &endpoint.RequestOptions{
+			Filters: []selector.Filter{},
+		})
+		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
 		req := endpoint.NewRequest(r)
 		resp, err := handler(ctx, req)
@@ -122,8 +125,5 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			p.log.Error(err)
 		}
 	}()
-	ctx := endpoint.NewContext(req.Context(), &endpoint.RequestOptions{
-		Filters: []selector.Filter{},
-	})
-	p.router.Load().(router.Router).ServeHTTP(w, req.WithContext(ctx))
+	p.router.Load().(router.Router).ServeHTTP(w, req)
 }
