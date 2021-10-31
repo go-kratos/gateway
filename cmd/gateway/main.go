@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"net/http/pprof"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -82,9 +82,8 @@ func main() {
 	logger := log.NewStdLogger(os.Stdout)
 	log := log.NewHelper(logger)
 	if pprofAddr != "" {
-		go pprofServer(log)
+		go log.Fatal(http.ListenAndServe(pprofAddr, nil))
 	}
-
 	c := config.New(
 		config.WithSource(
 			file.NewSource(conf),
@@ -113,15 +112,4 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Errorf("failed to run servers: %v", err)
 	}
-}
-
-func pprofServer(log *log.Helper) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	log.Infof("pprof listening on: %s", pprofAddr)
-	log.Fatal(http.ListenAndServe(pprofAddr, mux))
 }

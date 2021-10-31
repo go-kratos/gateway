@@ -6,7 +6,6 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	"github.com/go-kratos/gateway/endpoint"
-	"github.com/pkg/errors"
 )
 
 // Name is the middleware name.
@@ -16,7 +15,7 @@ const Name = "cors"
 func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Cors{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	opts := make([]CORSOption, 0, 6)
