@@ -19,8 +19,8 @@ vendor/
 *.o
 *.a
 *.so
-cmd/cmd
 cmd/gateway/gateway
+examples/helloworld/helloworld
 
 # OS General
 Thumbs.db

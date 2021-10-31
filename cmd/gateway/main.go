@@ -48,7 +48,7 @@ func init() {
 	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
-	flag.StringVar(&pprofAddr, "pprof", "0.0.0.0:7000", "pprof addr, eg: 127.0.0.1:7000")
+	flag.StringVar(&pprofAddr, "pprof", "0.0.0.0:7070", "pprof addr, eg: 127.0.0.1:7070")
 }
 
 func registry() *consul.Registry {
@@ -122,9 +122,6 @@ func pprofServer(log *log.Helper) {
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	log.Infof("pprof server start listening on: %s", pprofAddr)
-	err := http.ListenAndServe(pprofAddr, mux)
-	if err != nil {
-		log.Errorf("failed to run pprof server: %v", err)
-	}
+	log.Infof("pprof listening on: %s", pprofAddr)
+	log.Fatal(http.ListenAndServe(pprofAddr, mux))
 }
