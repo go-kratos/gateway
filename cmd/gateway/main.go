@@ -48,7 +48,7 @@ func init() {
 	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
-	flag.StringVar(&pprofAddr, "pprof", "", "pprof addr, eg: localhost:8088")
+	flag.StringVar(&pprofAddr, "pprof", "0.0.0.0:7000", "pprof addr, eg: 127.0.0.1:7000")
 }
 
 func registry() *consul.Registry {

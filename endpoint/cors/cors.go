@@ -50,31 +50,31 @@ const (
 	corsOriginMatchAll         string = "*"
 )
 
-func (ch *cors) Handle(ctx context.Context, r endpoint.Request) (reply endpoint.Response, err error) {
-	origin := r.Header().Get(corsOriginHeader)
+func (ch *cors) Handle(ctx context.Context, r *http.Request) (reply *http.Response, err error) {
+	origin := r.Header.Get(corsOriginHeader)
 	if !ch.isOriginAllowed(origin) {
-		if r.Method() != corsOptionMethod || ch.ignoreOptions {
+		if r.Method != corsOptionMethod || ch.ignoreOptions {
 			return ch.h(ctx, r)
 		}
 
-		return newResponse(200), nil
+		return newResponse(200, nil), nil
 	}
 	header := make(http.Header)
-	if r.Method() == corsOptionMethod {
+	if r.Method == corsOptionMethod {
 		if ch.ignoreOptions {
 			return ch.h(ctx, r)
 		}
 
-		if _, ok := r.Header()[corsRequestMethodHeader]; !ok {
-			return newResponse(http.StatusBadRequest), nil
+		if _, ok := r.Header[corsRequestMethodHeader]; !ok {
+			return newResponse(http.StatusBadRequest, nil), nil
 		}
 
-		method := r.Header().Get(corsRequestMethodHeader)
+		method := r.Header.Get(corsRequestMethodHeader)
 		if !ch.isMatch(method, ch.allowedMethods) {
-			return newResponse(http.StatusMethodNotAllowed), nil
+			return newResponse(http.StatusMethodNotAllowed, nil), nil
 		}
 
-		requestHeaders := strings.Split(r.Header().Get(corsRequestHeadersHeader), ",")
+		requestHeaders := strings.Split(r.Header.Get(corsRequestHeadersHeader), ",")
 		allowedHeaders := []string{}
 		for _, v := range requestHeaders {
 			canonicalHeader := http.CanonicalHeaderKey(strings.TrimSpace(v))
@@ -83,7 +83,7 @@ func (ch *cors) Handle(ctx context.Context, r endpoint.Request) (reply endpoint.
 			}
 
 			if !ch.isMatch(canonicalHeader, ch.allowedHeaders) {
-				return newResponse(http.StatusForbidden), nil
+				return newResponse(http.StatusForbidden, nil), nil
 			}
 
 			allowedHeaders = append(allowedHeaders, canonicalHeader)
@@ -130,14 +130,14 @@ func (ch *cors) Handle(ctx context.Context, r endpoint.Request) (reply endpoint.
 	}
 	header.Set(corsAllowOriginHeader, returnOrigin)
 
-	if r.Method() == corsOptionMethod {
+	if r.Method == corsOptionMethod {
 		resp := newResponse(ch.optionStatusCode, header)
 		return resp, nil
 	}
 	resp, err := ch.h(ctx, r)
 	if err == nil {
 		for k, v := range header {
-			resp.Header()[k] = v
+			resp.Header[k] = v
 		}
 	}
 	return resp, err

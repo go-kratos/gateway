@@ -70,9 +70,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
-		req := endpoint.NewRequest(r)
-		resp, err := handler(ctx, req)
-		endpoint.FreeRequest(req)
+		resp, err := handler(ctx, r)
 		if err != nil {
 			switch err {
 			case context.Canceled:
@@ -85,19 +83,18 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			return
 		}
 		headers := w.Header()
-		for k, v := range resp.Header() {
+		for k, v := range resp.Header {
 			headers[k] = v
 		}
-		w.WriteHeader(resp.StatusCode())
-		if body := resp.Body(); body != nil {
+		w.WriteHeader(resp.StatusCode)
+		if body := resp.Body; body != nil {
 			_, _ = io.Copy(w, body)
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
-		for k, v := range resp.Trailer() {
+		for k, v := range resp.Trailer {
 			headers[http.TrailerPrefix+k] = v
 		}
-		resp.Body().Close()
-		endpoint.FreeResponse(resp)
+		resp.Body.Close()
 	})), nil
 }
 

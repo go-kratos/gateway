@@ -2,6 +2,7 @@ package dyeing
 
 import (
 	"context"
+	"net/http"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
@@ -20,8 +21,8 @@ func Middleware(c *config.Middleware) (endpoint.Middleware, error) {
 		return nil, err
 	}
 	return func(handler endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req endpoint.Request) (reply endpoint.Response, err error) {
-			if color := req.Header().Get(options.Header); color != "" {
+		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
+			if color := req.Header.Get(options.Header); color != "" {
 				filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
 					filtered := make([]selector.Node, 0, len(nodes))
 					for _, n := range nodes {
