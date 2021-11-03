@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"sync/atomic"
 
@@ -27,14 +28,19 @@ type Proxy struct {
 	log               *log.Helper
 	clientFactory     ClientFactory
 	middlewareFactory MiddlewareFactory
+
+	remoteRealIpHeaders   []string
+	remoteRealPortHeaders []string
 }
 
 // New new a gateway proxy.
-func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
+func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory, remoteAddrHeaders, remoteRealPortHeaders []string) (*Proxy, error) {
 	p := &Proxy{
-		log:               log.NewHelper(logger),
-		clientFactory:     clientFactory,
-		middlewareFactory: middlewareFactory,
+		log:                   log.NewHelper(logger),
+		clientFactory:         clientFactory,
+		middlewareFactory:     middlewareFactory,
+		remoteRealIpHeaders:   remoteAddrHeaders,
+		remoteRealPortHeaders: remoteRealPortHeaders,
 	}
 	p.router.Store(mux.NewRouter())
 	return p, nil
@@ -65,6 +71,15 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, port, err := net.SplitHostPort(r.RemoteAddr)
+		if err == nil {
+			for _, h := range p.remoteRealIpHeaders {
+				r.Header.Set(h, ip)
+			}
+			for _, h := range p.remoteRealPortHeaders {
+				r.Header.Set(h, port)
+			}
+		}
 		ctx := endpoint.NewContext(r.Context(), &endpoint.RequestOptions{
 			Filters: []selector.Filter{},
 		})
