@@ -110,7 +110,7 @@ func main() {
 	}
 	remoteRealPortHeaders := make([]string, 0)
 	for _, h := range strings.Split(remoteRealPortHeader, ",") {
-		remoteRealPortHeaders = append(remoteRealPortHeaders, h)
+		remoteRealPortHeaders = append(remoteRealPortHeaders, strings.TrimSpace(h))
 	}
 	p, err := proxy.New(logger, clientFactory, middlewareFactory, remoteRealIpHeaders, remoteRealPortHeaders)
 	if err != nil {
