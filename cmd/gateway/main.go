@@ -82,7 +82,9 @@ func main() {
 	logger := log.NewStdLogger(os.Stdout)
 	log := log.NewHelper(logger)
 	if pprofAddr != "" {
-		go log.Fatal(http.ListenAndServe(pprofAddr, nil))
+		go func() {
+			log.Fatal(http.ListenAndServe(pprofAddr, nil))
+		}()
 	}
 	c := config.New(
 		config.WithSource(
