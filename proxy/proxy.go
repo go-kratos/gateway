@@ -33,9 +33,9 @@ type Proxy struct {
 // New new a gateway proxy.
 func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
 	p := &Proxy{
-		log:                   log.NewHelper(logger),
-		clientFactory:         clientFactory,
-		middlewareFactory:     middlewareFactory,
+		log:               log.NewHelper(logger),
+		clientFactory:     clientFactory,
+		middlewareFactory: middlewareFactory,
 	}
 	p.router.Store(mux.NewRouter())
 	return p, nil
