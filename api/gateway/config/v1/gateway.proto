@@ -23,6 +23,7 @@ message Endpoint {
   google.protobuf.Duration timeout = 5;
   repeated Middleware middlewares = 6;
   repeated Backend backends = 7;
+  Retry retry = 8;
 }
 
 message Middleware {
@@ -46,4 +47,12 @@ enum Protocol {
 
 message HealthCheck {
   string path = 1;
+}
+
+message Retry {
+  // default attempts is 1
+  uint32 attempts = 1 ;
+  google.protobuf.Duration per_try_timeout = 2;
+  repeated string conditions = 3;
+  bool allow_tried_nodes = 4;
 }

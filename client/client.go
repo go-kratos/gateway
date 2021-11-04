@@ -1,9 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -25,6 +27,10 @@ type Client interface {
 type clientImpl struct {
 	selector selector.Selector
 	nodes    atomic.Value
+
+	attempts        uint32
+	allowTriedNodes bool
+	conditions      []string
 }
 
 func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
@@ -38,6 +44,30 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Respo
 	req.URL.Scheme = "http"
 	req.URL.Host = selected.Address()
 	req.RequestURI = ""
+	req = req.WithContext(ctx)
+
+	if c.attempts > 1 {
+		var resp *http.Response
+		var err error
+		content, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		req.Body = ioutil.NopCloser(bytes.NewReader(content))
+
+		for i := 0; i < int(c.attempts); i++ {
+			// canceled or deadline exceeded
+			if ctx.Err() != nil {
+				err = ctx.Err()
+				break
+			}
+			resp, err = node.client.Do(req)
+			if err == nil {
+				break
+			}
+		}
+		return resp, err
+	}
 	return node.client.Do(req)
 }
 
@@ -47,7 +77,20 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 	return func(endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{
 			selector: wrr.New(),
+			attempts: 1,
 		}
+		timeout := endpoint.Timeout.AsDuration()
+		if endpoint.Retry != nil {
+			if endpoint.Retry.PerTryTimeout != nil && endpoint.Retry.PerTryTimeout.AsDuration() > 0 && endpoint.Retry.PerTryTimeout.AsDuration() < timeout {
+				timeout = endpoint.Retry.PerTryTimeout.AsDuration()
+			}
+			if endpoint.Retry.Attempts > 1 {
+				c.attempts = endpoint.Retry.Attempts
+			}
+			c.allowTriedNodes = endpoint.Retry.AllowTriedNodes
+			c.conditions = endpoint.Retry.Conditions
+		}
+
 		nodes := []selector.Node{}
 		atomicNodes := make(map[string]*node, 0)
 		for _, backend := range endpoint.Backends {
@@ -57,7 +100,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 			}
 			switch target.Scheme {
 			case "direct":
-				node := newNode(backend.Target, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+				node := newNode(backend.Target, endpoint.Protocol, backend.Weight, timeout)
 				nodes = append(nodes, node)
 				atomicNodes[backend.Target] = node
 			case "discovery":
@@ -85,7 +128,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 								log.Errorf("failed to parse endpoint: %v", err)
 								continue
 							}
-							node := newNode(addr, endpoint.Protocol, backend.Weight, endpoint.Timeout.AsDuration())
+							node := newNode(addr, endpoint.Protocol, backend.Weight, timeout)
 							nodes = append(nodes, node)
 							atomicNodes[addr] = node
 						}
