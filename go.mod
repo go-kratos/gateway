@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/consul/api v1.11.0
 	github.com/pkg/errors v0.8.1
+	github.com/stretchr/testify v1.7.0
 	go.opentelemetry.io/otel v1.0.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.0.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.0.1

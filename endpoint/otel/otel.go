@@ -2,7 +2,9 @@ package otel
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -20,6 +22,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 )
+
+const Name = "opentelemetery"
 
 var globaltp = &struct {
 	provider trace.TracerProvider
@@ -44,11 +48,11 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	tracer := otel.Tracer("gateway")
 
 	return func(handler endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req endpoint.Request) (reply endpoint.Response, err error) {
-			ctx, span := tracer.Start(ctx, req.Path(), trace.WithSpanKind(trace.SpanKindClient))
+		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
+			ctx, span := tracer.Start(ctx, fmt.Sprintf("%s %s", req.Method, req.URL.Path), trace.WithSpanKind(trace.SpanKindClient))
 			span.SetAttributes(
-				semconv.HTTPMethodKey.String(req.Method()),
-				semconv.HTTPTargetKey.String(req.Path()),
+				semconv.HTTPMethodKey.String(req.Method),
+				semconv.HTTPTargetKey.String(req.URL.Path),
 			)
 			defer func() {
 				if err != nil {
