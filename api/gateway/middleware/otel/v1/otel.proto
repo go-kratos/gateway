@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package gateway.middleware.tracing.v1;
+package gateway.middleware.otel.v1;
 
-option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1";
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1";
 
 import "google/protobuf/duration.proto";
 
 // tracing middleware config
-message tracing {
+message otel {
 	// report endpoint url
 	string http_endpoint = 1;
 	// sample ratio

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	v1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
+	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
 	"github.com/go-kratos/gateway/endpoint"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -31,7 +31,7 @@ var globaltp = &struct {
 }{}
 
 func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
-	options := &v1.Tracing{}
+	options := &v1.Otel{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -68,7 +68,7 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	}, nil
 }
 
-func NewTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerProvider {
+func NewTracerProvider(ctx context.Context, options *v1.Otel) trace.TracerProvider {
 	var (
 		serviceName = "gateway"
 		timeout     = time.Duration(10 * time.Second)
