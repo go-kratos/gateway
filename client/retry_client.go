@@ -6,16 +6,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/endpoint"
 	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/go-kratos/kratos/v2/selector/node/direct"
 )
 
 type retryClient struct {
 	selector selector.Selector
-	nodes    *atomic.Value
 
 	protocol        config.Protocol
 	attempts        uint32
@@ -41,18 +40,19 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 	filters := opts.Filters
 	if !c.allowTriedNodes {
 		filter := func(_ context.Context, nodes []selector.Node) []selector.Node {
-			if len(selects) > 0 {
-				var newNodes []selector.Node
-				for _, n := range nodes {
-					for _, s := range selects {
-						if n.Address() != s {
-							newNodes = append(newNodes, n)
-						}
+			if len(selects) == 0 {
+				return nodes
+			}
+
+			var newNodes []selector.Node
+			for _, n := range nodes {
+				for _, s := range selects {
+					if n.Address() != s {
+						newNodes = append(newNodes, n)
 					}
 				}
-				return newNodes
 			}
-			return nodes
+			return newNodes
 		}
 		filters = append(filters, filter)
 	}
@@ -68,11 +68,11 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 		if err != nil {
 			break
 		}
+		wn := selected.(*direct.Node)
 		addr := selected.Address()
 		selects = append(selects, addr)
-		node := c.nodes.Load().(map[string]*node)[addr]
 		req.URL.Host = selected.Address()
-		resp, err = node.client.Do(req)
+		resp, err = wn.Node.(*node).client.Do(req)
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			continue

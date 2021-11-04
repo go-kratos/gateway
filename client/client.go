@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/endpoint"
@@ -15,6 +14,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/go-kratos/kratos/v2/selector/node/direct"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 	"google.golang.org/grpc/codes"
 )
@@ -26,7 +26,6 @@ type Client interface {
 
 type client struct {
 	selector selector.Selector
-	nodes    *atomic.Value
 }
 
 func (c *client) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
@@ -37,7 +36,8 @@ func (c *client) Invoke(ctx context.Context, req *http.Request) (*http.Response,
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
 
-	node := c.nodes.Load().(map[string]*node)[selected.Address()]
+	wn := selected.(*direct.Node)
+	node := wn.Node.(*node)
 	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.URL.Host = selected.Address()
@@ -51,7 +51,6 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 	log := log.NewHelper(logger)
 	return func(endpoint *config.Endpoint) (Client, error) {
 		var c Client
-		nodeStore := new(atomic.Value)
 		timeout := endpoint.Timeout.AsDuration()
 		wrr := wrr.New()
 
@@ -63,7 +62,6 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 				selector: wrr,
 				attempts: 1,
 				protocol: endpoint.Protocol,
-				nodes:    nodeStore,
 			}
 			rc.attempts = endpoint.Retry.Attempts
 			rc.allowTriedNodes = endpoint.Retry.AllowTriedNodes
@@ -98,7 +96,6 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 			}
 			c = &client{
 				selector: wrr,
-				nodes:    nodeStore,
 			}
 		}
 
@@ -143,7 +140,6 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 							nodes = append(nodes, node)
 							atomicNodes[addr] = node
 						}
-						nodeStore.Store(atomicNodes)
 						wrr.Apply(nodes)
 					}
 				}()
@@ -151,7 +147,6 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 				return nil, fmt.Errorf("unknown scheme: %s", target.Scheme)
 			}
 		}
-		nodeStore.Store(atomicNodes)
 		wrr.Apply(nodes)
 		return c, nil
 	}
