@@ -23,6 +23,8 @@ message Endpoint {
   google.protobuf.Duration timeout = 5;
   repeated Middleware middlewares = 6;
   repeated Backend backends = 7;
+  repeated string client_ip_headers = 8;
+  repeated string client_port_headers = 9;
 }
 
 message Middleware {

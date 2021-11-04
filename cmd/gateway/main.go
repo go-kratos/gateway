@@ -6,7 +6,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"strings"
 	"time"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -38,10 +37,6 @@ var (
 	consulDatacenter string
 	// debug
 	pprofAddr string
-	// remote addr ip header
-	remoteRealIpHeader string
-	//remote addr port header
-	remoteRealPortHeader string
 )
 
 func init() {
@@ -54,8 +49,6 @@ func init() {
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
 	flag.StringVar(&pprofAddr, "pprof", "0.0.0.0:7070", "pprof addr, eg: 127.0.0.1:7070")
-	flag.StringVar(&remoteRealIpHeader, "remoteRealIpHeader", "X-Forwarded-For,X-Real-Ip", "add remote real ip headers, eg:X-Forwarded-For,X-Real-Ip")
-	flag.StringVar(&remoteRealPortHeader, "remoteRealPortHeader", "X-Real-Port", "add remote real port headers, eg:X-Real-Port")
 }
 
 func registry() *consul.Registry {
@@ -104,15 +97,7 @@ func main() {
 		log.Fatalf("failed to scan config: %v", err)
 	}
 	clientFactory := client.NewFactory(logger, registry())
-	remoteRealIpHeaders := make([]string, 0)
-	for _, h := range strings.Split(remoteRealIpHeader, ",") {
-		remoteRealIpHeaders = append(remoteRealIpHeaders, strings.TrimSpace(h))
-	}
-	remoteRealPortHeaders := make([]string, 0)
-	for _, h := range strings.Split(remoteRealPortHeader, ",") {
-		remoteRealPortHeaders = append(remoteRealPortHeaders, strings.TrimSpace(h))
-	}
-	p, err := proxy.New(logger, clientFactory, middlewareFactory, remoteRealIpHeaders, remoteRealPortHeaders)
+	p, err := proxy.New(logger, clientFactory, middlewareFactory)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
