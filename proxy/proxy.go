@@ -65,11 +65,12 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), e.Timeout.AsDuration())
+		ctx := endpoint.NewContext(r.Context(), &endpoint.RequestOptions{
+			Filters: []selector.Filter{},
+		})
+		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
-		req := endpoint.NewRequest(r)
-		resp, err := handler(ctx, req)
-		endpoint.FreeRequest(req)
+		resp, err := handler(ctx, r)
 		if err != nil {
 			switch err {
 			case context.Canceled:
@@ -82,19 +83,18 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			return
 		}
 		headers := w.Header()
-		for k, v := range resp.Header() {
+		for k, v := range resp.Header {
 			headers[k] = v
 		}
-		w.WriteHeader(resp.StatusCode())
-		if body := resp.Body(); body != nil {
+		w.WriteHeader(resp.StatusCode)
+		if body := resp.Body; body != nil {
 			_, _ = io.Copy(w, body)
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
-		for k, v := range resp.Trailer() {
+		for k, v := range resp.Trailer {
 			headers[http.TrailerPrefix+k] = v
 		}
-		resp.Body().Close()
-		endpoint.FreeResponse(resp)
+		resp.Body.Close()
 	})), nil
 }
 
@@ -122,8 +122,5 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			p.log.Error(err)
 		}
 	}()
-	ctx := endpoint.NewContext(req.Context(), &endpoint.RequestOptions{
-		Filters: []selector.Filter{},
-	})
-	p.router.Load().(router.Router).ServeHTTP(w, req.WithContext(ctx))
+	p.router.Load().(router.Router).ServeHTTP(w, req)
 }

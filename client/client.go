@@ -19,7 +19,7 @@ import (
 
 // Client is a proxy client.
 type Client interface {
-	Invoke(ctx context.Context, req endpoint.Request) (endpoint.Response, error)
+	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
 type clientImpl struct {
@@ -27,7 +27,7 @@ type clientImpl struct {
 	nodes    atomic.Value
 }
 
-func (c *clientImpl) Invoke(ctx context.Context, req endpoint.Request) (endpoint.Response, error) {
+func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
 	opts, _ := endpoint.FromContext(ctx)
 	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
@@ -35,19 +35,10 @@ func (c *clientImpl) Invoke(ctx context.Context, req endpoint.Request) (endpoint
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
 	node := c.nodes.Load().(map[string]*node)[selected.Address()]
-	r, err := http.NewRequestWithContext(ctx, req.Method(), req.Path(), req.Body())
-	if err != nil {
-		return nil, err
-	}
-	r.Host = req.Host()
-	r.Header = req.Header()
-	r.URL.Scheme = "http"
-	r.URL.Host = selected.Address()
-	resp, err := node.client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	return endpoint.NewResponse(resp), nil
+	req.URL.Scheme = "http"
+	req.URL.Host = selected.Address()
+	req.RequestURI = ""
+	return node.client.Do(req)
 }
 
 // NewFactory new a client factory.
