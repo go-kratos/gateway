@@ -1,22 +1,22 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/endpoint"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
-
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
+	"google.golang.org/grpc/codes"
 )
 
 // Client is a proxy client.
@@ -24,50 +24,25 @@ type Client interface {
 	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
-type clientImpl struct {
+type client struct {
 	selector selector.Selector
-	nodes    atomic.Value
-
-	attempts        uint32
-	allowTriedNodes bool
-	conditions      []string
+	nodes    *atomic.Value
 }
 
-func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *client) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
 	opts, _ := endpoint.FromContext(ctx)
 	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
+
 	node := c.nodes.Load().(map[string]*node)[selected.Address()]
+	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.URL.Host = selected.Address()
 	req.RequestURI = ""
-	req = req.WithContext(ctx)
 
-	if c.attempts > 1 {
-		var resp *http.Response
-		var err error
-		content, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			return nil, err
-		}
-		req.Body = ioutil.NopCloser(bytes.NewReader(content))
-
-		for i := 0; i < int(c.attempts); i++ {
-			// canceled or deadline exceeded
-			if ctx.Err() != nil {
-				err = ctx.Err()
-				break
-			}
-			resp, err = node.client.Do(req)
-			if err == nil {
-				break
-			}
-		}
-		return resp, err
-	}
 	return node.client.Do(req)
 }
 
@@ -75,20 +50,56 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Respo
 func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
 	log := log.NewHelper(logger)
 	return func(endpoint *config.Endpoint) (Client, error) {
-		c := &clientImpl{
-			selector: wrr.New(),
-			attempts: 1,
-		}
+		var c Client
+		nodeStore := new(atomic.Value)
 		timeout := endpoint.Timeout.AsDuration()
-		if endpoint.Retry != nil {
+		wrr := wrr.New()
+
+		if endpoint.Retry != nil && endpoint.Retry.Attempts > 1 {
 			if endpoint.Retry.PerTryTimeout != nil && endpoint.Retry.PerTryTimeout.AsDuration() > 0 && endpoint.Retry.PerTryTimeout.AsDuration() < timeout {
 				timeout = endpoint.Retry.PerTryTimeout.AsDuration()
 			}
-			if endpoint.Retry.Attempts > 1 {
-				c.attempts = endpoint.Retry.Attempts
+			rc := &retryClient{
+				selector: wrr,
+				attempts: 1,
+				protocol: endpoint.Protocol,
+				nodes:    nodeStore,
 			}
-			c.allowTriedNodes = endpoint.Retry.AllowTriedNodes
-			c.conditions = endpoint.Retry.Conditions
+			rc.attempts = endpoint.Retry.Attempts
+			rc.allowTriedNodes = endpoint.Retry.AllowTriedNodes
+			for _, condition := range endpoint.Retry.Conditions {
+				var statusCode []uint32
+				if endpoint.Protocol == config.Protocol_GRPC {
+					var code codes.Code
+					err := code.UnmarshalJSON([]byte(strings.ToUpper(condition)))
+					if err != nil {
+						return nil, err
+					}
+					statusCode = append(statusCode, uint32(code))
+				} else {
+					cs := strings.Split(condition, "-")
+					if len(cs) == 0 || len(cs) > 2 {
+						return nil, fmt.Errorf("invalid condition %s", condition)
+					}
+					for _, c := range cs {
+						code, err := strconv.ParseUint(c, 10, 16)
+						if err != nil {
+							return nil, err
+						}
+						statusCode = append(statusCode, uint32(code))
+					}
+				}
+				rc.conditions = append(rc.conditions, statusCode)
+			}
+			c = rc
+		} else {
+			if endpoint.Retry != nil && endpoint.Retry.PerTryTimeout != nil && endpoint.Retry.PerTryTimeout.AsDuration() > 0 && endpoint.Retry.PerTryTimeout.AsDuration() < timeout {
+				timeout = endpoint.Retry.PerTryTimeout.AsDuration()
+			}
+			c = &client{
+				selector: wrr,
+				nodes:    nodeStore,
+			}
 		}
 
 		nodes := []selector.Node{}
@@ -132,16 +143,16 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 							nodes = append(nodes, node)
 							atomicNodes[addr] = node
 						}
-						c.selector.Apply(nodes)
-						c.nodes.Store(atomicNodes)
+						nodeStore.Store(atomicNodes)
+						wrr.Apply(nodes)
 					}
 				}()
 			default:
 				return nil, fmt.Errorf("unknown scheme: %s", target.Scheme)
 			}
 		}
-		c.selector.Apply(nodes)
-		c.nodes.Store(atomicNodes)
+		nodeStore.Store(atomicNodes)
+		wrr.Apply(nodes)
 		return c, nil
 	}
 }
