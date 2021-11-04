@@ -7,7 +7,7 @@ option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1
 import "google/protobuf/duration.proto";
 
 // tracing middleware config
-message otel {
+message Otel {
 	// report endpoint url
 	string http_endpoint = 1;
 	// sample ratio
