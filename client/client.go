@@ -14,7 +14,6 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/selector/node/direct"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 	"google.golang.org/grpc/codes"
 )
@@ -36,8 +35,7 @@ func (c *client) Invoke(ctx context.Context, req *http.Request) (*http.Response,
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
 
-	wn := selected.(*direct.Node)
-	node := wn.Node.(*node)
+	node := selected.(*node)
 	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.URL.Host = selected.Address()
