@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
@@ -9,13 +10,14 @@ import (
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
 	"github.com/hashicorp/consul/api"
 
-	_ "github.com/go-kratos/gateway/endpoint/cors"
-	_ "github.com/go-kratos/gateway/endpoint/dyeing"
+	_ "github.com/go-kratos/gateway/middleware/cors"
+	_ "github.com/go-kratos/gateway/middleware/dyeing"
+
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -69,11 +71,9 @@ func main() {
 	flag.Parse()
 	logger := log.NewStdLogger(os.Stdout)
 	log := log.NewHelper(logger)
-	if pprofAddr != "" {
-		go func() {
-			log.Fatal(http.ListenAndServe(pprofAddr, nil))
-		}()
-	}
+	go func() {
+		log.Fatal(http.ListenAndServe(pprofAddr, nil))
+	}()
 	c := config.New(
 		config.WithSource(
 			file.NewSource(conf),
@@ -86,9 +86,10 @@ func main() {
 	if err := c.Scan(bc); err != nil {
 		log.Fatalf("failed to scan config: %v", err)
 	}
+	ctx := context.Background()
+	ctx = middleware.NewLoggingContext(ctx, logger)
 	clientFactory := client.NewFactory(logger, registry())
-	middlewareFactory := endpoint.Create
-	p, err := proxy.New(logger, clientFactory, middlewareFactory)
+	p, err := proxy.New(ctx, logger, clientFactory, middleware.Create)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}

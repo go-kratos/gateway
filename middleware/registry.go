@@ -1,10 +1,11 @@
-package endpoint
+package middleware
 
 import (
 	"fmt"
 	"strings"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"golang.org/x/net/context"
 )
 
 var globalRegistry = NewRegistry()
@@ -58,6 +59,6 @@ func Register(name string, factoryMethod func(cfg *configv1.Middleware) (Middlew
 }
 
 // Create instantiates a middleware based on `cfg`.
-func Create(cfg *configv1.Middleware) (Middleware, error) {
+func Create(ctx context.Context, cfg *configv1.Middleware) (Middleware, error) {
 	return globalRegistry.Create(cfg)
 }
