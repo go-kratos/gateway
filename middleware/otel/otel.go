@@ -10,7 +10,7 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -39,10 +39,10 @@ var globaltp = &struct {
 }{}
 
 func init() {
-	endpoint.Register(Name, Middleware)
+	middleware.Register(Name, Middleware)
 }
 
-func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
+func Middleware(_ context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Otel{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, errors.WithStack(err)
@@ -59,7 +59,7 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 
 	tracer := otel.Tracer(defaultTracerName)
 
-	return func(handler endpoint.Endpoint) endpoint.Endpoint {
+	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
 			ctx, span := tracer.Start(
 				ctx,
