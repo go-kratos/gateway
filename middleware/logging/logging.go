@@ -8,7 +8,7 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -16,10 +16,10 @@ import (
 const Name = "logging"
 
 func init() {
-	endpoint.Register(Name, Middleware)
+	middleware.Register(Name, Middleware)
 }
 
-func Middleware(c *config.Middleware) (endpoint.Middleware, error) {
+func Middleware(ctx context.Context, c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Logging{}
 	if err := c.Options.UnmarshalTo(options); err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func Middleware(c *config.Middleware) (endpoint.Middleware, error) {
 	if err != nil {
 		return nil, err
 	}
-	return func(handler endpoint.Endpoint) endpoint.Endpoint {
+	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
 			startTime := time.Now()
 			level := log.LevelInfo
