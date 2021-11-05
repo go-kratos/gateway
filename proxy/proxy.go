@@ -16,6 +16,11 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
+var (
+	clientIpHeaders   = []string{"X-Forwarded-For", "X-Real-Ip"}
+	clientPortHeaders = []string{"X-Forwarded-Port", "X-Real-Port"}
+)
+
 // ClientFactory is returns service client.
 type ClientFactory func(endpoint *config.Endpoint) (client.Client, error)
 
@@ -68,10 +73,11 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, port, err := net.SplitHostPort(r.RemoteAddr)
 		if err == nil {
-			for _, h := range e.ClientIpHeaders {
+			for _, h := range clientIpHeaders {
 				r.Header.Set(h, ip)
 			}
-			for _, h := range e.ClientPortHeaders {
+
+			for _, h := range clientPortHeaders {
 				r.Header.Set(h, port)
 			}
 		}

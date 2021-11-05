@@ -21,12 +21,6 @@ endpoints:
   protocol: "HTTP"
   backends:
   - target: "127.0.0.1:8000"
-  client_ip_headers:
-  - "X-Forwarded-For"
-  - "X-Real-Ip"
-  client_port_headers:
-  - "X-Forwarded-Port"
-  - "X-Real-Port"
 - path: "/helloworld.Greeter/*"
   method: "*"
   timeout: "1s"
