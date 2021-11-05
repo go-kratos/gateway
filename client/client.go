@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 
@@ -28,7 +28,7 @@ type clientImpl struct {
 }
 
 func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
-	opts, _ := endpoint.FromContext(ctx)
+	opts, _ := middleware.FromContext(ctx)
 	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
@@ -42,9 +42,9 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Respo
 }
 
 // NewFactory new a client factory.
-func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
+func NewFactory(logger log.Logger, r registry.Discovery) func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
 	log := log.NewHelper(logger)
-	return func(endpoint *config.Endpoint) (Client, error) {
+	return func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{
 			selector: wrr.New(),
 		}
