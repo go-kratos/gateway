@@ -16,6 +16,7 @@ import (
 
 	_ "github.com/go-kratos/gateway/endpoint/cors"
 	_ "github.com/go-kratos/gateway/endpoint/dyeing"
+	_ "github.com/go-kratos/gateway/endpoint/logging"
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
