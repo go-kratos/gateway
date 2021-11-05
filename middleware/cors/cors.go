@@ -13,7 +13,7 @@ import (
 type CORSOption func(*cors) error
 
 type cors struct {
-	h                      middleware.Endpoint
+	h                      middleware.Handler
 	allowedHeaders         []string
 	allowedMethods         []string
 	allowedOrigins         []string
@@ -162,9 +162,9 @@ func (ch *cors) Handle(ctx context.Context, r *http.Request) (reply *http.Respon
 //      http.ListenAndServe(":8000", handlers.CORS()(r))
 //  }
 //
-func CORS(opts ...CORSOption) func(middleware.Endpoint) middleware.Endpoint {
+func CORS(opts ...CORSOption) func(middleware.Handler) middleware.Handler {
 	ch := parseCORSOptions(opts...)
-	return func(h middleware.Endpoint) middleware.Endpoint {
+	return func(h middleware.Handler) middleware.Handler {
 		ch.h = h
 		return ch.Handle
 	}

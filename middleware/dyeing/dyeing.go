@@ -18,12 +18,12 @@ func init() {
 }
 
 // Middleware .
-func Middleware(c *config.Middleware) (middleware.Middleware, error) {
+func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Dyeing{}
-	if err := c.Options.UnmarshalTo(options); err != nil {
+	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, err
 	}
-	return func(handler middleware.Endpoint) middleware.Endpoint {
+	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
 			if color := req.Header.Get(options.Header); color != "" {
 				filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {

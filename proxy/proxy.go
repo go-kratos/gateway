@@ -15,23 +15,17 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
-// ClientFactory is returns service client.
-type ClientFactory func(context.Context, *config.Endpoint) (client.Client, error)
-
-// MiddlewareFactory is returns middleware handler.
-type MiddlewareFactory func(context.Context, *config.Middleware) (middleware.Middleware, error)
-
 // Proxy is a gateway proxy.
 type Proxy struct {
 	ctx               context.Context
 	router            atomic.Value
 	log               *log.Helper
-	clientFactory     ClientFactory
-	middlewareFactory MiddlewareFactory
+	clientFactory     client.Factory
+	middlewareFactory middleware.Factory
 }
 
 // New new a gateway proxy.
-func New(ctx context.Context, logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
+func New(ctx context.Context, logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
 		ctx:               ctx,
 		log:               log.NewHelper(logger),
@@ -42,7 +36,7 @@ func New(ctx context.Context, logger log.Logger, clientFactory ClientFactory, mi
 	return p, nil
 }
 
-func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Endpoint) (middleware.Endpoint, error) {
+func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Handler) (middleware.Handler, error) {
 	for _, c := range ms {
 		m, err := p.middlewareFactory(p.ctx, c)
 		if err != nil {

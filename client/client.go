@@ -17,6 +17,9 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 )
 
+// Factory is returns service client.
+type Factory func(context.Context, *config.Endpoint) (Client, error)
+
 // Client is a proxy client.
 type Client interface {
 	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
@@ -42,7 +45,7 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Respo
 }
 
 // NewFactory new a client factory.
-func NewFactory(logger log.Logger, r registry.Discovery) func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
+func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
 	return func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{

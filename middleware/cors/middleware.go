@@ -1,6 +1,7 @@
 package cors
 
 import (
+	"context"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -16,7 +17,7 @@ func init() {
 }
 
 // Middleware automatically sets the allow response header.
-func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Cors{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, err
@@ -46,7 +47,7 @@ func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 	}
 
 	corsMiddleware := CORS(opts...)
-	return func(handler middleware.Endpoint) middleware.Endpoint {
+	return func(handler middleware.Handler) middleware.Handler {
 		return corsMiddleware(handler)
 	}, nil
 }
