@@ -12,8 +12,6 @@ message Otel {
 	string http_endpoint = 1;
 	// sample ratio
 	optional float sample_ratio = 2;
-	// service name to report
-	optional string service_name = 3;
 	// report timeout
 	google.protobuf.Duration timeout = 4;
 }

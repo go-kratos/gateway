@@ -11,6 +11,7 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
 	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/kratos/v2"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -23,12 +24,23 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const Name = "opentelemetery"
+const (
+	// Name is the opentelemetry middleware name
+	Name = "opentelemetery"
+
+	defaultTimeout     = time.Duration(10 * time.Second)
+	defaultServiceName = "gateway"
+	defaultTracerName  = "gateway"
+)
 
 var globaltp = &struct {
 	provider trace.TracerProvider
 	initOnce sync.Once
 }{}
+
+func init() {
+	endpoint.Register(Name, Middleware)
+}
 
 func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Otel{}
@@ -45,15 +57,23 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 		})
 	}
 
-	tracer := otel.Tracer("gateway")
+	tracer := otel.Tracer(defaultTracerName)
 
 	return func(handler endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			ctx, span := tracer.Start(ctx, fmt.Sprintf("%s %s", req.Method, req.URL.Path), trace.WithSpanKind(trace.SpanKindClient))
+			ctx, span := tracer.Start(
+				ctx,
+				fmt.Sprintf("%s %s", req.Method, req.URL.Path),
+				trace.WithSpanKind(trace.SpanKindClient),
+			)
+
+			// attributes for each request
 			span.SetAttributes(
 				semconv.HTTPMethodKey.String(req.Method),
 				semconv.HTTPTargetKey.String(req.URL.Path),
+				semconv.NetPeerIPKey.String(req.RemoteAddr),
 			)
+
 			defer func() {
 				if err != nil {
 					span.RecordError(err)
@@ -61,8 +81,12 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 				} else {
 					span.SetStatus(codes.Ok, "OK")
 				}
+				if reply != nil {
+					span.SetAttributes(semconv.HTTPStatusCodeKey.Int(reply.StatusCode))
+				}
 				span.End()
 			}()
+
 			return handler(ctx, req)
 		}
 	}, nil
@@ -70,12 +94,12 @@ func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 
 func NewTracerProvider(ctx context.Context, options *v1.Otel) trace.TracerProvider {
 	var (
-		serviceName = "gateway"
-		timeout     = time.Duration(10 * time.Second)
+		timeout     = defaultTimeout
+		serviceName = defaultServiceName
 	)
 
-	if options.ServiceName != nil {
-		serviceName = *options.ServiceName
+	if appInfo, ok := kratos.FromContext(ctx); ok {
+		serviceName = appInfo.Name()
 	}
 
 	if options.Timeout != nil {
@@ -99,6 +123,7 @@ func NewTracerProvider(ctx context.Context, options *v1.Otel) trace.TracerProvid
 		log.Fatalf("creating OTLP trace exporter: %v", err)
 	}
 
+	// attributes for all requests
 	resources := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(serviceName),

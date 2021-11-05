@@ -15,10 +15,8 @@ import (
 )
 
 func TestTracer(t *testing.T) {
-	serviceName := "kratos gateway"
 	cfg, err := anypb.New(&v1.Otel{
 		HttpEndpoint: "127.0.0.1:4318",
-		ServiceName:  &serviceName,
 	})
 	assert.NoError(t, err, "new any pb error")
 
