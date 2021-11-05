@@ -6,13 +6,16 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
-	"github.com/go-kratos/kratos/v2/selector"
-
 	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/kratos/v2/selector"
 )
 
 // Name is the middleware name.
 const Name = "dyeing"
+
+func init() {
+	endpoint.Register(Name, Middleware)
+}
 
 // Middleware .
 func Middleware(c *config.Middleware) (endpoint.Middleware, error) {

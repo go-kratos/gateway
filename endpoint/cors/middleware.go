@@ -11,6 +11,10 @@ import (
 // Name is the middleware name.
 const Name = "cors"
 
+func init() {
+	endpoint.Register(Name, Middleware)
+}
+
 // Middleware automatically sets the allow response header.
 func Middleware(cfg *config.Middleware) (endpoint.Middleware, error) {
 	options := &v1.Cors{}
