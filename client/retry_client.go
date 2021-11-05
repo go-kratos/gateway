@@ -10,7 +10,6 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/endpoint"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/selector/node/direct"
 )
 
 type retryClient struct {
@@ -68,11 +67,10 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 		if err != nil {
 			break
 		}
-		wn := selected.(*direct.Node)
 		addr := selected.Address()
 		selects = append(selects, addr)
 		req.URL.Host = selected.Address()
-		resp, err = wn.Node.(*node).client.Do(req)
+		resp, err = selected.(*node).client.Do(req)
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			continue
