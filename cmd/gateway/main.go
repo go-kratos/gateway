@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -11,13 +10,12 @@ import (
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/endpoint"
-	"github.com/go-kratos/gateway/endpoint/cors"
-	"github.com/go-kratos/gateway/endpoint/dyeing"
-	"github.com/go-kratos/gateway/endpoint/otel"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
 	"github.com/hashicorp/consul/api"
 
+	_ "github.com/go-kratos/gateway/endpoint/cors"
+	_ "github.com/go-kratos/gateway/endpoint/dyeing"
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -67,25 +65,14 @@ func registry() *consul.Registry {
 	return nil
 }
 
-func middlewareFactory(c *configv1.Middleware) (endpoint.Middleware, error) {
-	switch c.Name {
-	case cors.Name:
-		return cors.Middleware(c)
-	case dyeing.Name:
-		return dyeing.Middleware(c)
-	case otel.Name:
-		return otel.Middleware(c)
-	default:
-		return nil, fmt.Errorf("not found middleware: %s", c.Name)
-	}
-}
-
 func main() {
 	flag.Parse()
 	logger := log.NewStdLogger(os.Stdout)
 	log := log.NewHelper(logger)
 	if pprofAddr != "" {
-		go log.Fatal(http.ListenAndServe(pprofAddr, nil))
+		go func() {
+			log.Fatal(http.ListenAndServe(pprofAddr, nil))
+		}()
 	}
 	c := config.New(
 		config.WithSource(
@@ -100,6 +87,7 @@ func main() {
 		log.Fatalf("failed to scan config: %v", err)
 	}
 	clientFactory := client.NewFactory(logger, registry())
+	middlewareFactory := endpoint.Create
 	p, err := proxy.New(logger, clientFactory, middlewareFactory)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
