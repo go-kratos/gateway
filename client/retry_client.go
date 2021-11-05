@@ -15,10 +15,9 @@ import (
 type retryClient struct {
 	selector selector.Selector
 
-	protocol        config.Protocol
-	attempts        uint32
-	allowTriedNodes bool
-	conditions      [][]uint32
+	protocol   config.Protocol
+	attempts   uint32
+	conditions [][]uint32
 }
 
 func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
@@ -37,24 +36,23 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 
 	opts, _ := endpoint.FromContext(ctx)
 	filters := opts.Filters
-	if !c.allowTriedNodes {
-		filter := func(_ context.Context, nodes []selector.Node) []selector.Node {
-			if len(selects) == 0 {
-				return nodes
-			}
 
-			var newNodes []selector.Node
-			for _, n := range nodes {
-				for _, s := range selects {
-					if n.Address() != s {
-						newNodes = append(newNodes, n)
-					}
+	filter := func(_ context.Context, nodes []selector.Node) []selector.Node {
+		if len(selects) == 0 {
+			return nodes
+		}
+
+		var newNodes []selector.Node
+		for _, n := range nodes {
+			for _, s := range selects {
+				if n.Address() != s {
+					newNodes = append(newNodes, n)
 				}
 			}
-			return newNodes
 		}
-		filters = append(filters, filter)
+		return newNodes
 	}
+	filters = append(filters, filter)
 
 	for i := 0; i < int(c.attempts); i++ {
 		// canceled or deadline exceeded

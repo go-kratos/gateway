@@ -56,5 +56,4 @@ message Retry {
   // for http examples: 500-599;429
   // for grpc examples: internal;resource-exhausted;unavailable;cancelled;deadline-exceeded
   repeated string conditions = 3;
-  bool allow_tried_nodes = 4;
 }

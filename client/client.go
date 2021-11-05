@@ -62,7 +62,6 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 				protocol: endpoint.Protocol,
 			}
 			rc.attempts = endpoint.Retry.Attempts
-			rc.allowTriedNodes = endpoint.Retry.AllowTriedNodes
 			for _, condition := range endpoint.Retry.Conditions {
 				var statusCode []uint32
 				if endpoint.Protocol == config.Protocol_GRPC {
