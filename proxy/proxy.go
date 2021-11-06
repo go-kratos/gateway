@@ -16,7 +16,7 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
-var xff = "X-Forwarded-For"
+const xff = "X-Forwarded-For"
 
 // Proxy is a gateway proxy.
 type Proxy struct {
