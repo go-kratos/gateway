@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 )
 
 // CORSOption represents a functional option for configuring the CORS middleware.
 type CORSOption func(*cors) error
 
 type cors struct {
-	h                      endpoint.Endpoint
+	h                      middleware.Handler
 	allowedHeaders         []string
 	allowedMethods         []string
 	allowedOrigins         []string
@@ -162,9 +162,9 @@ func (ch *cors) Handle(ctx context.Context, r *http.Request) (reply *http.Respon
 //      http.ListenAndServe(":8000", handlers.CORS()(r))
 //  }
 //
-func CORS(opts ...CORSOption) func(endpoint.Endpoint) endpoint.Endpoint {
+func CORS(opts ...CORSOption) func(middleware.Handler) middleware.Handler {
 	ch := parseCORSOptions(opts...)
-	return func(h endpoint.Endpoint) endpoint.Endpoint {
+	return func(h middleware.Handler) middleware.Handler {
 		ch.h = h
 		return ch.Handle
 	}

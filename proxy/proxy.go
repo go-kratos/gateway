@@ -9,35 +9,26 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
-var (
-	clientIpHeaders   = []string{"X-Forwarded-For", "X-Real-Ip"}
-	clientPortHeaders = []string{"X-Forwarded-Port", "X-Real-Port"}
-)
-
-// ClientFactory is returns service client.
-type ClientFactory func(endpoint *config.Endpoint) (client.Client, error)
-
-// MiddlewareFactory is returns middleware handler.
-type MiddlewareFactory func(*config.Middleware) (endpoint.Middleware, error)
-
 // Proxy is a gateway proxy.
 type Proxy struct {
+	ctx               context.Context
 	router            atomic.Value
 	log               *log.Helper
-	clientFactory     ClientFactory
-	middlewareFactory MiddlewareFactory
+	clientFactory     client.Factory
+	middlewareFactory middleware.Factory
 }
 
 // New new a gateway proxy.
-func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
+func New(ctx context.Context, logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
+		ctx:               ctx,
 		log:               log.NewHelper(logger),
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
@@ -46,9 +37,9 @@ func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory Middl
 	return p, nil
 }
 
-func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler endpoint.Endpoint) (endpoint.Endpoint, error) {
+func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Handler) (middleware.Handler, error) {
 	for _, c := range ms {
-		m, err := p.middlewareFactory(c)
+		m, err := p.middlewareFactory(p.ctx, c)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +49,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler endpoint.Endpoi
 }
 
 func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
-	caller, err := p.clientFactory(e)
+	caller, err := p.clientFactory(p.ctx, e)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +72,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 				r.Header.Set(h, port)
 			}
 		}
-		ctx := endpoint.NewContext(r.Context(), &endpoint.RequestOptions{
+		ctx := middleware.NewContext(r.Context(), &endpoint.RequestOptions{
 			Filters: []selector.Filter{},
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
