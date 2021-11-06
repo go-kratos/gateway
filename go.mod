@@ -7,8 +7,16 @@ require (
 	github.com/go-kratos/kratos/v2 v2.0.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/consul/api v1.11.0
+	github.com/pkg/errors v0.8.1
+	github.com/stretchr/testify v1.7.0
+	go.opentelemetry.io/otel v1.0.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.0.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.0.1
+	go.opentelemetry.io/otel/sdk v1.0.1
+	go.opentelemetry.io/otel/trace v1.0.1
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
-	google.golang.org/grpc v1.39.1
+	golang.org/x/sys v0.0.0-20211013075003-97ac67df715c // indirect
+	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
 
