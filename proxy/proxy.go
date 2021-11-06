@@ -61,7 +61,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := middleware.NewContext(r.Context(), &middleware.RequestOptions{
+		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{
 			Filters: []selector.Filter{},
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())

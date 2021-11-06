@@ -12,13 +12,11 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 )
 
-// Name is the middleware name.
-const Name = "logging"
-
 func init() {
-	middleware.Register(Name, Middleware)
+	middleware.Register("logging", Middleware)
 }
 
+// Middleware is a logging middleware.
 func Middleware(ctx context.Context, c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Logging{}
 	if err := c.Options.UnmarshalTo(options); err != nil {

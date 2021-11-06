@@ -10,11 +10,8 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
-// Name is the middleware name.
-const Name = "dyeing"
-
 func init() {
-	middleware.Register(Name, Middleware)
+	middleware.Register("dyeing", Middleware)
 }
 
 func filter(label, color string) func(ctx context.Context, nodes []selector.Node) []selector.Node {

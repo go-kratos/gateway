@@ -25,9 +25,6 @@ import (
 )
 
 const (
-	// Name is the opentelemetry middleware name
-	Name = "opentelemetery"
-
 	defaultTimeout     = time.Duration(10 * time.Second)
 	defaultServiceName = "gateway"
 	defaultTracerName  = "gateway"
@@ -39,10 +36,11 @@ var globaltp = &struct {
 }{}
 
 func init() {
-	middleware.Register(Name, Middleware)
+	middleware.Register("otel", Middleware)
 }
 
-func Middleware(_ context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
+// Middleware is a opentelemetry middleware.
+func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Otel{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, errors.WithStack(err)
@@ -50,7 +48,7 @@ func Middleware(_ context.Context, cfg *config.Middleware) (middleware.Middlewar
 
 	if globaltp.provider == nil {
 		globaltp.initOnce.Do(func() {
-			globaltp.provider = NewTracerProvider(context.Background(), options)
+			globaltp.provider = newTracerProvider(context.Background(), options)
 			propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
 			otel.SetTracerProvider(globaltp.provider)
 			otel.SetTextMapPropagator(propagator)
@@ -92,7 +90,7 @@ func Middleware(_ context.Context, cfg *config.Middleware) (middleware.Middlewar
 	}, nil
 }
 
-func NewTracerProvider(ctx context.Context, options *v1.Otel) trace.TracerProvider {
+func newTracerProvider(ctx context.Context, options *v1.Otel) trace.TracerProvider {
 	var (
 		timeout     = defaultTimeout
 		serviceName = defaultServiceName
