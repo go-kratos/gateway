@@ -27,7 +27,7 @@ type Proxy struct {
 	middlewareFactory middleware.Factory
 }
 
-// New new a gateway proxy.
+// New is new a gateway proxy.
 func New(ctx context.Context, logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
 		ctx:               ctx,
