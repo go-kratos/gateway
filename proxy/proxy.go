@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"sync/atomic"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
+var xff = "X-Forwarded-For"
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	ctx               context.Context
@@ -24,7 +27,7 @@ type Proxy struct {
 	middlewareFactory middleware.Factory
 }
 
-// New new a gateway proxy.
+// New is new a gateway proxy.
 func New(ctx context.Context, logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
 		ctx:               ctx,
@@ -61,6 +64,10 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err == nil {
+			r.Header[xff] = append(r.Header[xff], ip)
+		}
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{
 			Filters: []selector.Filter{},
 		})
