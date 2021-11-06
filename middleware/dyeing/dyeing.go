@@ -17,7 +17,28 @@ func init() {
 	middleware.Register(Name, Middleware)
 }
 
-// Middleware .
+func filter(label, color string) func(ctx context.Context, nodes []selector.Node) []selector.Node {
+	return func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		filtered := make([]selector.Node, 0, len(nodes))
+		for _, n := range nodes {
+			md := n.Metadata()
+			if md[label] == color {
+				filtered = append(filtered, n)
+			}
+		}
+		if len(filtered) == 0 {
+			for _, n := range nodes {
+				md := n.Metadata()
+				if _, ok := md[label]; !ok {
+					filtered = append(filtered, n)
+				}
+			}
+		}
+		return filtered
+	}
+}
+
+// Middleware is a dyeing request to filter the color nodes.
 func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Dyeing{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
@@ -26,26 +47,8 @@ func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middlew
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
 			if color := req.Header.Get(options.Header); color != "" {
-				filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
-					filtered := make([]selector.Node, 0, len(nodes))
-					for _, n := range nodes {
-						md := n.Metadata()
-						if md[options.Label] == color {
-							filtered = append(filtered, n)
-						}
-					}
-					if len(filtered) == 0 {
-						for _, n := range nodes {
-							md := n.Metadata()
-							if _, ok := md[options.Label]; !ok {
-								filtered = append(filtered, n)
-							}
-						}
-					}
-					return filtered
-				}
-				if options, ok := middleware.FromContext(ctx); ok {
-					options.Filters = append(options.Filters, filter)
+				if o, ok := middleware.FromRequestContext(ctx); ok {
+					o.Filters = append(o.Filters, filter(options.Label, color))
 				}
 			}
 			return handler(ctx, req)

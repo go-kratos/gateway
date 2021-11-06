@@ -5,28 +5,15 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	v1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	"github.com/go-kratos/gateway/middleware"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
-
-// CORSOption represents a functional option for configuring the CORS middleware.
-type CORSOption func(*cors) error
-
-type cors struct {
-	h                      middleware.Handler
-	allowedHeaders         []string
-	allowedMethods         []string
-	allowedOrigins         []string
-	allowedOriginValidator OriginValidator
-	exposedHeaders         []string
-	maxAge                 int
-	ignoreOptions          bool
-	allowCredentials       bool
-	optionStatusCode       int
-}
-
-// OriginValidator takes an origin string and returns whether or not that origin is allowed.
-type OriginValidator func(string) bool
 
 var (
 	defaultCorsOptionStatusCode = 200
@@ -50,311 +37,127 @@ const (
 	corsOriginMatchAll         string = "*"
 )
 
-func (ch *cors) Handle(ctx context.Context, r *http.Request) (reply *http.Response, err error) {
-	origin := r.Header.Get(corsOriginHeader)
-	if !ch.isOriginAllowed(origin) {
-		if r.Method != corsOptionMethod || ch.ignoreOptions {
-			return ch.h(ctx, r)
-		}
-
-		return newResponse(200, nil), nil
-	}
-	header := make(http.Header)
-	if r.Method == corsOptionMethod {
-		if ch.ignoreOptions {
-			return ch.h(ctx, r)
-		}
-
-		if _, ok := r.Header[corsRequestMethodHeader]; !ok {
-			return newResponse(http.StatusBadRequest, nil), nil
-		}
-
-		method := r.Header.Get(corsRequestMethodHeader)
-		if !ch.isMatch(method, ch.allowedMethods) {
-			return newResponse(http.StatusMethodNotAllowed, nil), nil
-		}
-
-		requestHeaders := strings.Split(r.Header.Get(corsRequestHeadersHeader), ",")
-		allowedHeaders := []string{}
-		for _, v := range requestHeaders {
-			canonicalHeader := http.CanonicalHeaderKey(strings.TrimSpace(v))
-			if canonicalHeader == "" || ch.isMatch(canonicalHeader, defaultCorsHeaders) {
-				continue
-			}
-
-			if !ch.isMatch(canonicalHeader, ch.allowedHeaders) {
-				return newResponse(http.StatusForbidden, nil), nil
-			}
-
-			allowedHeaders = append(allowedHeaders, canonicalHeader)
-		}
-
-		if len(allowedHeaders) > 0 {
-			header.Set(corsAllowHeadersHeader, strings.Join(allowedHeaders, ","))
-		}
-
-		if ch.maxAge > 0 {
-			header.Set(corsMaxAgeHeader, strconv.Itoa(ch.maxAge))
-		}
-
-		if !ch.isMatch(method, defaultCorsMethods) {
-			header.Set(corsAllowMethodsHeader, method)
-		}
-	} else {
-		if len(ch.exposedHeaders) > 0 {
-			header.Set(corsExposeHeadersHeader, strings.Join(ch.exposedHeaders, ","))
-		}
-	}
-
-	if ch.allowCredentials {
-		header.Set(corsAllowCredentialsHeader, "true")
-	}
-
-	if len(ch.allowedOrigins) > 1 {
-		header.Set(corsVaryHeader, corsOriginHeader)
-	}
-
-	returnOrigin := origin
-	if ch.allowedOriginValidator == nil && len(ch.allowedOrigins) == 0 {
-		returnOrigin = "*"
-	} else {
-		for _, o := range ch.allowedOrigins {
-			// A configuration of * is different than explicitly setting an allowed
-			// origin. Returning arbitrary origin headers in an access control allow
-			// origin header is unsafe and is not required by any use case.
-			if o == corsOriginMatchAll {
-				returnOrigin = "*"
-				break
-			}
-		}
-	}
-	header.Set(corsAllowOriginHeader, returnOrigin)
-
-	if r.Method == corsOptionMethod {
-		resp := newResponse(ch.optionStatusCode, header)
-		return resp, nil
-	}
-	resp, err := ch.h(ctx, r)
-	if err == nil {
-		for k, v := range header {
-			resp.Header[k] = v
-		}
-	}
-	return resp, err
+func init() {
+	middleware.Register("cors", Middleware)
 }
 
-// CORS provides Cross-Origin Resource Sharing middleware.
-// Example:
-//
-//  import (
-//      "net/http"
-//
-//      "github.com/gorilla/handlers"
-//      "github.com/gorilla/mux"
-//  )
-//
-//  func main() {
-//      r := mux.NewRouter()
-//      r.HandleFunc("/users", UserEndpoint)
-//      r.HandleFunc("/projects", ProjectEndpoint)
-//
-//      // Apply the CORS middleware to our top-level router, with the defaults.
-//      http.ListenAndServe(":8000", handlers.CORS()(r))
-//  }
-//
-func CORS(opts ...CORSOption) func(middleware.Handler) middleware.Handler {
-	ch := parseCORSOptions(opts...)
-	return func(h middleware.Handler) middleware.Handler {
-		ch.h = h
-		return ch.Handle
-	}
-}
-
-func parseCORSOptions(opts ...CORSOption) *cors {
-	ch := &cors{
-		allowedMethods:   defaultCorsMethods,
-		allowedHeaders:   defaultCorsHeaders,
-		allowedOrigins:   []string{},
-		optionStatusCode: defaultCorsOptionStatusCode,
-	}
-
-	for _, option := range opts {
-		option(ch)
-	}
-
-	return ch
-}
-
-//
-// Functional options for configuring CORS.
-//
-
-// AllowedHeaders adds the provided headers to the list of allowed headers in a
-// CORS request.
-// This is an append operation so the headers Accept, Accept-Language,
-// and Content-Language are always allowed.
-// Content-Type must be explicitly declared if accepting Content-Types other than
-// application/x-www-form-urlencoded, multipart/form-data, or text/plain.
-func AllowedHeaders(headers []string) CORSOption {
-	return func(ch *cors) error {
-		for _, v := range headers {
-			normalizedHeader := http.CanonicalHeaderKey(strings.TrimSpace(v))
-			if normalizedHeader == "" {
-				continue
-			}
-
-			if !ch.isMatch(normalizedHeader, ch.allowedHeaders) {
-				ch.allowedHeaders = append(ch.allowedHeaders, normalizedHeader)
-			}
-		}
-
-		return nil
-	}
-}
-
-// AllowedMethods can be used to explicitly allow methods in the
-// Access-Control-Allow-Methods header.
-// This is a replacement operation so you must also
-// pass GET, HEAD, and POST if you wish to support those methods.
-func AllowedMethods(methods []string) CORSOption {
-	return func(ch *cors) error {
-		ch.allowedMethods = []string{}
-		for _, v := range methods {
-			normalizedMethod := strings.ToUpper(strings.TrimSpace(v))
-			if normalizedMethod == "" {
-				continue
-			}
-
-			if !ch.isMatch(normalizedMethod, ch.allowedMethods) {
-				ch.allowedMethods = append(ch.allowedMethods, normalizedMethod)
-			}
-		}
-
-		return nil
-	}
-}
-
-// AllowedOrigins sets the allowed origins for CORS requests, as used in the
-// 'Allow-Access-Control-Origin' HTTP header.
-// Note: Passing in a []string{"*"} will allow any domain.
-func AllowedOrigins(origins []string) CORSOption {
-	return func(ch *cors) error {
-		for _, v := range origins {
-			if v == corsOriginMatchAll {
-				ch.allowedOrigins = []string{corsOriginMatchAll}
-				return nil
-			}
-		}
-
-		ch.allowedOrigins = origins
-		return nil
-	}
-}
-
-// AllowedOriginValidator sets a function for evaluating allowed origins in CORS requests, represented by the
-// 'Allow-Access-Control-Origin' HTTP header.
-func AllowedOriginValidator(fn OriginValidator) CORSOption {
-	return func(ch *cors) error {
-		ch.allowedOriginValidator = fn
-		return nil
-	}
-}
-
-// OptionStatusCode sets a custom status code on the OPTIONS requests.
-// Default behaviour sets it to 200 to reflect best practices. This is option is not mandatory
-// and can be used if you need a custom status code (i.e 204).
-//
-// More informations on the spec:
-// https://fetch.spec.whatwg.org/#cors-preflight-fetch
-func OptionStatusCode(code int) CORSOption {
-	return func(ch *cors) error {
-		ch.optionStatusCode = code
-		return nil
-	}
-}
-
-// ExposedHeaders can be used to specify headers that are available
-// and will not be stripped out by the user-agent.
-func ExposedHeaders(headers []string) CORSOption {
-	return func(ch *cors) error {
-		ch.exposedHeaders = []string{}
-		for _, v := range headers {
-			normalizedHeader := http.CanonicalHeaderKey(strings.TrimSpace(v))
-			if normalizedHeader == "" {
-				continue
-			}
-
-			if !ch.isMatch(normalizedHeader, ch.exposedHeaders) {
-				ch.exposedHeaders = append(ch.exposedHeaders, normalizedHeader)
-			}
-		}
-
-		return nil
-	}
-}
-
-// MaxAge determines the maximum age (in seconds) between preflight requests. A
-// maximum of 10 minutes is allowed. An age above this value will default to 10
-// minutes.
-func MaxAge(age int) CORSOption {
-	return func(ch *cors) error {
-		// Maximum of 10 minutes.
-		if age > 600 {
-			age = 600
-		}
-
-		ch.maxAge = age
-		return nil
-	}
-}
-
-// IgnoreOptions causes the CORS middleware to ignore OPTIONS requests, instead
-// passing them through to the next handler. This is useful when your application
-// or framework has a pre-existing mechanism for responding to OPTIONS requests.
-func IgnoreOptions() CORSOption {
-	return func(ch *cors) error {
-		ch.ignoreOptions = true
-		return nil
-	}
-}
-
-// AllowCredentials can be used to specify that the user agent may pass
-// authentication details along with the request.
-func AllowCredentials() CORSOption {
-	return func(ch *cors) error {
-		ch.allowCredentials = true
-		return nil
-	}
-}
-
-func (ch *cors) isOriginAllowed(origin string) bool {
+func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	if origin == "" {
 		return false
 	}
-
-	if ch.allowedOriginValidator != nil {
-		return ch.allowedOriginValidator(origin)
-	}
-
-	if len(ch.allowedOrigins) == 0 {
+	if len(allowedOrigins) == 0 {
 		return true
 	}
-
-	for _, allowedOrigin := range ch.allowedOrigins {
+	for _, allowedOrigin := range allowedOrigins {
 		if allowedOrigin == origin || allowedOrigin == corsOriginMatchAll {
 			return true
 		}
 	}
-
 	return false
 }
 
-func (ch *cors) isMatch(needle string, haystack []string) bool {
+func isMatch(needle string, haystack []string) bool {
 	for _, v := range haystack {
 		if v == needle {
 			return true
 		}
 	}
-
 	return false
+}
+
+func newResponse(statusCode int, header http.Header) (*http.Response, error) {
+	return &http.Response{StatusCode: statusCode, Header: header}, nil
+}
+
+// Middleware automatically sets the allow response header.
+func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
+	options := &v1.Cors{
+		AllowCredentials: true,
+		AllowedMethods:   defaultCorsMethods,
+		AllowedHeaders:   defaultCorsHeaders,
+		MaxAge:           durationpb.New(time.Minute * 10),
+	}
+	if err := anypb.UnmarshalTo(cfg.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
+		return nil, err
+	}
+	maxAge := int(options.MaxAge.AsDuration() / time.Second)
+	return func(handler middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
+			// allowed origins
+			header := make(http.Header)
+			origin := req.Header.Get(corsOriginHeader)
+			if isOriginAllowed(origin, options.AllowedOrigins) {
+				if req.Method != corsOptionMethod {
+					return handler(ctx, req)
+				}
+				return newResponse(defaultCorsOptionStatusCode, header)
+			}
+			if req.Method == corsOptionMethod {
+				method := req.Header.Get(corsRequestMethodHeader)
+				if method == "" {
+					return newResponse(http.StatusBadRequest, header)
+				}
+				requestHeaders := strings.Split(req.Header.Get(corsRequestHeadersHeader), ",")
+				allowedHeaders := []string{}
+				for _, v := range requestHeaders {
+					canonicalHeader := http.CanonicalHeaderKey(strings.TrimSpace(v))
+					if canonicalHeader == "" || isMatch(canonicalHeader, defaultCorsHeaders) {
+						continue
+					}
+					if isMatch(canonicalHeader, options.AllowedHeaders) {
+						return newResponse(http.StatusForbidden, header)
+					}
+					allowedHeaders = append(allowedHeaders, canonicalHeader)
+				}
+				if len(allowedHeaders) > 0 {
+					header.Set(corsAllowHeadersHeader, strings.Join(allowedHeaders, ","))
+				}
+				if maxAge > 0 {
+					header.Set(corsMaxAgeHeader, strconv.Itoa(maxAge))
+				}
+				if !isMatch(method, defaultCorsMethods) {
+					header.Set(corsAllowMethodsHeader, method)
+					return newResponse(defaultCorsOptionStatusCode, header)
+				}
+			} else {
+				if len(options.ExposedHeaders) > 0 {
+					header.Set(corsExposeHeadersHeader, strings.Join(options.ExposedHeaders, ","))
+				}
+			}
+			if options.AllowCredentials {
+				header.Set(corsAllowCredentialsHeader, "true")
+			}
+			// allowed origins
+			if len(options.AllowedOrigins) > 1 {
+				header.Set(corsVaryHeader, corsOriginHeader)
+			}
+			returnOrigin := origin
+			if len(options.AllowedOrigins) == 0 {
+				returnOrigin = "*"
+			} else {
+				for _, o := range options.AllowedOrigins {
+					// A configuration of * is different than explicitly setting an allowed
+					// origin. Returning arbitrary origin headers in an access control allow
+					// origin header is unsafe and is not required by any use case.
+					if o == corsOriginMatchAll {
+						returnOrigin = "*"
+						break
+					}
+				}
+			}
+			header.Set(corsAllowOriginHeader, returnOrigin)
+			// forward cors request
+			if req.Method == corsOptionMethod {
+				return newResponse(defaultCorsOptionStatusCode, header)
+			}
+			// invoke next handler
+			if reply, err = handler(ctx, req); err == nil {
+				for k, v := range header {
+					reply.Header[k] = v
+				}
+			}
+			return
+		}
+
+	}, nil
 }
