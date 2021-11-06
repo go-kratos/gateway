@@ -3,7 +3,6 @@ package proxy
 import (
 	"context"
 	"io"
-	"net"
 	"net/http"
 	"sync/atomic"
 
@@ -69,6 +68,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			r.Header[xff] = append(r.Header[xff], ip)
 		}
 		ctx := middleware.NewContext(r.Context(), &middleware.RequestOptions{
+		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{
 			Filters: []selector.Filter{},
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())

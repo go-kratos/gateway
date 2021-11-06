@@ -13,13 +13,13 @@ type RequestOptions struct {
 	Filters []selector.Filter
 }
 
-// NewContext returns a new Context that carries value.
-func NewContext(ctx context.Context, o *RequestOptions) context.Context {
+// NewRequestContext returns a new Context that carries value.
+func NewRequestContext(ctx context.Context, o *RequestOptions) context.Context {
 	return context.WithValue(ctx, contextKey{}, o)
 }
 
-// FromContext returns the Context value stored in ctx, if any.
-func FromContext(ctx context.Context) (o *RequestOptions, ok bool) {
+// FromRequestContext returns the Context value stored in ctx, if any.
+func FromRequestContext(ctx context.Context) (o *RequestOptions, ok bool) {
 	o, ok = ctx.Value(contextKey{}).(*RequestOptions)
 	return
 }

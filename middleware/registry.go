@@ -1,11 +1,11 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"golang.org/x/net/context"
 )
 
 var globalRegistry = NewRegistry()
