@@ -31,7 +31,7 @@ type clientImpl struct {
 }
 
 func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
-	opts, _ := middleware.FromContext(ctx)
+	opts, _ := middleware.FromRequestContext(ctx)
 	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
