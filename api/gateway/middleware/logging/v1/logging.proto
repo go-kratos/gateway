@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package gateway.middleware.logging.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1";
+
+// logging middleware config.
+message Logging {
+  string path = 1;
+}
