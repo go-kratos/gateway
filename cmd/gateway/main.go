@@ -17,7 +17,7 @@ import (
 
 	_ "github.com/go-kratos/gateway/middleware/cors"
 	_ "github.com/go-kratos/gateway/middleware/dyeing"
-
+	_ "github.com/go-kratos/gateway/middleware/logging"
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"

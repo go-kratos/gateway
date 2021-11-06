@@ -18,6 +18,10 @@ middlewares:
     options:
       "@type": "type.googleapis.com/gateway.middleware.otel.v1.Otel"
       httpEndpoint: "localhost:4318" # defalut opentelemetry collector port
+  - name: "logging"
+    options:
+      "@type": "type.googleapis.com/gateway.middleware.logging.v1.Logging"
+      path: "./access_log.log"
 endpoints:
   - path: "/helloworld/*"
     method: "*"
