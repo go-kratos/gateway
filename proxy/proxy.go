@@ -16,6 +16,8 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
+var xff = "X-Forwarded-For"
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	ctx               context.Context
@@ -62,17 +64,11 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, port, err := net.SplitHostPort(r.RemoteAddr)
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err == nil {
-			for _, h := range clientIpHeaders {
-				r.Header.Set(h, ip)
-			}
-
-			for _, h := range clientPortHeaders {
-				r.Header.Set(h, port)
-			}
+			r.Header[xff] = append(r.Header[xff], ip)
 		}
-		ctx := middleware.NewContext(r.Context(), &endpoint.RequestOptions{
+		ctx := middleware.NewContext(r.Context(), &middleware.RequestOptions{
 			Filters: []selector.Filter{},
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
