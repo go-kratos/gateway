@@ -38,8 +38,8 @@ github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeME
 github.com/go-kratos/aegis v0.1.1/go.mod h1:jYeSQ3Gesba478zEnujOiG5QdsyF3Xk/8owFUeKcHxw=
 github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54 h1:D5gt4YlmuTwM2yphheJ0CfBFPdgbTbEiK0c3gRwiGws=
 github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54/go.mod h1:eWjVo40ltiZE2T0L83yBUO0HlOo+ztJD+VsJ6hyZiAc=
-github.com/go-kratos/kratos/v2 v2.0.0-20211105084457-5aac2ef5a76d h1:hqk4bRwKJNJp2PddiiJVnWE/SZwfLnf+vc7O2T0t8nA=
-github.com/go-kratos/kratos/v2 v2.0.0-20211105084457-5aac2ef5a76d/go.mod h1:aJv7++0gDtfncp+2e3Ae32ElyFd77WS+pdXCRTSFll0=
+github.com/go-kratos/kratos/v2 v2.0.0-20211108072204-988c2312b4b0 h1:OysK3LP2C7zZyw81d4ZK5p5lY2eyfwpF3qygk0hJL5M=
+github.com/go-kratos/kratos/v2 v2.0.0-20211108072204-988c2312b4b0/go.mod h1:aJv7++0gDtfncp+2e3Ae32ElyFd77WS+pdXCRTSFll0=
 github.com/go-kratos/kratos/v2 v2.1.0/go.mod h1:aJv7++0gDtfncp+2e3Ae32ElyFd77WS+pdXCRTSFll0=
 github.com/go-ole/go-ole v1.2.5/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-playground/assert/v2 v2.0.1 h1:MsBgLAaY856+nPRTKrp3/OZK38U/wa0CcBYNjji3q3A=

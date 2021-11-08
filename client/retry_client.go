@@ -36,22 +36,15 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 
 	opts, _ := middleware.FromRequestContext(ctx)
 	filters := opts.Filters
-
-	filter := func(_ context.Context, nodes []selector.Node) []selector.Node {
-		if len(selects) == 0 {
-			return nodes
-		}
-
-		var newNodes []selector.Node
-		for _, n := range nodes {
-			for _, s := range selects {
-				if n.Address() != s {
-					newNodes = append(newNodes, n)
-				}
+	filter := func(node selector.Node) bool {
+		for _, s := range selects {
+			if node.Address() == s {
+				return false
 			}
 		}
-		return newNodes
+		return true
 	}
+
 	filters = append(filters, filter)
 
 	for i := 0; i < int(c.attempts); i++ {
@@ -61,7 +54,7 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 			break
 		}
 
-		selected, done, err := c.selector.Select(ctx, selector.WithFilter(filters...))
+		selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(filters...))
 		if err != nil {
 			break
 		}
