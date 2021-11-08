@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/endpoint"
+	middleware "github.com/go-kratos/gateway/middleware"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
@@ -17,6 +17,9 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/wrr"
 	"google.golang.org/grpc/codes"
 )
+
+// Factory is returns service client.
+type Factory func(context.Context, *config.Endpoint) (Client, error)
 
 // Client is a proxy client.
 type Client interface {
@@ -28,7 +31,7 @@ type client struct {
 }
 
 func (c *client) Invoke(ctx context.Context, req *http.Request) (*http.Response, error) {
-	opts, _ := endpoint.FromContext(ctx)
+	opts, _ := middleware.FromRequestContext(ctx)
 	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
@@ -45,9 +48,9 @@ func (c *client) Invoke(ctx context.Context, req *http.Request) (*http.Response,
 }
 
 // NewFactory new a client factory.
-func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
+func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
-	return func(endpoint *config.Endpoint) (Client, error) {
+	return func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
 		var c Client
 		timeout := endpoint.Timeout.AsDuration()
 		wrr := wrr.New()

@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
@@ -34,7 +34,7 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 	req.RequestURI = ""
 	req.Body = ioutil.NopCloser(bytes.NewReader(content))
 
-	opts, _ := endpoint.FromContext(ctx)
+	opts, _ := middleware.FromRequestContext(ctx)
 	filters := opts.Filters
 
 	filter := func(_ context.Context, nodes []selector.Node) []selector.Node {
