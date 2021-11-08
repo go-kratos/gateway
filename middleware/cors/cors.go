@@ -70,7 +70,7 @@ func newResponse(statusCode int, header http.Header) (*http.Response, error) {
 }
 
 // Middleware automatically sets the allow response header.
-func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Cors{
 		AllowCredentials: true,
 		AllowedMethods:   defaultCorsMethods,

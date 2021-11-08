@@ -14,4 +14,4 @@ type Handler func(context.Context, *http.Request) (*http.Response, error)
 type Middleware func(Handler) Handler
 
 // Factory is a middleware factory.
-type Factory func(context.Context, *configv1.Middleware) (Middleware, error)
+type Factory func(*configv1.Middleware) (Middleware, error)
