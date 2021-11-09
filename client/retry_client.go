@@ -32,7 +32,6 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
-	req.Body = ioutil.NopCloser(bytes.NewReader(content))
 
 	opts, _ := middleware.FromRequestContext(ctx)
 	filters := opts.Filters
@@ -61,6 +60,7 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 		addr := selected.Address()
 		selects = append(selects, addr)
 		req.URL.Host = selected.Address()
+		req.Body = ioutil.NopCloser(bytes.NewReader(content))
 		resp, err = selected.(*node).client.Do(req)
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
