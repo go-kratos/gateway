@@ -21,12 +21,11 @@ middlewares:
   - name: "logging"
     options:
       "@type": "type.googleapis.com/gateway.middleware.logging.v1.Logging"
-      path: "./access_log.log"
   - name: "prometheus"
     options:
       "@type": "type.googleapis.com/gateway.middleware.prometheus.v1.Prometheus"
-      path: "/prometheus"
-      namespace: "gateway"
+      namespace: "tomato"
+      path: "/metrics"
 endpoints:
   - path: "/helloworld/*"
     method: "*"

@@ -7,5 +7,4 @@ option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/prometh
 // Prometheus middleware config
 message Prometheus {
   string path = 1;
-  string namespace = 2;
 }
