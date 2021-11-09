@@ -64,7 +64,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 				attempts: 1,
 				protocol: endpoint.Protocol,
 			}
-			rc.attempts = endpoint.Retry.Attempts
+			rc.attempts = endpoint.Retry.Attempts + 1
 			for _, condition := range endpoint.Retry.Conditions {
 				var statusCode []uint32
 				if endpoint.Protocol == config.Protocol_GRPC {
