@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,7 +27,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	if err := c.Options.UnmarshalTo(options); err != nil {
 		return nil, err
 	}
-	fmt.Println(options)
 	seconds, err := newSeconds(options.Seconds)
 	if err != nil {
 		return nil, err
