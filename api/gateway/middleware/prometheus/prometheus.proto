@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package gateway.middleware.prometheus.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/prometheus/v1";
+
+// Prometheus middleware config
+message Prometheus {
+  Requests requests = 1;
+  Seconds seconds = 2;
+}
+
+message Requests {
+  string namespace = 1;
+  string Subsystem = 2;
+  string name = 3;
+  string help = 4;
+  map<string,string> const_labels = 5;
+  repeated string label_names = 6;
+}
+
+message Seconds {
+  string namespace = 1;
+  string subsystem = 2;
+  string name = 3;
+  string help = 4;
+  repeated string buckets = 5;
+  map<string,string> const_labels = 6;
+  repeated string label_names = 7;
+}

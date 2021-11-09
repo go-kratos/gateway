@@ -22,6 +22,36 @@ middlewares:
     options:
       "@type": "type.googleapis.com/gateway.middleware.logging.v1.Logging"
       path: "./access_log.log"
+  - name: "prometheus"
+    options:
+      "@type": "type.googleapis.com/gateway.middleware.prometheus.v1.Prometheus"
+      seconds:
+        namespace: "gateway"
+        subsystem: "requests"
+        name: "duration_sec"
+        help: "gateway requests duration(sec)."
+        buckets:
+          - "0.005"
+          - "0.01"
+          - "0.025"
+          - "0.05"
+          - "0.1"
+          - "0.25"
+          - "0.5"
+          - "1"
+        labelNames:
+          - "kind"
+          - "operation"
+      requests:
+        namespace: "gateway"
+        subsystem: "requests"
+        name: "code_total"
+        help: "The total number of processed requests"
+        labelNames:
+          - "kind"
+          - "operation"
+          - "code"
+          - "reason"
 endpoints:
   - path: "/helloworld/*"
     method: "*"
