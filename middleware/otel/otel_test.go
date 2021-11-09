@@ -27,7 +27,7 @@ func TestTracer(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	m, err := Middleware(context.Background(), &config.Middleware{
+	m, err := Middleware(&config.Middleware{
 		Options: cfg,
 	})
 	assert.NoError(t, err)

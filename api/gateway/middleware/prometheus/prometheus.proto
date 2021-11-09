@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package gateway.middleware.prometheus.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/prometheus/v1";
+
+// Prometheus middleware config
+message Prometheus {
+  string path = 1;
+}
