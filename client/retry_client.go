@@ -20,20 +20,22 @@ type retryClient struct {
 	conditions [][]uint32
 }
 
-func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	var content []byte
-	var selects []string
+func duplicateRequestBody(ctx context.Context, req *http.Request) error {
 	// TODO: get fixed bytes from pool if the content-length is specified
-	content, err = ioutil.ReadAll(req.Body)
+	content, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		return
+		return err
 	}
 	// copy request to prevent bdoy from being polluted
 	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
 	req.Body = ioutil.NopCloser(bytes.NewReader(content))
+	return nil
+}
 
+func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+	var selects []string
 	opts, _ := endpoint.FromContext(ctx)
 	filters := opts.Filters
 
@@ -54,6 +56,9 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 	}
 	filters = append(filters, filter)
 
+	if c.attempts > 1 {
+		duplicateRequestBody(ctx, req)
+	}
 	for i := 0; i < int(c.attempts); i++ {
 		// canceled or deadline exceeded
 		if ctx.Err() != nil {
