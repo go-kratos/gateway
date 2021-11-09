@@ -23,7 +23,7 @@ func init() {
 	http.Handle("/prometheus", promhttp.Handler())
 }
 
-func Middleware(ctx context.Context, c *config.Middleware) (middleware.Middleware, error) {
+func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Prometheus{}
 	if err := c.Options.UnmarshalTo(options); err != nil {
 		return nil, err
