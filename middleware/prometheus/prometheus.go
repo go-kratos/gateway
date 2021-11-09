@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -17,9 +18,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+var once sync.Once
+
 func init() {
 	middleware.Register("prometheus", Middleware)
-	http.Handle("/prometheus", promhttp.Handler())
 }
 
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
@@ -27,11 +29,14 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	if err := c.Options.UnmarshalTo(options); err != nil {
 		return nil, err
 	}
-	seconds, err := newSeconds(options.Seconds)
+	seconds, err := newSeconds(options)
 	if err != nil {
 		return nil, err
 	}
-	requests, err := newRequests(options.Requests)
+	requests, err := newRequests(options)
+	once.Do(func() {
+		http.Handle(options.Path, promhttp.Handler())
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -62,33 +67,23 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}, nil
 }
 
-func newSeconds(seconds *v1.Seconds) (metrics.Observer, error) {
-	var buckets []float64
-	for _, bucket := range seconds.Buckets {
-		b, err := strconv.ParseFloat(bucket, 64)
-		if err != nil {
-			return nil, err
-		}
-		buckets = append(buckets, b)
-	}
+func newSeconds(opts *v1.Prometheus) (metrics.Observer, error) {
 	s := prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace:   seconds.Namespace,
-		Subsystem:   seconds.Subsystem,
-		Name:        seconds.Name,
-		Help:        seconds.Help,
-		Buckets:     buckets,
-		ConstLabels: seconds.ConstLabels,
-	}, seconds.LabelNames)
+		Namespace: opts.Namespace,
+		Subsystem: "requests",
+		Name:      "duration_sec",
+		Help:      "requests duration(sec).",
+		Buckets:   []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.250, 0.5, 1},
+	}, []string{"kind", "operation"})
 	return prom.NewHistogram(s), nil
 }
 
-func newRequests(requests *v1.Requests) (metrics.Counter, error) {
+func newRequests(opts *v1.Prometheus) (metrics.Counter, error) {
 	r := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace:   requests.Namespace,
-		Subsystem:   requests.Subsystem,
-		Name:        requests.Name,
-		Help:        requests.Help,
-		ConstLabels: requests.ConstLabels,
-	}, requests.LabelNames)
+		Namespace: opts.Namespace,
+		Subsystem: "requests",
+		Name:      "code_total",
+		Help:      "The total number of processed requests",
+	}, []string{"kind", "operation", "code", "reason"})
 	return prom.NewCounter(r), nil
 }
