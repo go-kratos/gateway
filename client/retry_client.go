@@ -28,7 +28,7 @@ func (c *retryClient) Invoke(ctx context.Context, req *http.Request) (resp *http
 	if err != nil {
 		return
 	}
-	// copy request to prevent bdoy from being polluted
+	// copy request to prevent body from being polluted
 	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.RequestURI = ""

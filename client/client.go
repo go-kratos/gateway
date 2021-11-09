@@ -55,16 +55,15 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 		timeout := endpoint.Timeout.AsDuration()
 		wrr := wrr.New()
 
-		if endpoint.Retry != nil && endpoint.Retry.Attempts > 1 {
+		if endpoint.Retry != nil && endpoint.Retry.Attempts >= 1 {
 			if endpoint.Retry.PerTryTimeout != nil && endpoint.Retry.PerTryTimeout.AsDuration() > 0 && endpoint.Retry.PerTryTimeout.AsDuration() < timeout {
 				timeout = endpoint.Retry.PerTryTimeout.AsDuration()
 			}
 			rc := &retryClient{
 				selector: wrr,
-				attempts: 1,
+				attempts: endpoint.Retry.Attempts + 1,
 				protocol: endpoint.Protocol,
 			}
-			rc.attempts = endpoint.Retry.Attempts + 1
 			for _, condition := range endpoint.Retry.Conditions {
 				var statusCode []uint32
 				if endpoint.Protocol == config.Protocol_GRPC {
