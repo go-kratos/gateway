@@ -87,19 +87,20 @@ func main() {
 	if err := c.Scan(bc); err != nil {
 		log.Fatalf("failed to scan config: %v", err)
 	}
-	ctx := context.Background()
-	ctx = middleware.NewLoggingContext(ctx, logger)
 	clientFactory := client.NewFactory(logger, registry())
-	p, err := proxy.New(ctx, logger, clientFactory, middleware.Create)
+	p, err := proxy.New(logger, clientFactory, middleware.Create)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
+	ctx := context.Background()
+	ctx = middleware.NewLoggingContext(ctx, logger)
 	srv := server.New(logger, p, bind, timeout, idleTimeout)
 	app := kratos.New(
 		kratos.Name(bc.Name),
+		kratos.Context(ctx),
 		kratos.Server(srv),
 	)
 	if err := app.Run(); err != nil {

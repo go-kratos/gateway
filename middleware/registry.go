@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -13,7 +12,7 @@ var globalRegistry = NewRegistry()
 // Registry is the interface for callers to get registered middleware.
 type Registry interface {
 	Register(name string, factory Factory)
-	Create(ctx context.Context, cfg *configv1.Middleware) (Middleware, error)
+	Create(cfg *configv1.Middleware) (Middleware, error)
 }
 
 type middlewareRegistry struct {
@@ -33,9 +32,9 @@ func (p *middlewareRegistry) Register(name string, factory Factory) {
 }
 
 // Create instantiates a middleware based on `cfg`.
-func (p *middlewareRegistry) Create(ctx context.Context, cfg *configv1.Middleware) (Middleware, error) {
+func (p *middlewareRegistry) Create(cfg *configv1.Middleware) (Middleware, error) {
 	if method, ok := p.getMiddleware(createFullName(cfg.Name)); ok {
-		return method(ctx, cfg)
+		return method(cfg)
 	}
 	return nil, fmt.Errorf("Middleware %s has not been registered", cfg.Name)
 }
@@ -59,6 +58,6 @@ func Register(name string, factory Factory) {
 }
 
 // Create instantiates a middleware based on `cfg`.
-func Create(ctx context.Context, cfg *configv1.Middleware) (Middleware, error) {
-	return globalRegistry.Create(ctx, cfg)
+func Create(cfg *configv1.Middleware) (Middleware, error) {
+	return globalRegistry.Create(cfg)
 }

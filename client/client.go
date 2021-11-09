@@ -18,7 +18,7 @@ import (
 )
 
 // Factory is returns service client.
-type Factory func(context.Context, *config.Endpoint) (Client, error)
+type Factory func(*config.Endpoint) (Client, error)
 
 // Client is a proxy client.
 type Client interface {
@@ -47,7 +47,7 @@ func (c *clientImpl) Invoke(ctx context.Context, req *http.Request) (*http.Respo
 // NewFactory new a client factory.
 func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
-	return func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
+	return func(endpoint *config.Endpoint) (Client, error) {
 		c := &clientImpl{
 			selector: wrr.New(),
 		}
