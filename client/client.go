@@ -23,28 +23,28 @@ type Client interface {
 	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
-type clientFactoryContext struct {
+type nodeApplier struct {
 	endpoint  *config.Endpoint
 	logHelper *log.Helper
 	registry  registry.Discovery
 }
 
-func (cfCtx *clientFactoryContext) applyNodes(dst selector.Selector) error {
+func (na *nodeApplier) apply(dst selector.Selector) error {
 	nodes := []selector.Node{}
 	atomicNodes := make(map[string]*node)
-	for _, backend := range cfCtx.endpoint.Backends {
+	for _, backend := range na.endpoint.Backends {
 		target, err := parseTarget(backend.Target)
 		if err != nil {
 			return err
 		}
 		switch target.Scheme {
 		case "direct":
-			node := newNode(backend.Target, cfCtx.endpoint.Protocol, backend.Weight, calcTimeout(cfCtx.endpoint))
+			node := newNode(backend.Target, na.endpoint.Protocol, backend.Weight, calcTimeout(na.endpoint))
 			nodes = append(nodes, node)
 			atomicNodes[backend.Target] = node
 			dst.Apply(nodes)
 		case "discovery":
-			w, err := cfCtx.registry.Watch(context.Background(), target.Endpoint)
+			w, err := na.registry.Watch(context.Background(), target.Endpoint)
 			if err != nil {
 				return err
 			}
@@ -62,13 +62,13 @@ func (cfCtx *clientFactoryContext) applyNodes(dst selector.Selector) error {
 					var nodes []selector.Node
 					atomicNodes := make(map[string]*node)
 					for _, ser := range services {
-						scheme := strings.ToLower(cfCtx.endpoint.Protocol.String())
+						scheme := strings.ToLower(na.endpoint.Protocol.String())
 						addr, err := parseEndpoint(ser.Endpoints, scheme, false)
 						if err != nil {
-							cfCtx.logHelper.Errorf("failed to parse endpoint: %v", err)
+							na.logHelper.Errorf("failed to parse endpoint: %v", err)
 							continue
 						}
-						node := newNode(addr, cfCtx.endpoint.Protocol, backend.Weight, calcTimeout(cfCtx.endpoint))
+						node := newNode(addr, na.endpoint.Protocol, backend.Weight, calcTimeout(na.endpoint))
 						nodes = append(nodes, node)
 						atomicNodes[addr] = node
 					}
@@ -131,6 +131,8 @@ func parseRetryConditon(endpoint *config.Endpoint) ([][]uint32, error) {
 				}
 				statusCode = append(statusCode, uint32(code))
 			}
+		default:
+			panic("unreachable")
 		}
 		conditions = append(conditions, statusCode)
 	}
@@ -142,12 +144,12 @@ func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.E
 	log := log.NewHelper(logger)
 	return func(endpoint *config.Endpoint) (Client, error) {
 		wrr := wrr.New()
-		factoryCtx := &clientFactoryContext{
+		applier := &nodeApplier{
 			endpoint:  endpoint,
 			logHelper: log,
 			registry:  r,
 		}
-		factoryCtx.applyNodes(wrr)
+		applier.apply(wrr)
 
 		client := &retryClient{
 			selector: wrr,
