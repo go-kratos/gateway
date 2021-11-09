@@ -72,7 +72,7 @@ func newSeconds(opts *v1.Prometheus) (metrics.Observer, error) {
 		Namespace: opts.Namespace,
 		Subsystem: "requests",
 		Name:      "duration_sec",
-		Help:      "requests duration(sec).",
+		Help:      "Requests duration(sec).",
 		Buckets:   []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.250, 0.5, 1},
 	}, []string{"kind", "operation"})
 	return prom.NewHistogram(s), nil
