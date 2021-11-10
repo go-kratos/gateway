@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -20,7 +21,6 @@ const xff = "X-Forwarded-For"
 
 // Proxy is a gateway proxy.
 type Proxy struct {
-	ctx               context.Context
 	router            atomic.Value
 	log               *log.Helper
 	clientFactory     client.Factory
@@ -28,9 +28,8 @@ type Proxy struct {
 }
 
 // New is new a gateway proxy.
-func New(ctx context.Context, logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
+func New(logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
-		ctx:               ctx,
 		log:               log.NewHelper(logger),
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
@@ -41,7 +40,7 @@ func New(ctx context.Context, logger log.Logger, clientFactory client.Factory, m
 
 func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Handler) (middleware.Handler, error) {
 	for _, c := range ms {
-		m, err := p.middlewareFactory(p.ctx, c)
+		m, err := p.middlewareFactory(c)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +50,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Hand
 }
 
 func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
-	caller, err := p.clientFactory(p.ctx, e)
+	caller, err := p.clientFactory(e)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +121,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusBadGateway)
-			p.log.Error(err)
+			buf := make([]byte, 64<<10) //nolint:gomnd
+			n := runtime.Stack(buf, false)
+			p.log.Errorf("panic recovered: %s", buf[:n])
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)

@@ -40,7 +40,7 @@ func init() {
 }
 
 // Middleware is a opentelemetry middleware.
-func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Otel{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, errors.WithStack(err)

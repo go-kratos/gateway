@@ -19,6 +19,7 @@ import (
 	_ "github.com/go-kratos/gateway/middleware/dyeing"
 	_ "github.com/go-kratos/gateway/middleware/logging"
 	_ "github.com/go-kratos/gateway/middleware/otel"
+	_ "github.com/go-kratos/gateway/middleware/prometheus"
 
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
@@ -37,7 +38,7 @@ var (
 	consulToken      string
 	consulDatacenter string
 	// debug
-	pprofAddr string
+	adminAddr string
 )
 
 func init() {
@@ -48,7 +49,7 @@ func init() {
 	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
-	flag.StringVar(&pprofAddr, "pprof", "0.0.0.0:7070", "pprof addr, eg: 127.0.0.1:7070")
+	flag.StringVar(&adminAddr, "pprof", "0.0.0.0:7070", "admin addr, eg: 127.0.0.1:7070")
 }
 
 func registry() *consul.Registry {
@@ -71,7 +72,7 @@ func main() {
 	logger := log.NewStdLogger(os.Stdout)
 	log := log.NewHelper(logger)
 	go func() {
-		log.Fatal(http.ListenAndServe(pprofAddr, nil))
+		log.Fatal(http.ListenAndServe(adminAddr, nil))
 	}()
 	c := config.New(
 		config.WithLogger(logger),
@@ -86,19 +87,20 @@ func main() {
 	if err := c.Scan(bc); err != nil {
 		log.Fatalf("failed to scan config: %v", err)
 	}
-	ctx := context.Background()
-	ctx = middleware.NewLoggingContext(ctx, logger)
 	clientFactory := client.NewFactory(logger, registry())
-	p, err := proxy.New(ctx, logger, clientFactory, middleware.Create)
+	p, err := proxy.New(logger, clientFactory, middleware.Create)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
+	ctx := context.Background()
+	ctx = middleware.NewLoggingContext(ctx, logger)
 	srv := server.New(logger, p, bind, timeout, idleTimeout)
 	app := kratos.New(
 		kratos.Name(bc.Name),
+		kratos.Context(ctx),
 		kratos.Server(srv),
 	)
 	if err := app.Run(); err != nil {

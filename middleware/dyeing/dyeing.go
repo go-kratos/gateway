@@ -36,7 +36,7 @@ func filter(label, color string) func(ctx context.Context, nodes []selector.Node
 }
 
 // Middleware is a dyeing request to filter the color nodes.
-func Middleware(ctx context.Context, cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Dyeing{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, err
