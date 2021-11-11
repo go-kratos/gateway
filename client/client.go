@@ -117,9 +117,9 @@ func judgeRetryRequired(conditions [][]uint32, statusCode uint32) bool {
 		if len(condition) == 1 {
 			if condition[0] == statusCode {
 				return true
-			} else if statusCode >= condition[0] && statusCode <= condition[1] {
-				return true
 			}
+		} else if statusCode >= condition[0] && statusCode <= condition[1] {
+			return true
 		}
 	}
 	return false
