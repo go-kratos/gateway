@@ -3,11 +3,12 @@ module github.com/go-kratos/gateway
 go 1.15
 
 require (
-	github.com/go-kratos/kratos/contrib/metrics/prometheus/v2 v2.0.0-20211108115335-fcd935171749
 	github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54
 	github.com/go-kratos/kratos/v2 v2.1.1
+	github.com/google/btree v1.0.0 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/consul/api v1.11.0
+	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.0
