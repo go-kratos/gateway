@@ -9,12 +9,12 @@ import (
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"google.golang.org/grpc/codes"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
+	"google.golang.org/grpc/codes"
 )
 
 // Factory is returns service client.

@@ -10,13 +10,12 @@ import (
 
 func TestParseRetryConditon(t *testing.T) {
 	testCases := []struct {
-		protocol   config.Protocol
 		endpoint   *config.Endpoint
 		conditions [][]uint32
 	}{
 		{
-			protocol: config.Protocol_HTTP,
 			endpoint: &config.Endpoint{
+				Protocol: config.Protocol_HTTP,
 				Retry: &config.Retry{
 					Conditions: []string{"500"},
 				},
@@ -24,8 +23,8 @@ func TestParseRetryConditon(t *testing.T) {
 			conditions: [][]uint32{{500}},
 		},
 		{
-			protocol: config.Protocol_HTTP,
 			endpoint: &config.Endpoint{
+				Protocol: config.Protocol_HTTP,
 				Retry: &config.Retry{
 					Conditions: []string{"501", "502"},
 				},
@@ -33,8 +32,8 @@ func TestParseRetryConditon(t *testing.T) {
 			conditions: [][]uint32{{501}, {502}},
 		},
 		{
-			protocol: config.Protocol_HTTP,
 			endpoint: &config.Endpoint{
+				Protocol: config.Protocol_HTTP,
 				Retry: &config.Retry{
 					Conditions: []string{"400-500", "501"},
 				},
@@ -42,13 +41,13 @@ func TestParseRetryConditon(t *testing.T) {
 			conditions: [][]uint32{{400, 500}, {501}},
 		},
 		{
-			protocol: config.Protocol_GRPC,
 			endpoint: &config.Endpoint{
+				Protocol: config.Protocol_GRPC,
 				Retry: &config.Retry{
-					Conditions: []string{"404"},
+					Conditions: []string{`"NOT_FOUND"`, `"CANCELLED"`},
 				},
 			},
-			conditions: [][]uint32{{404}},
+			conditions: [][]uint32{{5}, {1}},
 		},
 	}
 
