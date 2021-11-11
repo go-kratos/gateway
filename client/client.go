@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -48,15 +49,15 @@ func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, err
 	return node.client.Do(req)
 }
 
-func duplicateRequestBody(req *http.Request) error {
+func duplicateRequestBody(req *http.Request) (*bytes.Reader, error) {
 	// TODO: get fixed bytes from pool if the content-length is specified
 	content, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// copy request to prevent bdoy from being polluted
-	req.Body = ioutil.NopCloser(bytes.NewReader(content))
-	return nil
+	body := bytes.NewReader(content)
+	req.Body = ioutil.NopCloser(body)
+	return body, nil
 }
 
 func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
@@ -72,7 +73,8 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 	}
 	filters = append(filters, filter)
 
-	if err := duplicateRequestBody(req); err != nil {
+	body, err := duplicateRequestBody(req)
+	if err != nil {
 		return nil, err
 	}
 	for i := 0; i < int(c.attempts); i++ {
@@ -86,6 +88,7 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 			return nil, err
 		}
 		addr := selected.Address()
+		body.Seek(0, io.SeekStart)
 		selects[addr] = struct{}{}
 		req.URL.Host = addr
 		resp, err = selected.(*node).client.Do(req)
