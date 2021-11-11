@@ -48,7 +48,7 @@ func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, err
 	return node.client.Do(req)
 }
 
-func duplicateRequestBody(ctx context.Context, req *http.Request) error {
+func duplicateRequestBody(req *http.Request) error {
 	// TODO: get fixed bytes from pool if the content-length is specified
 	content, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -72,7 +72,7 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 	}
 	filters = append(filters, filter)
 
-	if err := duplicateRequestBody(ctx, req); err != nil {
+	if err := duplicateRequestBody(req); err != nil {
 		return nil, err
 	}
 	for i := 0; i < int(c.attempts); i++ {
