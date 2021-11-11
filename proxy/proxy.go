@@ -3,34 +3,32 @@ package proxy
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
+	"runtime"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
-	"github.com/go-kratos/gateway/endpoint"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
-// ClientFactory is returns service client.
-type ClientFactory func(endpoint *config.Endpoint) (client.Client, error)
-
-// MiddlewareFactory is returns middleware handler.
-type MiddlewareFactory func(*config.Middleware) (endpoint.Middleware, error)
+const xff = "X-Forwarded-For"
 
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
 	log               *log.Helper
-	clientFactory     ClientFactory
-	middlewareFactory MiddlewareFactory
+	clientFactory     client.Factory
+	middlewareFactory middleware.Factory
 }
 
-// New new a gateway proxy.
-func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory MiddlewareFactory) (*Proxy, error) {
+// New is new a gateway proxy.
+func New(logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
 		log:               log.NewHelper(logger),
 		clientFactory:     clientFactory,
@@ -40,7 +38,7 @@ func New(logger log.Logger, clientFactory ClientFactory, middlewareFactory Middl
 	return p, nil
 }
 
-func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler endpoint.Endpoint) (endpoint.Endpoint, error) {
+func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Handler) (middleware.Handler, error) {
 	for _, c := range ms {
 		m, err := p.middlewareFactory(c)
 		if err != nil {
@@ -65,8 +63,12 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := endpoint.NewContext(r.Context(), &endpoint.RequestOptions{
-			Filters: []selector.Filter{},
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err == nil {
+			r.Header[xff] = append(r.Header[xff], ip)
+		}
+		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{
+			Filters: []selector.NodeFilter{},
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
@@ -119,7 +121,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusBadGateway)
-			p.log.Error(err)
+			buf := make([]byte, 64<<10) //nolint:gomnd
+			n := runtime.Stack(buf, false)
+			p.log.Errorf("panic recovered: %s", buf[:n])
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)

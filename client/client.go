@@ -1,21 +1,15 @@
 package client
 
 import (
+	"bytes"
 	"context"
-	"errors"
-	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"google.golang.org/grpc/codes"
-
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/registry"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/selector/wrr"
 )
 
 // Client is a proxy client.
@@ -23,144 +17,110 @@ type Client interface {
 	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
-type nodeApplier struct {
-	endpoint  *config.Endpoint
-	logHelper *log.Helper
-	registry  registry.Discovery
+type client struct {
+	selector selector.Selector
+
+	protocol   config.Protocol
+	attempts   uint32
+	conditions [][]uint32
 }
 
-func (na *nodeApplier) apply(dst selector.Selector) error {
-	nodes := []selector.Node{}
-	atomicNodes := make(map[string]*node)
-	for _, backend := range na.endpoint.Backends {
-		target, err := parseTarget(backend.Target)
-		if err != nil {
-			return err
-		}
-		switch target.Scheme {
-		case "direct":
-			node := newNode(backend.Target, na.endpoint.Protocol, backend.Weight, calcTimeout(na.endpoint))
-			nodes = append(nodes, node)
-			atomicNodes[backend.Target] = node
-			dst.Apply(nodes)
-		case "discovery":
-			w, err := na.registry.Watch(context.Background(), target.Endpoint)
-			if err != nil {
-				return err
-			}
-			go func() {
-				// TODO: goroutine leak
-				// only one backend configuration allowed when using service discovery
-				for {
-					services, err := w.Next()
-					if err != nil && errors.Is(err, context.Canceled) {
-						return
-					}
-					if len(services) == 0 {
-						continue
-					}
-					var nodes []selector.Node
-					atomicNodes := make(map[string]*node)
-					for _, ser := range services {
-						scheme := strings.ToLower(na.endpoint.Protocol.String())
-						addr, err := parseEndpoint(ser.Endpoints, scheme, false)
-						if err != nil {
-							na.logHelper.Errorf("failed to parse endpoint: %v", err)
-							continue
-						}
-						node := newNode(addr, na.endpoint.Protocol, backend.Weight, calcTimeout(na.endpoint))
-						nodes = append(nodes, node)
-						atomicNodes[addr] = node
-					}
-					dst.Apply(nodes)
-				}
-			}()
-		default:
-			return fmt.Errorf("unknown scheme: %s", target.Scheme)
-		}
+func (c *client) Invoke(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+	// copy request to prevent body from being polluted
+	req = req.WithContext(ctx)
+	req.URL.Scheme = "http"
+	req.RequestURI = ""
+	if c.attempts > 1 {
+		return c.doRetry(ctx, req)
 	}
+	return c.do(ctx, req)
+}
+
+func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	opts, _ := middleware.FromRequestContext(ctx)
+	selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(opts.Filters...))
+	if err != nil {
+		return nil, err
+	}
+	defer done(ctx, selector.DoneInfo{Err: err})
+	node := selected.(*node)
+	req.URL.Host = selected.Address()
+	return node.client.Do(req)
+}
+
+func duplicateRequestBody(ctx context.Context, req *http.Request) error {
+	// TODO: get fixed bytes from pool if the content-length is specified
+	content, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return err
+	}
+	// copy request to prevent bdoy from being polluted
+	req.Body = ioutil.NopCloser(bytes.NewReader(content))
 	return nil
 }
 
-func calcTimeout(endpoint *config.Endpoint) time.Duration {
-	timeout := endpoint.Timeout.AsDuration()
-	if endpoint.Retry == nil {
-		return timeout
-	}
-	if endpoint.Retry.PerTryTimeout != nil &&
-		endpoint.Retry.PerTryTimeout.AsDuration() > 0 &&
-		endpoint.Retry.PerTryTimeout.AsDuration() < timeout {
-		return endpoint.Retry.PerTryTimeout.AsDuration()
-	}
-	return timeout
-}
+func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+	opts, _ := middleware.FromRequestContext(ctx)
+	filters := opts.Filters
 
-func calcAttempts(endpoint *config.Endpoint) uint32 {
-	if endpoint.Retry == nil {
-		return 1
-	}
-	if endpoint.Retry.Attempts == 0 {
-		return 1
-	}
-	return endpoint.Retry.Attempts
-}
-
-func parseRetryConditon(endpoint *config.Endpoint) ([][]uint32, error) {
-	if endpoint.Retry == nil {
-		return [][]uint32{}, nil
-	}
-	conditions := make([][]uint32, 0, len(endpoint.Retry.Conditions))
-	for _, condition := range endpoint.Retry.Conditions {
-		var statusCode []uint32
-		switch endpoint.Protocol {
-		case config.Protocol_GRPC:
-			var code codes.Code
-			if err := code.UnmarshalJSON([]byte(strings.ToUpper(condition))); err != nil {
-				return nil, err
-			}
-			statusCode = append(statusCode, uint32(code))
-		case config.Protocol_HTTP:
-			cs := strings.Split(condition, "-")
-			if len(cs) == 0 || len(cs) > 2 {
-				return nil, fmt.Errorf("invalid condition %s", condition)
-			}
-			for _, c := range cs {
-				code, err := strconv.ParseUint(c, 10, 16)
-				if err != nil {
-					return nil, err
-				}
-				statusCode = append(statusCode, uint32(code))
-			}
-		default:
-			panic("unreachable")
+	selects := map[string]struct{}{}
+	filter := func(node selector.Node) bool {
+		if _, ok := selects[node.Address()]; ok {
+			return false
 		}
-		conditions = append(conditions, statusCode)
+		return true
 	}
-	return conditions, nil
-}
+	filters = append(filters, filter)
 
-// NewFactory new a client factory.
-func NewFactory(logger log.Logger, r registry.Discovery) func(endpoint *config.Endpoint) (Client, error) {
-	log := log.NewHelper(logger)
-	return func(endpoint *config.Endpoint) (Client, error) {
-		wrr := wrr.New()
-		applier := &nodeApplier{
-			endpoint:  endpoint,
-			logHelper: log,
-			registry:  r,
+	if err := duplicateRequestBody(ctx, req); err != nil {
+		return nil, err
+	}
+	for i := 0; i < int(c.attempts); i++ {
+		// canceled or deadline exceeded
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		applier.apply(wrr)
 
-		client := &retryClient{
-			selector: wrr,
-			attempts: calcAttempts(endpoint),
-			protocol: endpoint.Protocol,
-		}
-		retryCond, err := parseRetryConditon(endpoint)
+		selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(filters...))
 		if err != nil {
 			return nil, err
 		}
-		client.conditions = retryCond
-		return client, nil
+		addr := selected.Address()
+		selects[addr] = struct{}{}
+		req.URL.Host = addr
+		resp, err = selected.(*node).client.Do(req)
+		done(ctx, selector.DoneInfo{Err: err})
+		if err != nil {
+			// logging
+			continue
+		}
+
+		statusCode := parseStatusCode(resp, c.protocol)
+		if judgeRetryRequired(c.conditions, statusCode) {
+			// continue the retry loop
+			continue
+		}
 	}
+	return
+}
+
+func parseStatusCode(resp *http.Response, protocol config.Protocol) uint32 {
+	if protocol == config.Protocol_GRPC {
+		code, _ := strconv.ParseInt(resp.Header.Get("Grpc-Status"), 10, 64)
+		return uint32(code)
+	}
+	return uint32(resp.StatusCode)
+}
+
+func judgeRetryRequired(conditions [][]uint32, statusCode uint32) bool {
+	for _, condition := range conditions {
+		if len(condition) == 1 {
+			if condition[0] == statusCode {
+				return true
+			} else if statusCode >= condition[0] && statusCode <= condition[1] {
+				return true
+			}
+		}
+	}
+	return false
 }

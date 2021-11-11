@@ -38,6 +38,8 @@ message Backend {
     string target = 1;
     HealthCheck health_check = 2;
     optional int64 weight = 3;
+    // static label filtering in the service discovery
+    map<string, string> labels = 4;
 }
 
 enum Protocol {
