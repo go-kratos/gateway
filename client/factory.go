@@ -138,13 +138,17 @@ func parseRetryConditon(endpoint *config.Endpoint) ([]retryCondition, error) {
 			cond := &byHeader{
 				RetryCondition_ByHeader: v,
 			}
-			cond.prepare()
+			if err := cond.prepare(); err != nil {
+				return nil, err
+			}
 			conditions = append(conditions, cond)
 		case *config.RetryCondition_ByStatusCode:
 			cond := &byStatusCode{
 				RetryCondition_ByStatusCode: v,
 			}
-			cond.prepare()
+			if err := cond.prepare(); err != nil {
+				return nil, err
+			}
 			conditions = append(conditions, cond)
 		default:
 			return nil, fmt.Errorf("unknown condition type: %T", v)

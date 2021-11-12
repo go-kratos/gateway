@@ -55,14 +55,13 @@ message Retry {
     // default attempts is 1
     uint32 attempts = 1;
     google.protobuf.Duration per_try_timeout = 2;
-    // for http examples: 500-599;429
-    // for grpc examples: internal;resource-exhausted;unavailable;cancelled;deadline-exceeded
     repeated RetryCondition conditions = 3;
 }
 
 message RetryCondition {
     message byStatusCode {
-        repeated uint32 status_codes = 1;
+        // ["500-599","429"]
+        repeated string status_codes = 1;
     }
 
     message header {

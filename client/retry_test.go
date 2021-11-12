@@ -17,7 +17,7 @@ func TestRetryByStatusCode(t *testing.T) {
 			cond: &byStatusCode{
 				RetryCondition_ByStatusCode: &config.RetryCondition_ByStatusCode{
 					ByStatusCode: &config.RetryConditionByStatusCode{
-						StatusCodes: []uint32{501},
+						StatusCodes: []string{"501"},
 					},
 				},
 			},
@@ -28,7 +28,7 @@ func TestRetryByStatusCode(t *testing.T) {
 			cond: &byStatusCode{
 				RetryCondition_ByStatusCode: &config.RetryCondition_ByStatusCode{
 					ByStatusCode: &config.RetryConditionByStatusCode{
-						StatusCodes: []uint32{501, 509},
+						StatusCodes: []string{"501-509"},
 					},
 				},
 			},
@@ -39,7 +39,7 @@ func TestRetryByStatusCode(t *testing.T) {
 			cond: &byStatusCode{
 				RetryCondition_ByStatusCode: &config.RetryCondition_ByStatusCode{
 					ByStatusCode: &config.RetryConditionByStatusCode{
-						StatusCodes: []uint32{501, 509},
+						StatusCodes: []string{"501-509"},
 					},
 				},
 			},
@@ -49,6 +49,9 @@ func TestRetryByStatusCode(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		if err := testCase.cond.prepare(); err != nil {
+			t.Errorf("prepare error: %v", err)
+		}
 		result := testCase.cond.judge(testCase.resp)
 		if result != testCase.result {
 			t.Errorf("%v, %d: expected %v, got %v", testCase.cond.ByStatusCode.StatusCodes, testCase.resp.StatusCode, testCase.result, result)
@@ -182,7 +185,9 @@ func TestRetryByHeader(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase.cond.prepare()
+		if err := testCase.cond.prepare(); err != nil {
+			t.Errorf("prepare error: %v", err)
+		}
 		result := testCase.cond.judge(testCase.resp)
 		if result != testCase.result {
 			t.Errorf("%v, %v: expected %v, got %v", testCase.cond.ByHeader.Headers, testCase.resp.Header, testCase.result, result)
