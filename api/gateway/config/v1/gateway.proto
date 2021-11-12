@@ -57,5 +57,24 @@ message Retry {
     google.protobuf.Duration per_try_timeout = 2;
     // for http examples: 500-599;429
     // for grpc examples: internal;resource-exhausted;unavailable;cancelled;deadline-exceeded
-    repeated string conditions = 3;
+    repeated RetryCondition conditions = 3;
+}
+
+message RetryCondition {
+    message byStatusCode {
+        repeated uint32 status_codes = 1;
+    }
+
+    message header {
+        string name = 1;
+        repeated string values = 2;
+    }
+    message byHeader {
+        repeated header headers = 1;
+    }
+
+    oneof condition {
+        byStatusCode by_status_code = 1;
+        byHeader by_header = 2;
+    }
 }

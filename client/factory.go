@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/wrr"
-	"google.golang.org/grpc/codes"
 )
 
 // Factory is returns service client.
@@ -128,36 +126,29 @@ func calcAttempts(endpoint *config.Endpoint) uint32 {
 	return endpoint.Retry.Attempts
 }
 
-func parseRetryConditon(endpoint *config.Endpoint) ([][]uint32, error) {
+func parseRetryConditon(endpoint *config.Endpoint) ([]retryCondition, error) {
 	if endpoint.Retry == nil {
-		return [][]uint32{}, nil
+		return []retryCondition{}, nil
 	}
-	conditions := make([][]uint32, 0, len(endpoint.Retry.Conditions))
-	for _, condition := range endpoint.Retry.Conditions {
-		var statusCode []uint32
-		switch endpoint.Protocol {
-		case config.Protocol_GRPC:
-			var code codes.Code
-			if err := code.UnmarshalJSON([]byte(strings.ToUpper(condition))); err != nil {
-				return nil, err
+
+	conditions := make([]retryCondition, 0, len(endpoint.Retry.Conditions))
+	for _, rawCond := range endpoint.Retry.Conditions {
+		switch v := rawCond.Condition.(type) {
+		case *config.RetryCondition_ByHeader:
+			cond := &byHeader{
+				RetryCondition_ByHeader: v,
 			}
-			statusCode = append(statusCode, uint32(code))
-		case config.Protocol_HTTP:
-			cs := strings.Split(condition, "-")
-			if len(cs) == 0 || len(cs) > 2 {
-				return nil, fmt.Errorf("invalid condition %s", condition)
+			cond.prepare()
+			conditions = append(conditions, cond)
+		case *config.RetryCondition_ByStatusCode:
+			cond := &byStatusCode{
+				RetryCondition_ByStatusCode: v,
 			}
-			for _, c := range cs {
-				code, err := strconv.ParseUint(c, 10, 16)
-				if err != nil {
-					return nil, err
-				}
-				statusCode = append(statusCode, uint32(code))
-			}
+			cond.prepare()
+			conditions = append(conditions, cond)
 		default:
-			panic("unreachable")
+			return nil, fmt.Errorf("unknown condition type: %T", v)
 		}
-		conditions = append(conditions, statusCode)
 	}
 	return conditions, nil
 }
