@@ -3,9 +3,9 @@ package client
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
@@ -22,7 +22,7 @@ type client struct {
 
 	protocol   config.Protocol
 	attempts   uint32
-	conditions [][]uint32
+	conditions []retryCondition
 }
 
 func (c *client) Invoke(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
@@ -36,7 +36,7 @@ func (c *client) Invoke(ctx context.Context, req *http.Request) (resp *http.Resp
 	return c.do(ctx, req)
 }
 
-func (c *client) do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	opts, _ := middleware.FromRequestContext(ctx)
 	selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(opts.Filters...))
 	if err != nil {
@@ -48,70 +48,68 @@ func (c *client) do(ctx context.Context, req *http.Request) (resp *http.Response
 	return node.client.Do(req)
 }
 
-func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	var content []byte
-	var selects []string
+func duplicateRequestBody(req *http.Request) (*bytes.Reader, error) {
 	// TODO: get fixed bytes from pool if the content-length is specified
-	content, err = ioutil.ReadAll(req.Body)
+	content, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		return
+		return nil, err
 	}
+	body := bytes.NewReader(content)
+	req.Body = ioutil.NopCloser(body)
+	return body, nil
+}
+
+func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
 	opts, _ := middleware.FromRequestContext(ctx)
 	filters := opts.Filters
+
+	selects := map[string]struct{}{}
 	filter := func(node selector.Node) bool {
-		for _, s := range selects {
-			if node.Address() == s {
-				return false
-			}
+		if _, ok := selects[node.Address()]; ok {
+			return false
 		}
 		return true
 	}
-
 	filters = append(filters, filter)
 
+	body, err := duplicateRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < int(c.attempts); i++ {
 		// canceled or deadline exceeded
-		if ctx.Err() != nil {
-			err = ctx.Err()
-			break
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 
 		selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(filters...))
 		if err != nil {
-			break
+			return nil, err
 		}
 		addr := selected.Address()
-		selects = append(selects, addr)
-		req.URL.Host = selected.Address()
-		req.Body = ioutil.NopCloser(bytes.NewReader(content))
+		body.Seek(0, io.SeekStart)
+		selects[addr] = struct{}{}
+		req.URL.Host = addr
 		resp, err = selected.(*node).client.Do(req)
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
+			// logging
 			continue
 		}
 
-		var statusCode uint32
-		if c.protocol == config.Protocol_GRPC {
-			if resp.StatusCode != 200 {
-				continue
-			}
-			code, _ := strconv.ParseInt(resp.Header.Get("Grpc-Status"), 10, 64)
-			statusCode = uint32(code)
-		} else {
-			statusCode = uint32(resp.StatusCode)
+		if judgeRetryRequired(c.conditions, resp) {
+			// continue the retry loop
+			continue
 		}
-		for _, condition := range c.conditions {
-			if len(condition) == 1 {
-				if condition[0] == statusCode {
-					continue
-				} else if statusCode >= condition[0] && statusCode <= condition[1] {
-					continue
-				}
-			}
-		}
-
-		// err is nil and no status-conditions is hitted
-		break
 	}
 	return
+}
+
+func judgeRetryRequired(conditions []retryCondition, resp *http.Response) bool {
+	for _, cond := range conditions {
+		if cond.judge(resp) {
+			return true
+		}
+	}
+	return false
 }
