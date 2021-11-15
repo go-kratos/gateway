@@ -59,21 +59,15 @@ message Retry {
 }
 
 message RetryCondition {
-    message byStatusCode {
-        // ["500-599","429"]
-        repeated string status_codes = 1;
-    }
-
     message header {
         string name = 1;
-        repeated string values = 2;
-    }
-    message byHeader {
-        repeated header headers = 1;
+        string value = 2;
     }
 
     oneof condition {
-        byStatusCode by_status_code = 1;
-        byHeader by_header = 2;
+        // "500-599", "429"
+        string by_status_code = 1;
+        // {"name": "grpc-status", "value": "14"}
+        header by_header = 2;
     }
 }

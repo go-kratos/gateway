@@ -16,9 +16,7 @@ func TestRetryByStatusCode(t *testing.T) {
 		{
 			cond: &byStatusCode{
 				RetryCondition_ByStatusCode: &config.RetryCondition_ByStatusCode{
-					ByStatusCode: &config.RetryConditionByStatusCode{
-						StatusCodes: []string{"501"},
-					},
+					ByStatusCode: "501",
 				},
 			},
 			resp:   &http.Response{StatusCode: 501},
@@ -27,9 +25,7 @@ func TestRetryByStatusCode(t *testing.T) {
 		{
 			cond: &byStatusCode{
 				RetryCondition_ByStatusCode: &config.RetryCondition_ByStatusCode{
-					ByStatusCode: &config.RetryConditionByStatusCode{
-						StatusCodes: []string{"501-509"},
-					},
+					ByStatusCode: "501-509",
 				},
 			},
 			resp:   &http.Response{StatusCode: 500},
@@ -38,9 +34,7 @@ func TestRetryByStatusCode(t *testing.T) {
 		{
 			cond: &byStatusCode{
 				RetryCondition_ByStatusCode: &config.RetryCondition_ByStatusCode{
-					ByStatusCode: &config.RetryConditionByStatusCode{
-						StatusCodes: []string{"501-509"},
-					},
+					ByStatusCode: "501-509",
 				},
 			},
 			resp:   &http.Response{StatusCode: 502},
@@ -54,7 +48,7 @@ func TestRetryByStatusCode(t *testing.T) {
 		}
 		result := testCase.cond.judge(testCase.resp)
 		if result != testCase.result {
-			t.Errorf("%v, %d: expected %v, got %v", testCase.cond.ByStatusCode.StatusCodes, testCase.resp.StatusCode, testCase.result, result)
+			t.Errorf("%v, %d: expected %v, got %v", testCase.cond.ByStatusCode, testCase.resp.StatusCode, testCase.result, result)
 		}
 	}
 }
@@ -68,13 +62,9 @@ func TestRetryByHeader(t *testing.T) {
 		{
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
-					ByHeader: &config.RetryConditionByHeader{
-						Headers: []*config.RetryConditionHeader{
-							{
-								Name:   "Grpc-Status",
-								Values: []string{`"NOT_FOUND"`},
-							},
-						},
+					ByHeader: &config.RetryConditionHeader{
+						Name:  "Grpc-Status",
+						Value: "5",
 					},
 				},
 			},
@@ -88,13 +78,9 @@ func TestRetryByHeader(t *testing.T) {
 		{
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
-					ByHeader: &config.RetryConditionByHeader{
-						Headers: []*config.RetryConditionHeader{
-							{
-								Name:   "Grpc-Status",
-								Values: []string{`"NOT_FOUND"`, `"DATA_LOSS"`},
-							},
-						},
+					ByHeader: &config.RetryConditionHeader{
+						Name:  "Grpc-Status",
+						Value: `["5", "15"]`,
 					},
 				},
 			},
@@ -108,13 +94,9 @@ func TestRetryByHeader(t *testing.T) {
 		{
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
-					ByHeader: &config.RetryConditionByHeader{
-						Headers: []*config.RetryConditionHeader{
-							{
-								Name:   "Grpc-Status",
-								Values: []string{`"NOT_FOUND"`, `"DATA_LOSS"`},
-							},
-						},
+					ByHeader: &config.RetryConditionHeader{
+						Name:  "Grpc-Status",
+						Value: `["5","15"]`,
 					},
 				},
 			},
@@ -128,13 +110,9 @@ func TestRetryByHeader(t *testing.T) {
 		{
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
-					ByHeader: &config.RetryConditionByHeader{
-						Headers: []*config.RetryConditionHeader{
-							{
-								Name:   "Grpc-Status",
-								Values: []string{`16`},
-							},
-						},
+					ByHeader: &config.RetryConditionHeader{
+						Name:  "Grpc-Status",
+						Value: `16`,
 					},
 				},
 			},
@@ -148,13 +126,9 @@ func TestRetryByHeader(t *testing.T) {
 		{
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
-					ByHeader: &config.RetryConditionByHeader{
-						Headers: []*config.RetryConditionHeader{
-							{
-								Name:   "xxx-should-retry",
-								Values: []string{"true"},
-							},
-						},
+					ByHeader: &config.RetryConditionHeader{
+						Name:  "xxx-should-retry",
+						Value: "true",
 					},
 				},
 			},
@@ -168,13 +142,9 @@ func TestRetryByHeader(t *testing.T) {
 		{
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
-					ByHeader: &config.RetryConditionByHeader{
-						Headers: []*config.RetryConditionHeader{
-							{
-								Name:   "xxx-should-retry",
-								Values: []string{"true"},
-							},
-						},
+					ByHeader: &config.RetryConditionHeader{
+						Name:  "xxx-should-retry",
+						Value: "true",
 					},
 				},
 			},
@@ -190,7 +160,7 @@ func TestRetryByHeader(t *testing.T) {
 		}
 		result := testCase.cond.judge(testCase.resp)
 		if result != testCase.result {
-			t.Errorf("%v, %v: expected %v, got %v", testCase.cond.ByHeader.Headers, testCase.resp.Header, testCase.result, result)
+			t.Errorf("%v, %v: expected %v, got %v", testCase.cond.ByHeader, testCase.resp.Header, testCase.result, result)
 		}
 	}
 }

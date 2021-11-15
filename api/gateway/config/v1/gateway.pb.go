@@ -534,14 +534,14 @@ func (m *RetryCondition) GetCondition() isRetryCondition_Condition {
 	return nil
 }
 
-func (x *RetryCondition) GetByStatusCode() *RetryConditionByStatusCode {
+func (x *RetryCondition) GetByStatusCode() string {
 	if x, ok := x.GetCondition().(*RetryCondition_ByStatusCode); ok {
 		return x.ByStatusCode
 	}
-	return nil
+	return ""
 }
 
-func (x *RetryCondition) GetByHeader() *RetryConditionByHeader {
+func (x *RetryCondition) GetByHeader() *RetryConditionHeader {
 	if x, ok := x.GetCondition().(*RetryCondition_ByHeader); ok {
 		return x.ByHeader
 	}
@@ -553,78 +553,32 @@ type isRetryCondition_Condition interface {
 }
 
 type RetryCondition_ByStatusCode struct {
-	ByStatusCode *RetryConditionByStatusCode `protobuf:"bytes,1,opt,name=by_status_code,json=byStatusCode,proto3,oneof"`
+	// "500-599", "429"
+	ByStatusCode string `protobuf:"bytes,1,opt,name=by_status_code,json=byStatusCode,proto3,oneof"`
 }
 
 type RetryCondition_ByHeader struct {
-	ByHeader *RetryConditionByHeader `protobuf:"bytes,2,opt,name=by_header,json=byHeader,proto3,oneof"`
+	// {"name": "grpc-status", "values": "\[\"14\"\]"}
+	ByHeader *RetryConditionHeader `protobuf:"bytes,2,opt,name=by_header,json=byHeader,proto3,oneof"`
 }
 
 func (*RetryCondition_ByStatusCode) isRetryCondition_Condition() {}
 
 func (*RetryCondition_ByHeader) isRetryCondition_Condition() {}
 
-type RetryConditionByStatusCode struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	// ["500-599","429"]
-	StatusCodes []string `protobuf:"bytes,1,rep,name=status_codes,json=statusCodes,proto3" json:"status_codes,omitempty"`
-}
-
-func (x *RetryConditionByStatusCode) Reset() {
-	*x = RetryConditionByStatusCode{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_proto_msgTypes[8]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *RetryConditionByStatusCode) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RetryConditionByStatusCode) ProtoMessage() {}
-
-func (x *RetryConditionByStatusCode) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_proto_msgTypes[8]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RetryConditionByStatusCode.ProtoReflect.Descriptor instead.
-func (*RetryConditionByStatusCode) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{6, 0}
-}
-
-func (x *RetryConditionByStatusCode) GetStatusCodes() []string {
-	if x != nil {
-		return x.StatusCodes
-	}
-	return nil
-}
-
 type RetryConditionHeader struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name   string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Values []string `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 }
 
 func (x *RetryConditionHeader) Reset() {
 	*x = RetryConditionHeader{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_proto_msgTypes[9]
+		mi := &file_gateway_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -637,7 +591,7 @@ func (x *RetryConditionHeader) String() string {
 func (*RetryConditionHeader) ProtoMessage() {}
 
 func (x *RetryConditionHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_proto_msgTypes[9]
+	mi := &file_gateway_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -650,7 +604,7 @@ func (x *RetryConditionHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryConditionHeader.ProtoReflect.Descriptor instead.
 func (*RetryConditionHeader) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{6, 1}
+	return file_gateway_proto_rawDescGZIP(), []int{6, 0}
 }
 
 func (x *RetryConditionHeader) GetName() string {
@@ -660,58 +614,11 @@ func (x *RetryConditionHeader) GetName() string {
 	return ""
 }
 
-func (x *RetryConditionHeader) GetValues() []string {
+func (x *RetryConditionHeader) GetValue() string {
 	if x != nil {
-		return x.Values
+		return x.Value
 	}
-	return nil
-}
-
-type RetryConditionByHeader struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Headers []*RetryConditionHeader `protobuf:"bytes,1,rep,name=headers,proto3" json:"headers,omitempty"`
-}
-
-func (x *RetryConditionByHeader) Reset() {
-	*x = RetryConditionByHeader{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_proto_msgTypes[10]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *RetryConditionByHeader) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RetryConditionByHeader) ProtoMessage() {}
-
-func (x *RetryConditionByHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_proto_msgTypes[10]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RetryConditionByHeader.ProtoReflect.Descriptor instead.
-func (*RetryConditionByHeader) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{6, 2}
-}
-
-func (x *RetryConditionByHeader) GetHeaders() []*RetryConditionHeader {
-	if x != nil {
-		return x.Headers
-	}
-	return nil
+	return ""
 }
 
 var File_gateway_proto protoreflect.FileDescriptor
@@ -791,37 +698,25 @@ var file_gateway_proto_rawDesc = []byte{
 	0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x21, 0x2e,
 	0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x76,
 	0x31, 0x2e, 0x52, 0x65, 0x74, 0x72, 0x79, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e,
-	0x52, 0x0a, 0x63, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x22, 0xf9, 0x02, 0x0a,
+	0x52, 0x0a, 0x63, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x22, 0xc2, 0x01, 0x0a,
 	0x0e, 0x52, 0x65, 0x74, 0x72, 0x79, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x12,
-	0x56, 0x0a, 0x0e, 0x62, 0x79, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64,
-	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2e, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61,
-	0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x74, 0x72,
-	0x79, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x62, 0x79, 0x53, 0x74, 0x61,
-	0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x48, 0x00, 0x52, 0x0c, 0x62, 0x79, 0x53, 0x74, 0x61,
-	0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x49, 0x0a, 0x09, 0x62, 0x79, 0x5f, 0x68, 0x65,
-	0x61, 0x64, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2a, 0x2e, 0x67, 0x61, 0x74,
+	0x26, 0x0a, 0x0e, 0x62, 0x79, 0x5f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64,
+	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x0c, 0x62, 0x79, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x47, 0x0a, 0x09, 0x62, 0x79, 0x5f, 0x68, 0x65,
+	0x61, 0x64, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x28, 0x2e, 0x67, 0x61, 0x74,
 	0x65, 0x77, 0x61, 0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x76, 0x31, 0x2e, 0x52,
-	0x65, 0x74, 0x72, 0x79, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x62, 0x79,
-	0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x48, 0x00, 0x52, 0x08, 0x62, 0x79, 0x48, 0x65, 0x61, 0x64,
-	0x65, 0x72, 0x1a, 0x31, 0x0a, 0x0c, 0x62, 0x79, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x43, 0x6f,
-	0x64, 0x65, 0x12, 0x21, 0x0a, 0x0c, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x5f, 0x63, 0x6f, 0x64,
-	0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x0b, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73,
-	0x43, 0x6f, 0x64, 0x65, 0x73, 0x1a, 0x34, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12,
-	0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e,
-	0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x18, 0x02, 0x20,
-	0x03, 0x28, 0x09, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x1a, 0x4e, 0x0a, 0x08, 0x62,
-	0x79, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12, 0x42, 0x0a, 0x07, 0x68, 0x65, 0x61, 0x64, 0x65,
-	0x72, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x28, 0x2e, 0x67, 0x61, 0x74, 0x65, 0x77,
-	0x61, 0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x74,
-	0x72, 0x79, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x68, 0x65, 0x61, 0x64,
-	0x65, 0x72, 0x52, 0x07, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x42, 0x0b, 0x0a, 0x09, 0x63,
-	0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2a, 0x1e, 0x0a, 0x08, 0x50, 0x72, 0x6f, 0x74,
-	0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x08, 0x0a, 0x04, 0x48, 0x54, 0x54, 0x50, 0x10, 0x00, 0x12, 0x08,
-	0x0a, 0x04, 0x47, 0x52, 0x50, 0x43, 0x10, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x6f, 0x2d, 0x6b, 0x72, 0x61, 0x74, 0x6f, 0x73,
-	0x2f, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x67, 0x61, 0x74,
-	0x65, 0x77, 0x61, 0x79, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2f, 0x76, 0x31, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x74, 0x72, 0x79, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x68, 0x65,
+	0x61, 0x64, 0x65, 0x72, 0x48, 0x00, 0x52, 0x08, 0x62, 0x79, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72,
+	0x1a, 0x32, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61,
+	0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x14,
+	0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76,
+	0x61, 0x6c, 0x75, 0x65, 0x42, 0x0b, 0x0a, 0x09, 0x63, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f,
+	0x6e, 0x2a, 0x1e, 0x0a, 0x08, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x12, 0x08, 0x0a,
+	0x04, 0x48, 0x54, 0x54, 0x50, 0x10, 0x00, 0x12, 0x08, 0x0a, 0x04, 0x47, 0x52, 0x50, 0x43, 0x10,
+	0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
+	0x67, 0x6f, 0x2d, 0x6b, 0x72, 0x61, 0x74, 0x6f, 0x73, 0x2f, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61,
+	0x79, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2f, 0x63, 0x6f,
+	0x6e, 0x66, 0x69, 0x67, 0x2f, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -837,44 +732,40 @@ func file_gateway_proto_rawDescGZIP() []byte {
 }
 
 var file_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_gateway_proto_goTypes = []interface{}{
-	(Protocol)(0),                      // 0: gateway.config.v1.Protocol
-	(*Gateway)(nil),                    // 1: gateway.config.v1.Gateway
-	(*Endpoint)(nil),                   // 2: gateway.config.v1.Endpoint
-	(*Middleware)(nil),                 // 3: gateway.config.v1.Middleware
-	(*Backend)(nil),                    // 4: gateway.config.v1.Backend
-	(*HealthCheck)(nil),                // 5: gateway.config.v1.HealthCheck
-	(*Retry)(nil),                      // 6: gateway.config.v1.Retry
-	(*RetryCondition)(nil),             // 7: gateway.config.v1.RetryCondition
-	nil,                                // 8: gateway.config.v1.Backend.LabelsEntry
-	(*RetryConditionByStatusCode)(nil), // 9: gateway.config.v1.RetryCondition.byStatusCode
-	(*RetryConditionHeader)(nil),       // 10: gateway.config.v1.RetryCondition.header
-	(*RetryConditionByHeader)(nil),     // 11: gateway.config.v1.RetryCondition.byHeader
-	(*durationpb.Duration)(nil),        // 12: google.protobuf.Duration
-	(*anypb.Any)(nil),                  // 13: google.protobuf.Any
+	(Protocol)(0),                // 0: gateway.config.v1.Protocol
+	(*Gateway)(nil),              // 1: gateway.config.v1.Gateway
+	(*Endpoint)(nil),             // 2: gateway.config.v1.Endpoint
+	(*Middleware)(nil),           // 3: gateway.config.v1.Middleware
+	(*Backend)(nil),              // 4: gateway.config.v1.Backend
+	(*HealthCheck)(nil),          // 5: gateway.config.v1.HealthCheck
+	(*Retry)(nil),                // 6: gateway.config.v1.Retry
+	(*RetryCondition)(nil),       // 7: gateway.config.v1.RetryCondition
+	nil,                          // 8: gateway.config.v1.Backend.LabelsEntry
+	(*RetryConditionHeader)(nil), // 9: gateway.config.v1.RetryCondition.header
+	(*durationpb.Duration)(nil),  // 10: google.protobuf.Duration
+	(*anypb.Any)(nil),            // 11: google.protobuf.Any
 }
 var file_gateway_proto_depIdxs = []int32{
 	2,  // 0: gateway.config.v1.Gateway.endpoints:type_name -> gateway.config.v1.Endpoint
 	3,  // 1: gateway.config.v1.Gateway.middlewares:type_name -> gateway.config.v1.Middleware
 	0,  // 2: gateway.config.v1.Endpoint.protocol:type_name -> gateway.config.v1.Protocol
-	12, // 3: gateway.config.v1.Endpoint.timeout:type_name -> google.protobuf.Duration
+	10, // 3: gateway.config.v1.Endpoint.timeout:type_name -> google.protobuf.Duration
 	3,  // 4: gateway.config.v1.Endpoint.middlewares:type_name -> gateway.config.v1.Middleware
 	4,  // 5: gateway.config.v1.Endpoint.backends:type_name -> gateway.config.v1.Backend
 	6,  // 6: gateway.config.v1.Endpoint.retry:type_name -> gateway.config.v1.Retry
-	13, // 7: gateway.config.v1.Middleware.options:type_name -> google.protobuf.Any
+	11, // 7: gateway.config.v1.Middleware.options:type_name -> google.protobuf.Any
 	5,  // 8: gateway.config.v1.Backend.health_check:type_name -> gateway.config.v1.HealthCheck
 	8,  // 9: gateway.config.v1.Backend.labels:type_name -> gateway.config.v1.Backend.LabelsEntry
-	12, // 10: gateway.config.v1.Retry.per_try_timeout:type_name -> google.protobuf.Duration
+	10, // 10: gateway.config.v1.Retry.per_try_timeout:type_name -> google.protobuf.Duration
 	7,  // 11: gateway.config.v1.Retry.conditions:type_name -> gateway.config.v1.RetryCondition
-	9,  // 12: gateway.config.v1.RetryCondition.by_status_code:type_name -> gateway.config.v1.RetryCondition.byStatusCode
-	11, // 13: gateway.config.v1.RetryCondition.by_header:type_name -> gateway.config.v1.RetryCondition.byHeader
-	10, // 14: gateway.config.v1.RetryCondition.byHeader.headers:type_name -> gateway.config.v1.RetryCondition.header
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	9,  // 12: gateway.config.v1.RetryCondition.by_header:type_name -> gateway.config.v1.RetryCondition.header
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_gateway_proto_init() }
@@ -968,31 +859,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RetryConditionByStatusCode); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*RetryConditionHeader); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RetryConditionByHeader); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1015,7 +882,7 @@ func file_gateway_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_gateway_proto_rawDesc,
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
