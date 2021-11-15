@@ -63,8 +63,8 @@ func TestRetryByHeader(t *testing.T) {
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
 					ByHeader: &config.RetryConditionHeader{
-						Name:   "Grpc-Status",
-						Values: []string{`"NOT_FOUND"`},
+						Name:  "Grpc-Status",
+						Value: "5",
 					},
 				},
 			},
@@ -79,8 +79,8 @@ func TestRetryByHeader(t *testing.T) {
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
 					ByHeader: &config.RetryConditionHeader{
-						Name:   "Grpc-Status",
-						Values: []string{`"NOT_FOUND"`, `"DATA_LOSS"`},
+						Name:  "Grpc-Status",
+						Value: `["5", "15"]`,
 					},
 				},
 			},
@@ -95,8 +95,8 @@ func TestRetryByHeader(t *testing.T) {
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
 					ByHeader: &config.RetryConditionHeader{
-						Name:   "Grpc-Status",
-						Values: []string{`"NOT_FOUND"`, `"DATA_LOSS"`},
+						Name:  "Grpc-Status",
+						Value: `["5","15"]`,
 					},
 				},
 			},
@@ -111,8 +111,8 @@ func TestRetryByHeader(t *testing.T) {
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
 					ByHeader: &config.RetryConditionHeader{
-						Name:   "Grpc-Status",
-						Values: []string{`16`},
+						Name:  "Grpc-Status",
+						Value: `16`,
 					},
 				},
 			},
@@ -127,8 +127,8 @@ func TestRetryByHeader(t *testing.T) {
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
 					ByHeader: &config.RetryConditionHeader{
-						Name:   "xxx-should-retry",
-						Values: []string{"true"},
+						Name:  "xxx-should-retry",
+						Value: "true",
 					},
 				},
 			},
@@ -143,8 +143,8 @@ func TestRetryByHeader(t *testing.T) {
 			cond: &byHeader{
 				RetryCondition_ByHeader: &config.RetryCondition_ByHeader{
 					ByHeader: &config.RetryConditionHeader{
-						Name:   "xxx-should-retry",
-						Values: []string{"true"},
+						Name:  "xxx-should-retry",
+						Value: "true",
 					},
 				},
 			},

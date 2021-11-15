@@ -1,13 +1,13 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"google.golang.org/grpc/codes"
 )
 
 type retryCondition interface {
@@ -50,6 +50,10 @@ func (c *byStatusCode) judge(resp *http.Response) bool {
 
 type byHeader struct {
 	*config.RetryCondition_ByHeader
+	parsed struct {
+		name   string
+		values map[string]struct{}
+	}
 }
 
 func (c *byHeader) judge(resp *http.Response) bool {
@@ -57,39 +61,31 @@ func (c *byHeader) judge(resp *http.Response) bool {
 	if v == "" {
 		return false
 	}
-	for _, value := range c.ByHeader.Values {
-		if v == value {
-			return true
-		}
-	}
-	return false
+	_, ok := c.parsed.values[v]
+	return ok
 }
 
 func (c *byHeader) prepare() error {
-	name := http.CanonicalHeaderKey(c.ByHeader.Name)
-	if name == "Grpc-Status" {
-		c.ByHeader.Values = asGrpcNumericCodeValues(c.ByHeader.Values)
+	c.parsed.name = c.ByHeader.Name
+	c.parsed.values = map[string]struct{}{}
+	if strings.HasPrefix(c.ByHeader.Value, "[") {
+		values, err := parseAsStringList(c.ByHeader.Value)
+		if err != nil {
+			return err
+		}
+		for _, v := range values {
+			c.parsed.values[v] = struct{}{}
+		}
+		return nil
 	}
+	c.parsed.values[c.ByHeader.Value] = struct{}{}
 	return nil
 }
 
-func asGrpcNumericCodeValues(in []string) []string {
-	out := make([]string, 0, len(in))
-	for _, v := range in {
-		code, ok := asGrpcCode(v)
-		if !ok {
-			continue
-		}
-		out = append(out, strconv.FormatInt(int64(code), 10))
+func parseAsStringList(in string) ([]string, error) {
+	out := []string{}
+	if err := json.Unmarshal([]byte(in), &out); err != nil {
+		return nil, err
 	}
-	return out
-}
-
-func asGrpcCode(in string) (codes.Code, bool) {
-	c := codes.Code(0)
-	if err := c.UnmarshalJSON([]byte(in)); err != nil {
-		// logging
-		return codes.Code(0), false
-	}
-	return c, true
+	return out, nil
 }

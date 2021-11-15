@@ -61,13 +61,13 @@ message Retry {
 message RetryCondition {
     message header {
         string name = 1;
-        repeated string values = 2;
+        string value = 2;
     }
 
     oneof condition {
         // "500-599", "429"
         string by_status_code = 1;
-        // {"name": "grpc-status", "values": ["14"]}
+        // {"name": "grpc-status", "value": "14"}
         header by_header = 2;
     }
 }
