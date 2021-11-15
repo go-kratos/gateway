@@ -5,10 +5,18 @@ hosts:
   - "127.0.0.1"
 middlewares:
   - name: "cors"
-    options:
-      "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors"
-      allowedOrigins:
-        - ".google.com"
+    options: {
+        "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors",
+        "allowCredentials": true,
+        "allowedOrigins": [
+          ".google.com"
+        ],
+        "allowedMethods": [
+          "GET",
+          "POST",
+          "OPTIONS"
+        ]
+      }
   - name: "dyeing"
     options:
       "@type": "type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing"
@@ -17,14 +25,13 @@ middlewares:
   - name: "otel"
     options:
       "@type": "type.googleapis.com/gateway.middleware.otel.v1.Otel"
-      httpEndpoint: "localhost:4318" # defalut opentelemetry collector port
+      httpEndpoint: "localhost:4318" # default opentelemetry collector port
   - name: "logging"
     options:
       "@type": "type.googleapis.com/gateway.middleware.logging.v1.Logging"
   - name: "prometheus"
     options:
       "@type": "type.googleapis.com/gateway.middleware.prometheus.v1.Prometheus"
-      namespace: "tomato"
       path: "/metrics"
 endpoints:
 - path: "/helloworld/*"
@@ -35,6 +42,13 @@ endpoints:
   - target: "127.0.0.1:8000"
   retry:
     attempts : 3
+    perTryTimeout: "0.5s"
+    conditions:
+      - byStatusCode: "502-504"
+      - byHeader:
+          name: Grpc-Status
+          values:
+          - '"NOT_FOUND"'
 - path: "/helloworld.Greeter/*"
   method: "*"
   timeout: "1s"

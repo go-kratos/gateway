@@ -17,25 +17,22 @@ type retryCondition interface {
 
 type byStatusCode struct {
 	*config.RetryCondition_ByStatusCode
-	parsedCodes [][]int64
+	parsedCodes []int64
 }
 
 func (c *byStatusCode) prepare() error {
-	c.parsedCodes = make([][]int64, 0, len(c.ByStatusCode.StatusCodes))
-	for _, raw := range c.ByStatusCode.StatusCodes {
-		cs := strings.Split(raw, "-")
-		if len(cs) == 0 || len(cs) > 2 {
-			return fmt.Errorf("invalid condition %s", raw)
+	c.parsedCodes = make([]int64, 0, len(c.ByStatusCode))
+	parts := strings.Split(c.ByStatusCode, "-")
+	if len(parts) == 0 || len(parts) > 2 {
+		return fmt.Errorf("invalid condition %s", c.ByStatusCode)
+	}
+	c.parsedCodes = []int64{}
+	for _, p := range parts {
+		code, err := strconv.ParseInt(p, 10, 16)
+		if err != nil {
+			return err
 		}
-		condCodes := []int64{}
-		for _, c := range cs {
-			code, err := strconv.ParseInt(c, 10, 16)
-			if err != nil {
-				return err
-			}
-			condCodes = append(condCodes, code)
-		}
-		c.parsedCodes = append(c.parsedCodes, condCodes)
+		c.parsedCodes = append(c.parsedCodes, code)
 	}
 	return nil
 }
@@ -44,19 +41,11 @@ func (c *byStatusCode) judge(resp *http.Response) bool {
 	if len(c.parsedCodes) == 0 {
 		return false
 	}
-	for _, condCodes := range c.parsedCodes {
-		if len(condCodes) == 1 {
-			if int64(resp.StatusCode) == condCodes[0] {
-				return true
-			}
-			continue
-		}
-		if (int64(resp.StatusCode) >= condCodes[0]) &&
-			(int64(resp.StatusCode) <= condCodes[1]) {
-			return true
-		}
+	if len(c.parsedCodes) == 1 {
+		return int64(resp.StatusCode) == c.parsedCodes[0]
 	}
-	return false
+	return (int64(resp.StatusCode) >= c.parsedCodes[0]) &&
+		(int64(resp.StatusCode) <= c.parsedCodes[1])
 }
 
 type byHeader struct {
@@ -64,26 +53,22 @@ type byHeader struct {
 }
 
 func (c *byHeader) judge(resp *http.Response) bool {
-	for _, header := range c.ByHeader.Headers {
-		v := resp.Header.Get(header.Name)
-		if v == "" {
-			continue
-		}
-		for _, value := range header.Values {
-			if v == value {
-				return true
-			}
+	v := resp.Header.Get(c.ByHeader.Name)
+	if v == "" {
+		return false
+	}
+	for _, value := range c.ByHeader.Values {
+		if v == value {
+			return true
 		}
 	}
 	return false
 }
 
 func (c *byHeader) prepare() error {
-	for _, header := range c.RetryCondition_ByHeader.ByHeader.Headers {
-		name := http.CanonicalHeaderKey(header.Name)
-		if name == "Grpc-Status" {
-			header.Values = asGrpcNumericCodeValues(header.Values)
-		}
+	name := http.CanonicalHeaderKey(c.ByHeader.Name)
+	if name == "Grpc-Status" {
+		c.ByHeader.Values = asGrpcNumericCodeValues(c.ByHeader.Values)
 	}
 	return nil
 }
