@@ -68,7 +68,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			r.Header[xff] = append(r.Header[xff], ip)
 		}
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{
-			Filters: []selector.Filter{},
+			Filters: []selector.NodeFilter{},
 		})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
