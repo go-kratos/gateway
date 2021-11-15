@@ -93,14 +93,14 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 		resp, err = selected.(*node).client.Do(req)
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
-			// logging
+			// logging error
 			continue
 		}
 
-		if judgeRetryRequired(c.conditions, resp) {
-			// continue the retry loop
-			continue
+		if !judgeRetryRequired(c.conditions, resp) {
+			break
 		}
+		// continue the retry loop
 	}
 	return
 }
