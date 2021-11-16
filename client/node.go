@@ -52,21 +52,13 @@ func (n *node) Metadata() map[string]string {
 }
 
 func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConns = 100
+	tr.MaxConnsPerHost = 100
+	tr.MaxIdleConnsPerHost = 100
 	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   timeout,
-				KeepAlive: 30 * time.Second,
-			}).DialContext,
-			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          100,
-			MaxIdleConnsPerHost:   100,
-			IdleConnTimeout:       120 * time.Second,
-			TLSHandshakeTimeout:   timeout,
-			ExpectContinueTimeout: timeout,
-		},
+		Timeout:   timeout,
+		Transport: tr,
 	}
 	if protocol == config.Protocol_GRPC {
 		client.Transport = &http2.Transport{
