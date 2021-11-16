@@ -28,8 +28,9 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 			logHelper: log,
 			registry:  r,
 		}
-		applier.apply(context.Background(), wrr)
-
+		if err := applier.apply(context.Background(), wrr); err != nil {
+			return nil, err
+		}
 		client := &client{
 			selector: wrr,
 			attempts: calcAttempts(endpoint),
@@ -51,18 +52,17 @@ type nodeApplier struct {
 }
 
 func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
+	var nodes []selector.Node
 	for _, backend := range na.endpoint.Backends {
 		target, err := parseTarget(backend.Target)
 		if err != nil {
 			return err
 		}
+		weighted := backend.Weight
 		switch target.Scheme {
 		case "direct":
-			nodes := []selector.Node{}
-			atomicNodes := make(map[string]*node)
-			node := newNode(backend.Target, na.endpoint.Protocol, backend.Weight, calcTimeout(na.endpoint))
+			node := newNode(backend.Target, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint))
 			nodes = append(nodes, node)
-			atomicNodes[backend.Target] = node
 			dst.Apply(nodes)
 		case "discovery":
 			w, err := na.registry.Watch(ctx, target.Endpoint)
@@ -81,7 +81,6 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 						continue
 					}
 					var nodes []selector.Node
-					atomicNodes := make(map[string]*node)
 					for _, ser := range services {
 						scheme := strings.ToLower(na.endpoint.Protocol.String())
 						addr, err := parseEndpoint(ser.Endpoints, scheme, false)
@@ -89,9 +88,8 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 							na.logHelper.Errorf("failed to parse endpoint: %v", err)
 							continue
 						}
-						node := newNode(addr, na.endpoint.Protocol, backend.Weight, calcTimeout(na.endpoint))
+						node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint))
 						nodes = append(nodes, node)
-						atomicNodes[addr] = node
 					}
 					dst.Apply(nodes)
 				}
