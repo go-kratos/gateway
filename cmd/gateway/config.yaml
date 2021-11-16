@@ -1,56 +1,61 @@
 # This is a gateway config.
-name: "helloworld"
+name: helloworld
 hosts:
-  - "localhost"
-  - "127.0.0.1"
+  - localhost
+  - 127.0.0.1
 middlewares:
-  - name: "cors"
-    options: {
-        "@type": "type.googleapis.com/gateway.middleware.cors.v1.Cors",
-        "allowCredentials": true,
-        "allowedOrigins": [
-          ".google.com"
-        ],
-        "allowedMethods": [
-          "GET",
-          "POST",
-          "OPTIONS"
-        ]
-      }
-  - name: "dyeing"
+  - name: cors
     options:
-      "@type": "type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing"
-      header: "x-md-global-color"
-      label: "color"
-  - name: "otel"
+      '@type': type.googleapis.com/gateway.middleware.cors.v1.Cors
+      allowCredentials: true
+      allowedOrigins:
+        - .google.com
+      allowedMethods:
+        - GET
+        - POST
+        - OPTIONS
+  - name: dyeing
     options:
-      "@type": "type.googleapis.com/gateway.middleware.otel.v1.Otel"
-      httpEndpoint: "localhost:4318" # default opentelemetry collector port
-  - name: "logging"
+      '@type': type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing
+      header: x-md-global-color
+      label: color
+  - name: otel
     options:
-      "@type": "type.googleapis.com/gateway.middleware.logging.v1.Logging"
-  - name: "prometheus"
+      '@type': type.googleapis.com/gateway.middleware.otel.v1.Otel
+      httpEndpoint: 'localhost:4318' # default opentelemetry collector port
+  - name: logging
     options:
-      "@type": "type.googleapis.com/gateway.middleware.prometheus.v1.Prometheus"
-      path: "/metrics"
+      '@type': type.googleapis.com/gateway.middleware.logging.v1.Logging
+  - name: prometheus
+    options:
+      '@type': type.googleapis.com/gateway.middleware.prometheus.v1.Prometheus
+      path: /metrics
 endpoints:
-- path: "/helloworld/*"
-  method: "*"
-  timeout: "1s"
-  protocol: "HTTP"
-  backends:
-  - target: "127.0.0.1:8000"
-  retry:
-    attempts : 3
-    perTryTimeout: "0.5s"
-    conditions:
-      - byStatusCode: "502-504"
-      - byHeader:
-          name: Grpc-Status
-          value: "5"
-- path: "/helloworld.Greeter/*"
-  method: "*"
-  timeout: "1s"
-  protocol: "GRPC"
-  backends:
-  - target: "127.0.0.1:9000"
+  - path: /helloworld/*
+    method: '*'
+    timeout: 1s
+    protocol: HTTP
+    backends:
+      - target: '127.0.0.1:8000'
+    retry:
+      attempts: 3
+      perTryTimeout: 0.5s
+      conditions:
+        - byStatusCode: '502-504'
+        - byHeader:
+            name: 'Grpc-Status'
+            value: '14'
+  - path: /helloworld.Greeter/*
+    method: '*'
+    timeout: 1s
+    protocol: GRPC
+    backends:
+      - target: '127.0.0.1:9000'
+    retry:
+      attempts: 3
+      perTryTimeout: 0.5s
+      conditions:
+        - byStatusCode: '502-504'
+        - byHeader:
+            name: 'Grpc-Status'
+            value: '14'
