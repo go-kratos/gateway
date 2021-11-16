@@ -12,7 +12,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/selector/wrr"
+	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
 // Factory is returns service client.
@@ -22,17 +22,17 @@ type Factory func(*config.Endpoint) (Client, error)
 func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
 	return func(endpoint *config.Endpoint) (Client, error) {
-		wrr := wrr.New()
+		picker := p2c.New()
 		applier := &nodeApplier{
 			endpoint:  endpoint,
 			logHelper: log,
 			registry:  r,
 		}
-		if err := applier.apply(context.Background(), wrr); err != nil {
+		if err := applier.apply(context.Background(), picker); err != nil {
 			return nil, err
 		}
 		client := &client{
-			selector: wrr,
+			selector: picker,
 			attempts: calcAttempts(endpoint),
 			protocol: endpoint.Protocol,
 		}

@@ -56,6 +56,7 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 	tr.MaxIdleConns = 100
 	tr.MaxConnsPerHost = 100
 	tr.MaxIdleConnsPerHost = 100
+	tr.DisableCompression = true
 	client := &http.Client{
 		Timeout:   timeout,
 		Transport: tr,
