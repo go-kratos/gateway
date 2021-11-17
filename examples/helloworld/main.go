@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"io"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 var bind string
@@ -16,7 +16,9 @@ func init() {
 func main() {
 	flag.Parse()
 	http.HandleFunc("/helloworld/foo", func(w http.ResponseWriter, req *http.Request) {
-		io.WriteString(w, "bar")
+		b := req.URL.Query().Get("b")
+		n, _ := strconv.ParseInt(b, 10, 32)
+		w.Write(make([]byte, n))
 	})
 	log.Println("listening on:", bind)
 	log.Fatal(http.ListenAndServe(bind, nil))

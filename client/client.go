@@ -49,7 +49,6 @@ func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, err
 }
 
 func duplicateRequestBody(req *http.Request) (*bytes.Reader, error) {
-	// TODO: get fixed bytes from pool if the content-length is specified
 	content, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
