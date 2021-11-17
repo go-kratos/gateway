@@ -1,0 +1,13 @@
+http:
+  routers:
+    my-router:
+      entryPoints:
+        - web
+      service: my-service
+      rule: PathPrefix(`/`)
+
+  services:
+    my-service:
+      loadBalancer:
+        servers:
+          - url: http://192.168.9.172:8000
