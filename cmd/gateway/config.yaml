@@ -37,14 +37,6 @@ endpoints:
     protocol: HTTP
     backends:
       - target: '127.0.0.1:8000'
-    retry:
-      attempts: 3
-      perTryTimeout: 0.5s
-      conditions:
-        - byStatusCode: '502-504'
-        - byHeader:
-            name: 'Grpc-Status'
-            value: '14'
   - path: /helloworld.Greeter/*
     method: '*'
     timeout: 1s

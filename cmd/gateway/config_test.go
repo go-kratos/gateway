@@ -34,17 +34,6 @@ func equalTo() *configv1.Gateway {
 						Target: "127.0.0.1:8000",
 					},
 				},
-				Retry: &configv1.Retry{
-					Attempts:      3,
-					PerTryTimeout: &durationpb.Duration{Nanos: 500000000},
-					Conditions: []*configv1.RetryCondition{
-						{Condition: &configv1.RetryCondition_ByStatusCode{ByStatusCode: "502-504"}},
-						{Condition: &configv1.RetryCondition_ByHeader{ByHeader: &configv1.RetryConditionHeader{
-							Name:  "Grpc-Status",
-							Value: "5",
-						}}},
-					},
-				},
 			},
 			{
 				Method:   "*",
@@ -54,6 +43,17 @@ func equalTo() *configv1.Gateway {
 				Backends: []*configv1.Backend{
 					{
 						Target: "127.0.0.1:9000",
+					},
+				},
+				Retry: &configv1.Retry{
+					Attempts:      3,
+					PerTryTimeout: &durationpb.Duration{Nanos: 500000000},
+					Conditions: []*configv1.RetryCondition{
+						{Condition: &configv1.RetryCondition_ByStatusCode{ByStatusCode: "502-504"}},
+						{Condition: &configv1.RetryCondition_ByHeader{ByHeader: &configv1.RetryConditionHeader{
+							Name:  "Grpc-Status",
+							Value: "14",
+						}}},
 					},
 				},
 			},
