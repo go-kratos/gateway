@@ -6,7 +6,7 @@ services:
       - "8080:8080"
       - "7070:7070"
     volumes:
-      - ./cmd/gateway/config.yaml:/data/conf/config.yaml
+      - ../../../../cmd/gateway/config.yaml:/data/conf/config.yaml
     deploy:
       resources:
         limits:
