@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    image: traefik:v2.5
+    # 使用文件提供配置，监听/path/to/dynamic/conf文件夹
+    command: --api.insecure=true --entryPoints.web.address=:80 --providers.file.directory=/path/to/dynamic/conf
+    ports:
+      # The HTTP port
+      - "8888:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./conf:/path/to/dynamic/conf
