@@ -64,7 +64,8 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 	if protocol == config.Protocol_GRPC {
 		client.Transport = &http2.Transport{
 			// So http2.Transport doesn't complain the URL scheme isn't 'https'
-			AllowHTTP: true,
+			AllowHTTP:          true,
+			DisableCompression: true,
 			// Pretend we are dialing a TLS endpoint.
 			// Note, we ignore the passed tls.Config
 			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {

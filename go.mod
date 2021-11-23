@@ -20,6 +20,7 @@ require (
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/sys v0.0.0-20211013075003-97ac67df715c // indirect
 	google.golang.org/grpc v1.41.0
+	google.golang.org/grpc/examples v0.0.0-20211119181224-d542bfcee46d
 	google.golang.org/protobuf v1.27.1
 )
 
