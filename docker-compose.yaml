@@ -1,0 +1,13 @@
+version: '3'
+services:
+  gateway:
+    build: .
+    network_mode: host
+    restart: always
+    volumes:
+      - ./cmd/gateway/config.yaml:/data/conf/config.yaml
+    deploy:
+      resources:
+        limits:
+          cpus: '8.00'
+          memory: '8192M'
