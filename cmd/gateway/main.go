@@ -20,6 +20,7 @@ import (
 	_ "github.com/go-kratos/gateway/middleware/logging"
 	_ "github.com/go-kratos/gateway/middleware/otel"
 	_ "github.com/go-kratos/gateway/middleware/prometheus"
+	_ "go.uber.org/automaxprocs"
 
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
