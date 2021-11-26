@@ -96,6 +96,21 @@ func main() {
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
+	reloader := func(key string, _ config.Value) {
+		bc := new(configv1.Gateway)
+		if err := c.Scan(bc); err != nil {
+			log.Errorf("failed to scan config: %v", err)
+			return
+		}
+		if err := p.Update(bc); err != nil {
+			log.Errorf("failed to update service config: %v", err)
+			return
+		}
+		log.Infof("config key: %s reloaded", key)
+	}
+	c.Watch("hosts", reloader)
+	c.Watch("middlewares", reloader)
+	c.Watch("endpoints", reloader)
 	ctx := context.Background()
 	ctx = middleware.NewLoggingContext(ctx, logger)
 	srv := server.New(logger, p, bind, timeout, idleTimeout)
