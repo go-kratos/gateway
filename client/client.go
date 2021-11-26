@@ -14,7 +14,7 @@ import (
 
 // Client is a proxy client.
 type Client interface {
-	Invoke(ctx context.Context, req *http.Request) (*http.Response, error)
+	Do(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
 type client struct {
@@ -25,7 +25,7 @@ type client struct {
 	conditions []retryCondition
 }
 
-func (c *client) Invoke(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
 	// copy request to prevent body from being polluted
 	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"

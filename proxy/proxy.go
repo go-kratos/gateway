@@ -54,7 +54,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
-	handler, err := p.buildMiddleware(ms, caller.Invoke)
+	handler, err := p.buildMiddleware(ms, caller.Do)
 	if err != nil {
 		return nil, err
 	}
