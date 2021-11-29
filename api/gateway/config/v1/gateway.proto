@@ -36,20 +36,19 @@ message Backend {
     // 127.0.0.1:8000
     // discovery://service_name
     string target = 1;
-    HealthCheck health_check = 2;
-    optional int64 weight = 3;
+    optional int64 weight = 2;
+    HealthCheck health_check = 3;
     // static label filtering in the service discovery
     map<string, string> labels = 4;
 }
 
 enum Protocol {
-    HTTP = 0;
-    GRPC = 1;
+    PROTOCOL_UNSPECIFIED = 0;
+    PROTOCOL_HTTP = 1;
+    PROTOCOL_GRPC = 2;
 }
 
-message HealthCheck {
-    string path = 1;
-}
+message HealthCheck {}
 
 message Retry {
     // default attempts is 1
@@ -63,7 +62,6 @@ message RetryCondition {
         string name = 1;
         string value = 2;
     }
-
     oneof condition {
         // "500-599", "429"
         string by_status_code = 1;
