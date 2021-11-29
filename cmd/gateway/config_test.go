@@ -26,9 +26,10 @@ func equalTo() *configv1.Gateway {
 		},
 		Endpoints: []*configv1.Endpoint{
 			{
-				Method:  "*",
-				Path:    "/helloworld/*",
-				Timeout: &durationpb.Duration{Seconds: 1},
+				Method:   "*",
+				Path:     "/helloworld/*",
+				Protocol: configv1.Protocol_HTTP,
+				Timeout:  &durationpb.Duration{Seconds: 1},
 				Backends: []*configv1.Backend{
 					{
 						Target: "127.0.0.1:8000",

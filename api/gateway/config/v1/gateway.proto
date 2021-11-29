@@ -43,9 +43,9 @@ message Backend {
 }
 
 enum Protocol {
-    PROTOCOL_UNSPECIFIED = 0;
-    PROTOCOL_HTTP = 1;
-    PROTOCOL_GRPC = 2;
+    UNSPECIFIED = 0;
+    HTTP = 1;
+    GRPC = 2;
 }
 
 message HealthCheck {}

@@ -61,7 +61,7 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 		Timeout:   timeout,
 		Transport: tr,
 	}
-	if protocol == config.Protocol_PROTOCOL_GRPC {
+	if protocol == config.Protocol_GRPC {
 		client.Transport = &http2.Transport{
 			// So http2.Transport doesn't complain the URL scheme isn't 'https'
 			AllowHTTP:          true,
