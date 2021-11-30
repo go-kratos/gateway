@@ -10,7 +10,7 @@ type contextKey struct{}
 
 // RequestOptions is a request option.
 type RequestOptions struct {
-	Filters []selector.NodeFilter
+	Filters []selector.Filter
 }
 
 // NewRequestContext returns a new Context that carries value.

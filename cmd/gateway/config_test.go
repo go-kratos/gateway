@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	colorv1 "github.com/go-kratos/gateway/api/gateway/middleware/color/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
-	dyeingv1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
 	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
 	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
 	prometheus "github.com/go-kratos/gateway/api/gateway/middleware/prometheus"
@@ -69,8 +69,8 @@ func equalTo() *configv1.Gateway {
 				}),
 			},
 			{
-				Name: "dyeing",
-				Options: asAny(&dyeingv1.Dyeing{
+				Name: "color",
+				Options: asAny(&colorv1.Color{
 					Header: "x-md-global-color",
 					Label:  "color",
 				}),

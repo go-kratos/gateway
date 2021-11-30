@@ -43,21 +43,10 @@ func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			if o, ok := middleware.FromRequestContext(ctx); ok {
-				var filter selector.NodeFilter
-				if color := req.Header.Get(options.Header); color != "" {
-					filter = func(node selector.Node) bool {
-						md := node.Metadata()
-						return md[options.Label] == color
-					}
-				} else {
-					filter = func(node selector.Node) bool {
-						md := node.Metadata()
-						return (md[options.Label] == "")
-					}
+			if color := req.Header.Get(options.Header); color != "" {
+				if o, ok := middleware.FromRequestContext(ctx); ok {
+					o.Filters = append(o.Filters, filter(options.Label, color))
 				}
-
-				o.Filters = append(o.Filters, filter)
 			}
 			return handler(ctx, req)
 		}

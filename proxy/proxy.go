@@ -14,7 +14,6 @@ import (
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/selector"
 )
 
 const xff = "X-Forwarded-For"
@@ -67,9 +66,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		if err == nil {
 			r.Header[xff] = append(r.Header[xff], ip)
 		}
-		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{
-			Filters: []selector.NodeFilter{},
-		})
+		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
 		resp, err := handler(ctx, r)

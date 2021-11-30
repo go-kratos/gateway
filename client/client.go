@@ -38,7 +38,7 @@ func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response
 
 func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	opts, _ := middleware.FromRequestContext(ctx)
-	selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(opts.Filters...))
+	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +63,14 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 	filters := opts.Filters
 
 	selects := map[string]struct{}{}
-	filter := func(node selector.Node) bool {
-		if _, ok := selects[node.Address()]; ok {
-			return false
+	filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		newNodes := nodes[:0]
+		for _, node := range nodes {
+			if _, ok := selects[node.Address()]; !ok {
+				newNodes = append(newNodes, node)
+			}
 		}
-		return true
+		return newNodes
 	}
 	filters = append(filters, filter)
 
@@ -81,7 +84,7 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 			return nil, err
 		}
 
-		selected, done, err := c.selector.Select(ctx, selector.WithNodeFilter(filters...))
+		selected, done, err := c.selector.Select(ctx, selector.WithFilter(filters...))
 		if err != nil {
 			return nil, err
 		}
