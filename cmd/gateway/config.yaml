@@ -14,9 +14,9 @@ middlewares:
         - GET
         - POST
         - OPTIONS
-  - name: dyeing
+  - name: color 
     options:
-      '@type': type.googleapis.com/gateway.middleware.dyeing.v1.Dyeing
+      '@type': type.googleapis.com/gateway.middleware.color.v1.Color
       header: x-md-global-color
       label: color
   - name: otel
