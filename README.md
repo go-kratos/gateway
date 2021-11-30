@@ -19,10 +19,9 @@ HTTP -> Proxy -> Router -> Middleware -> Client -> Selector -> Node
 ## Middleware
 * cors
 * auth
-* datacenter
-* dyeing
+* color
 * logging
 * tracing
 * metrics
 * ratelimit
-* retry
+* datacenter

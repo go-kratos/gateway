@@ -1,17 +1,17 @@
-package dyeing
+package color
 
 import (
 	"context"
 	"net/http"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	v1 "github.com/go-kratos/gateway/api/gateway/middleware/dyeing/v1"
+	v1 "github.com/go-kratos/gateway/api/gateway/middleware/color/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
 func init() {
-	middleware.Register("dyeing", Middleware)
+	middleware.Register("color", Middleware)
 }
 
 func filter(label, color string) func(ctx context.Context, nodes []selector.Node) []selector.Node {
@@ -37,7 +37,7 @@ func filter(label, color string) func(ctx context.Context, nodes []selector.Node
 
 // Middleware is a dyeing request to filter the color nodes.
 func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
-	options := &v1.Dyeing{}
+	options := &v1.Color{}
 	if err := cfg.Options.UnmarshalTo(options); err != nil {
 		return nil, err
 	}

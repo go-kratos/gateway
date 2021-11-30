@@ -15,8 +15,8 @@ import (
 	"github.com/go-kratos/gateway/server"
 	"github.com/hashicorp/consul/api"
 
+	_ "github.com/go-kratos/gateway/middleware/color"
 	_ "github.com/go-kratos/gateway/middleware/cors"
-	_ "github.com/go-kratos/gateway/middleware/dyeing"
 	_ "github.com/go-kratos/gateway/middleware/logging"
 	_ "github.com/go-kratos/gateway/middleware/otel"
 	_ "github.com/go-kratos/gateway/middleware/prometheus"
