@@ -84,7 +84,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					for _, ser := range services {
 						scheme := strings.ToLower(na.endpoint.Protocol.String())
 						addr, err := parseEndpoint(ser.Endpoints, scheme, false)
-						if err != nil {
+						if err != nil || addr == "" {
 							na.logHelper.Errorf("failed to parse endpoint: %v", err)
 							continue
 						}
