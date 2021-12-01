@@ -60,18 +60,24 @@ func duplicateRequestBody(req *http.Request) (*bytes.Reader, error) {
 
 func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
 	opts, _ := middleware.FromRequestContext(ctx)
-	filters := opts.Filters
 
 	selects := map[string]struct{}{}
 	filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		if len(selects) == 0 {
+			return nodes
+		}
 		newNodes := nodes[:0]
 		for _, node := range nodes {
 			if _, ok := selects[node.Address()]; !ok {
 				newNodes = append(newNodes, node)
 			}
 		}
+		if len(newNodes) == 0 {
+			return nodes
+		}
 		return newNodes
 	}
+	filters := opts.Filters
 	filters = append(filters, filter)
 
 	body, err := duplicateRequestBody(req)
