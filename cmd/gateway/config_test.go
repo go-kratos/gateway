@@ -26,7 +26,6 @@ func equalTo() *configv1.Gateway {
 		},
 		Endpoints: []*configv1.Endpoint{
 			{
-				Method:   "*",
 				Path:     "/helloworld/*",
 				Protocol: configv1.Protocol_HTTP,
 				Timeout:  &durationpb.Duration{Seconds: 1},
@@ -37,8 +36,8 @@ func equalTo() *configv1.Gateway {
 				},
 			},
 			{
-				Method:   "*",
 				Path:     "/helloworld.Greeter/*",
+				Methods:  []string{"POST"},
 				Protocol: configv1.Protocol_GRPC,
 				Timeout:  &durationpb.Duration{Seconds: 1},
 				Backends: []*configv1.Backend{

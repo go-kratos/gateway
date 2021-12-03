@@ -7,5 +7,5 @@ import (
 // Router is a gateway router.
 type Router interface {
 	http.Handler
-	Handle(pattern, method string, handler http.Handler) error
+	Handle(pattern string, methods []string, handler http.Handler) error
 }

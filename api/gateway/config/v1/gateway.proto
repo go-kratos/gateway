@@ -16,8 +16,8 @@ message Gateway {
 }
 
 message Endpoint {
-    string method = 1;
-    string path = 2;
+    string path = 1;
+    repeated string methods = 2;
     string description = 3;
     Protocol protocol = 4;
     google.protobuf.Duration timeout = 5;
