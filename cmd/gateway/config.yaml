@@ -32,13 +32,13 @@ middlewares:
       path: /metrics
 endpoints:
   - path: /helloworld/*
-    method: '*'
     timeout: 1s
     protocol: HTTP
     backends:
       - target: '127.0.0.1:8000'
   - path: /helloworld.Greeter/*
-    method: '*'
+    methods:
+      - POST
     timeout: 1s
     protocol: GRPC
     backends:
