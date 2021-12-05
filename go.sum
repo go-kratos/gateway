@@ -54,7 +54,8 @@ github.com/go-kit/log v0.1.0/go.mod h1:zbhenjAZHb184qTLMA9ZjW7ThYL0H2mk7Q6pNt4vb
 github.com/go-kratos/aegis v0.1.1/go.mod h1:jYeSQ3Gesba478zEnujOiG5QdsyF3Xk/8owFUeKcHxw=
 github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54 h1:D5gt4YlmuTwM2yphheJ0CfBFPdgbTbEiK0c3gRwiGws=
 github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54/go.mod h1:eWjVo40ltiZE2T0L83yBUO0HlOo+ztJD+VsJ6hyZiAc=
-github.com/go-kratos/kratos/v2 v2.1.0 h1:mVA98n5zyAvOORts3NOFRMP5VMNB1Hff8kVTybgawgw=
+github.com/go-kratos/kratos/v2 v2.0.0-20211204183355-63a7ffae0487 h1:tgkckFjK/RGlb5v26Pe78jkZKuZWev+ZHpZqd2bPLFs=
+github.com/go-kratos/kratos/v2 v2.0.0-20211204183355-63a7ffae0487/go.mod h1:/SOOBnLEDEgQRXV9bVVyZsITmxKsilSCc15U8uiNzcI=
 github.com/go-kratos/kratos/v2 v2.1.0/go.mod h1:aJv7++0gDtfncp+2e3Ae32ElyFd77WS+pdXCRTSFll0=
 github.com/go-logfmt/logfmt v0.3.0/go.mod h1:Qt1PoO58o5twSAckw1HlFXLmHsOX5/0LbT9GBnD5lWE=
 github.com/go-logfmt/logfmt v0.4.0/go.mod h1:3RMwSq7FuexP4Kalkev3ejPJsZTpXXBr9+V4qmtdjCk=
