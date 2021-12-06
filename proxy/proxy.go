@@ -48,8 +48,8 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Hand
 	return handler, nil
 }
 
-func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
-	caller, err := p.clientFactory(e)
+func (p *Proxy) buildEndpoint(ctx context.Context, e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
+	caller, err := p.clientFactory(ctx, e)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 func (p *Proxy) Update(c *config.Gateway) error {
 	router := mux.NewRouter()
 	for _, e := range c.Endpoints {
-		handler, err := p.buildEndpoint(e, c.Middlewares)
+		handler, err := p.buildEndpoint(context.Background(), e, c.Middlewares)
 		if err != nil {
 			return err
 		}

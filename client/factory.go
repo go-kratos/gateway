@@ -16,19 +16,19 @@ import (
 )
 
 // Factory is returns service client.
-type Factory func(*config.Endpoint) (Client, error)
+type Factory func(context.Context, *config.Endpoint) (Client, error)
 
 // NewFactory new a client factory.
 func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
-	return func(endpoint *config.Endpoint) (Client, error) {
+	return func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
 		applier := &nodeApplier{
 			endpoint:  endpoint,
 			logHelper: log,
 			registry:  r,
 		}
-		if err := applier.apply(context.Background(), picker); err != nil {
+		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
 		}
 		client := &client{
