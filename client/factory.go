@@ -16,14 +16,16 @@ import (
 )
 
 // Factory is returns service client.
-type Factory func(context.Context, *config.Endpoint) (Client, error)
+type Factory func(*config.Endpoint) (Client, error)
 
 // NewFactory new a client factory.
 func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
-	return func(ctx context.Context, endpoint *config.Endpoint) (Client, error) {
+	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
+		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
+			cancel:    cancel,
 			endpoint:  endpoint,
 			logHelper: log,
 			registry:  r,
@@ -33,6 +35,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 		}
 		client := &client{
 			selector: picker,
+			applier:  applier,
 			attempts: calcAttempts(endpoint),
 			protocol: endpoint.Protocol,
 		}
@@ -46,9 +49,10 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 }
 
 type nodeApplier struct {
+	cancel    context.CancelFunc
 	endpoint  *config.Endpoint
-	logHelper *log.Helper
 	registry  registry.Discovery
+	logHelper *log.Helper
 }
 
 func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {

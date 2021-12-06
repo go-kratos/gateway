@@ -15,14 +15,21 @@ import (
 // Client is a proxy client.
 type Client interface {
 	Do(ctx context.Context, req *http.Request) (*http.Response, error)
+	Close() error
 }
 
 type client struct {
 	selector selector.Selector
+	applier  *nodeApplier
 
 	protocol   config.Protocol
 	attempts   uint32
 	conditions []retryCondition
+}
+
+func (c *client) Close() error {
+	c.applier.cancel()
+	return nil
 }
 
 func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
