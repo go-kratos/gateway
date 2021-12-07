@@ -23,16 +23,19 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 	log := log.NewHelper(logger)
 	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
+		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
+			cancel:    cancel,
 			endpoint:  endpoint,
 			logHelper: log,
 			registry:  r,
 		}
-		if err := applier.apply(context.Background(), picker); err != nil {
+		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
 		}
 		client := &client{
 			selector: picker,
+			applier:  applier,
 			attempts: calcAttempts(endpoint),
 			protocol: endpoint.Protocol,
 		}
@@ -46,9 +49,10 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 }
 
 type nodeApplier struct {
+	cancel    context.CancelFunc
 	endpoint  *config.Endpoint
-	logHelper *log.Helper
 	registry  registry.Discovery
+	logHelper *log.Helper
 }
 
 func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
