@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
+	"github.com/go-kratos/gateway/configloader"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
@@ -24,8 +24,6 @@ import (
 
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/config"
-	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -75,42 +73,40 @@ func main() {
 	go func() {
 		log.Fatal(http.ListenAndServe(adminAddr, nil))
 	}()
-	c := config.New(
-		config.WithLogger(logger),
-		config.WithSource(
-			file.NewSource(conf),
-		),
-	)
-	if err := c.Load(); err != nil {
-		log.Fatalf("failed to load config: %v", err)
-	}
-	bc := new(configv1.Gateway)
-	if err := c.Scan(bc); err != nil {
-		log.Fatalf("failed to scan config: %v", err)
-	}
+
 	clientFactory := client.NewFactory(logger, registry())
 	p, err := proxy.New(logger, clientFactory, middleware.Create)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
+
+	confLoader, err := configloader.NewFileLoader(conf)
+	if err != nil {
+		log.Fatalf("failed to create config file loader: %v", err)
+	}
+	defer confLoader.Close()
+	bc, err := confLoader.Pull(context.Background())
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
 	if err := p.Update(bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
-	reloader := func(key string, _ config.Value) {
-		bc := new(configv1.Gateway)
-		if err := c.Scan(bc); err != nil {
-			log.Errorf("failed to scan config: %v", err)
+	reloader := func() {
+		bc, err := confLoader.Pull(context.Background())
+		if err != nil {
+			log.Fatalf("failed to load config: %v", err)
 			return
 		}
 		if err := p.Update(bc); err != nil {
 			log.Errorf("failed to update service config: %v", err)
 			return
 		}
-		log.Infof("config key: %s reloaded", key)
+		log.Infof("config reloaded")
 	}
-	c.Watch("hosts", reloader)
-	c.Watch("middlewares", reloader)
-	c.Watch("endpoints", reloader)
+	confLoader.Watch(reloader)
+
 	ctx := context.Background()
 	ctx = middleware.NewLoggingContext(ctx, logger)
 	srv := server.New(logger, p, bind, timeout, idleTimeout)
