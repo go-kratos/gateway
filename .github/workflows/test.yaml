@@ -33,7 +33,7 @@ jobs:
       - name: Go Test
         run: go test -v -cover -race ./...
       - name: Upload coverage to Codecov
-
         uses: codecov/codecov-action@v2
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           flags: ${{ matrix.os }}
