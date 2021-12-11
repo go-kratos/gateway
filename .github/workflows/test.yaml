@@ -31,4 +31,8 @@ jobs:
         run: go vet ./...
 
       - name: Go Test
-        run: go test -v -cover -race ./...
+        run: go test -v -coverprofile=coverage.out -covermode=atomic -race ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          flags: ${{ matrix.os }}
