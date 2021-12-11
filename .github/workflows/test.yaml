@@ -1,15 +1,18 @@
-name: Go
+name: Test
 
 on:
   push:
     branches:
-      - init
+      - main
   pull_request:
     branches:
-      - init
+      - main
 
 jobs:
   Test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     name: build & test
     runs-on: ubuntu-latest
     steps:
