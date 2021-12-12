@@ -1,15 +1,18 @@
-name: Go
+name: Test
 
 on:
   push:
     branches:
-      - init
+      - main
   pull_request:
     branches:
-      - init
+      - main
 
 jobs:
   Test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     name: build & test
     runs-on: ubuntu-latest
     steps:
@@ -28,4 +31,8 @@ jobs:
         run: go vet ./...
 
       - name: Go Test
-        run: go test -v -cover -race ./...
+        run: go test -v -coverprofile=coverage.out -covermode=atomic -race ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          flags: ${{ matrix.os }}
