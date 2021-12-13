@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/configloader"
+	"github.com/go-kratos/gateway/configloader/ctrlloader"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
@@ -29,6 +30,7 @@ import (
 
 var (
 	conf        string
+	ctrlService string
 	bind        string
 	timeout     time.Duration
 	idleTimeout time.Duration
@@ -42,6 +44,7 @@ var (
 
 func init() {
 	flag.StringVar(&conf, "conf", "config.yaml", "config path, eg: -conf config.yaml")
+	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://172.16.0.5:8000")
 	flag.StringVar(&bind, "bind", ":8080", "server address, eg: 127.0.0.1:8080")
 	flag.DurationVar(&timeout, "timeout", time.Second*15, "server timeout, eg: 15s")
 	flag.DurationVar(&idleTimeout, "idleTimeout", time.Second*300, "server idleTimeout, eg: 300s")
@@ -80,6 +83,16 @@ func main() {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
 
+	ctx := context.Background()
+	if ctrlService != "" {
+		log.Infof("setup control service to: %q", ctrlService)
+		ctrlLoader := ctrlloader.New(ctrlService, conf)
+		if err := ctrlLoader.Load(ctx); err != nil {
+			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
+		}
+		go ctrlLoader.Run(context.TODO())
+	}
+
 	confLoader, err := configloader.NewFileLoader(conf)
 	if err != nil {
 		log.Fatalf("failed to create config file loader: %v", err)
@@ -107,7 +120,6 @@ func main() {
 	}
 	confLoader.Watch(reloader)
 
-	ctx := context.Background()
 	ctx = middleware.NewLoggingContext(ctx, logger)
 	srv := server.New(logger, p, bind, timeout, idleTimeout)
 	app := kratos.New(
