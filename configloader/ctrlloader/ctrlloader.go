@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"sigs.k8s.io/yaml"
 )
 
 type CtrlConfigLoader struct {
@@ -22,7 +23,7 @@ type CtrlConfigLoader struct {
 
 type LoadResponse struct {
 	Config  string `json:"config"`
-	Version int64  `json:"version"`
+	Version string `json:"version"`
 }
 
 func New(ctrlService, dstPath string) *CtrlConfigLoader {
@@ -32,12 +33,13 @@ func New(ctrlService, dstPath string) *CtrlConfigLoader {
 	}
 }
 
-func (c *CtrlConfigLoader) urlfor(upath string) (string, error) {
+func (c *CtrlConfigLoader) urlfor(upath string, params url.Values) (string, error) {
 	u, err := url.Parse(c.ctrlService)
 	if err != nil {
 		return "", err
 	}
 	u.Path = path.Join(u.Path, upath)
+	u.RawQuery = params.Encode()
 	return u.String(), nil
 }
 
@@ -52,8 +54,13 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) error {
 		return err
 	}
 
+	yamlBytes, err := yaml.JSONToYAML([]byte(resp.Config))
+	if err != nil {
+		return err
+	}
+
 	tmpPath := fmt.Sprintf("%s.%s.tmp", c.dstPath, uuid.New().String())
-	if err := ioutil.WriteFile(tmpPath, []byte(resp.Config), 0644); err != nil {
+	if err := ioutil.WriteFile(tmpPath, yamlBytes, 0644); err != nil {
 		return err
 	}
 	if err := os.Rename(tmpPath, c.dstPath); err != nil {
@@ -62,8 +69,21 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) error {
 	return nil
 }
 
+func hostname() string {
+	hn, _ := os.Hostname()
+	hn = "test-gw"
+	return hn
+}
+
+func advertiseAddr() string {
+	return "192.168.1.10"
+}
+
 func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
-	api, err := c.urlfor("/api/v1/config")
+	params := url.Values{}
+	params.Set("gateway", hostname())
+	params.Set("ip_addr", advertiseAddr())
+	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
 		return nil, err
 	}
