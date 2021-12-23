@@ -16,9 +16,11 @@ type muxRouter struct {
 
 // NewRouter new a mux router.
 func NewRouter() router.Router {
-	return &muxRouter{
+	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(true),
 	}
+	r.Router.HandleFunc("/_/ping", func(rw http.ResponseWriter, r *http.Request) {})
+	return r
 }
 
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
