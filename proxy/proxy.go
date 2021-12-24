@@ -105,10 +105,10 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		if err != nil {
 			return err
 		}
-		if err = router.Handle(e.Path, e.Methods, handler); err != nil {
+		if err = router.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
-		p.log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Methods, e.Path)
+		p.log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
 	p.router.Store(router)
 	return nil
