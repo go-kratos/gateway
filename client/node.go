@@ -51,7 +51,7 @@ func (n *node) Metadata() map[string]string {
 	return n.metadata
 }
 
-func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
+func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.MaxIdleConns = 100
 	tr.MaxConnsPerHost = 100

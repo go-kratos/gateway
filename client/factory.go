@@ -65,7 +65,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 		weighted := backend.Weight
 		switch target.Scheme {
 		case "direct":
-			node := newNode(backend.Target, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint))
+			node := newNode(backend.Target, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), map[string]string{})
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
@@ -92,7 +92,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 							na.logHelper.Errorf("failed to parse endpoint: %v", err)
 							continue
 						}
-						node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint))
+						node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), ser.Metadata)
 						nodes = append(nodes, node)
 					}
 					dst.Apply(nodes)
