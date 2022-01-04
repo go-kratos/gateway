@@ -3,9 +3,10 @@ module github.com/go-kratos/gateway
 go 1.15
 
 require (
+	git.bilibili.co/middleware/kratos v0.0.0-20220104113843-b835b10fb74b
 	github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54
-	github.com/go-kratos/kratos/v2 v2.1.2
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/go-kratos/kratos/v2 v2.1.3
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/consul/api v1.11.0
 	github.com/pkg/errors v0.9.1

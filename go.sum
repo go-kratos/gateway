@@ -1,5 +1,9 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
+git.bilibili.co/middleware/discovery-go v0.0.0-20220104085449-57c4d1dd2ac5 h1:OSG2wM6yARMIq8SfVK/k+jyCm2+3kdP2e1is8iZdS0E=
+git.bilibili.co/middleware/discovery-go v0.0.0-20220104085449-57c4d1dd2ac5/go.mod h1:bNCT/s0YxjRUNApQnWx01BL9Xc4xllE1WpQXW60Wm5Y=
+git.bilibili.co/middleware/kratos v0.0.0-20220104113843-b835b10fb74b h1:N7Gk4Mshi5rWQHota98IRNfF6lqeG81Y6dARfveMcdo=
+git.bilibili.co/middleware/kratos v0.0.0-20220104113843-b835b10fb74b/go.mod h1:NjmMhJh/NGnZQwBViT+OJNJzz3/Ktb8dfKugtBJba5k=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -54,9 +58,9 @@ github.com/go-kit/log v0.1.0/go.mod h1:zbhenjAZHb184qTLMA9ZjW7ThYL0H2mk7Q6pNt4vb
 github.com/go-kratos/aegis v0.1.1/go.mod h1:jYeSQ3Gesba478zEnujOiG5QdsyF3Xk/8owFUeKcHxw=
 github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54 h1:D5gt4YlmuTwM2yphheJ0CfBFPdgbTbEiK0c3gRwiGws=
 github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20211104134829-037296cdbf54/go.mod h1:eWjVo40ltiZE2T0L83yBUO0HlOo+ztJD+VsJ6hyZiAc=
-github.com/go-kratos/kratos/v2 v2.0.0-20211204183355-63a7ffae0487 h1:tgkckFjK/RGlb5v26Pe78jkZKuZWev+ZHpZqd2bPLFs=
-github.com/go-kratos/kratos/v2 v2.0.0-20211204183355-63a7ffae0487/go.mod h1:/SOOBnLEDEgQRXV9bVVyZsITmxKsilSCc15U8uiNzcI=
 github.com/go-kratos/kratos/v2 v2.1.0/go.mod h1:aJv7++0gDtfncp+2e3Ae32ElyFd77WS+pdXCRTSFll0=
+github.com/go-kratos/kratos/v2 v2.1.3 h1:e2uq6NVJIo24s1flI7aiUp34MyiG40Uc6lI0xv1+iDc=
+github.com/go-kratos/kratos/v2 v2.1.3/go.mod h1:/SOOBnLEDEgQRXV9bVVyZsITmxKsilSCc15U8uiNzcI=
 github.com/go-logfmt/logfmt v0.3.0/go.mod h1:Qt1PoO58o5twSAckw1HlFXLmHsOX5/0LbT9GBnD5lWE=
 github.com/go-logfmt/logfmt v0.4.0/go.mod h1:3RMwSq7FuexP4Kalkev3ejPJsZTpXXBr9+V4qmtdjCk=
 github.com/go-logfmt/logfmt v0.5.0/go.mod h1:wCYkCAKZfumFQihp8CzCvQ3paCTfi41vtzG1KdI/P7A=

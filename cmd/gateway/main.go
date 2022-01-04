@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"time"
 
@@ -26,6 +28,9 @@ import (
 	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/registry"
+
+	discoveryapi "git.bilibili.co/middleware/kratos/discovery"
 )
 
 var (
@@ -38,6 +43,8 @@ var (
 	consulAddress    string
 	consulToken      string
 	consulDatacenter string
+	// registry
+	registryDSN string
 	// debug
 	adminAddr string
 )
@@ -52,10 +59,21 @@ func init() {
 	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
 	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
 	flag.StringVar(&adminAddr, "pprof", "0.0.0.0:7070", "admin addr, eg: 127.0.0.1:7070")
+	flag.StringVar(&registryDSN, "registry.dsn", "", "registry dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 }
 
-func registry() *consul.Registry {
-	if consulAddress != "" {
+func makeRegistry() registry.Discovery {
+	if registryDSN == "" {
+		return nil
+	}
+
+	dsn, err := url.Parse(registryDSN)
+	if err != nil {
+		panic(err)
+	}
+
+	switch dsn.Scheme {
+	case "consul":
 		c := api.DefaultConfig()
 		c.Address = consulAddress
 		c.Token = consulToken
@@ -65,8 +83,25 @@ func registry() *consul.Registry {
 			panic(err)
 		}
 		return consul.New(client)
+	case "discovery":
+		opts := []discoveryapi.Option{}
+		region := dsn.Query().Get("region")
+		if region != "" {
+			opts = append(opts, discoveryapi.WithRegion(region))
+		}
+		zone := dsn.Query().Get("zone")
+		if zone != "" {
+			opts = append(opts, discoveryapi.WithZone(zone))
+		}
+		deployEnv := dsn.Query().Get("deployenv")
+		if deployEnv != "" {
+			opts = append(opts, discoveryapi.WithZone(deployEnv))
+		}
+		d := discoveryapi.New(opts...)
+		return d
+	default:
+		panic(fmt.Errorf("unrecognized scheme: %s", dsn.Scheme))
 	}
-	return nil
 }
 
 func main() {
@@ -77,7 +112,7 @@ func main() {
 		log.Fatal(http.ListenAndServe(adminAddr, nil))
 	}()
 
-	clientFactory := client.NewFactory(logger, registry())
+	clientFactory := client.NewFactory(logger, makeRegistry())
 	p, err := proxy.New(logger, clientFactory, middleware.Create)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
