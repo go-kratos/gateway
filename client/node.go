@@ -78,6 +78,7 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 		address:  addr,
 		client:   client,
 		weight:   weight,
+		metadata: md,
 	}
 	return node
 }
