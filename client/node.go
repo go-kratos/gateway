@@ -96,7 +96,7 @@ func (n *node) Metadata() map[string]string {
 	return n.metadata
 }
 
-func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
+func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
 	client := globalClient()
 	if protocol == config.Protocol_GRPC {
 		client = globalH2Client()
@@ -107,6 +107,7 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 		client:   client,
 		weight:   weight,
 		timeout:  timeout,
+		metadata: md,
 	}
 	return node
 }
