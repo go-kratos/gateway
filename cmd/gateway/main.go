@@ -39,10 +39,6 @@ var (
 	bind        string
 	timeout     time.Duration
 	idleTimeout time.Duration
-	// consul
-	consulAddress    string
-	consulToken      string
-	consulDatacenter string
 	// registry
 	registryDSN string
 	// debug
@@ -55,9 +51,6 @@ func init() {
 	flag.StringVar(&bind, "bind", ":8080", "server address, eg: 127.0.0.1:8080")
 	flag.DurationVar(&timeout, "timeout", time.Second*15, "server timeout, eg: 15s")
 	flag.DurationVar(&idleTimeout, "idleTimeout", time.Second*300, "server idleTimeout, eg: 300s")
-	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
-	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
-	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
 	flag.StringVar(&adminAddr, "pprof", "0.0.0.0:7070", "admin addr, eg: 127.0.0.1:7070")
 	flag.StringVar(&registryDSN, "registry.dsn", "", "registry dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 }
@@ -73,7 +66,7 @@ func makeRegistry() registry.Discovery {
 	switch dsn.Scheme {
 	case "consul":
 		c := api.DefaultConfig()
-		c.Address = dsn.Query().Get("address")
+		c.Address = dsn.Host
 		c.Token = dsn.Query().Get("token")
 		c.Datacenter = dsn.Query().Get("datacenter")
 		client, err := api.NewClient(c)
