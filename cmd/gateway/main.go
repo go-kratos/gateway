@@ -66,18 +66,16 @@ func makeRegistry() registry.Discovery {
 	if registryDSN == "" {
 		return nil
 	}
-
 	dsn, err := url.Parse(registryDSN)
 	if err != nil {
 		panic(err)
 	}
-
 	switch dsn.Scheme {
 	case "consul":
 		c := api.DefaultConfig()
-		c.Address = consulAddress
-		c.Token = consulToken
-		c.Datacenter = consulDatacenter
+		c.Address = dsn.Query().Get("address")
+		c.Token = dsn.Query().Get("token")
+		c.Datacenter = dsn.Query().Get("datacenter")
 		client, err := api.NewClient(c)
 		if err != nil {
 			panic(err)
