@@ -38,8 +38,8 @@ func New(logger log.Logger, clientFactory client.Factory, middlewareFactory midd
 }
 
 func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Handler) (middleware.Handler, error) {
-	for _, c := range ms {
-		m, err := p.middlewareFactory(c)
+	for i := len(ms) - 1; i >= 0; i-- {
+		m, err := p.middlewareFactory(ms[i])
 		if err != nil {
 			return nil, err
 		}
@@ -105,10 +105,10 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		if err != nil {
 			return err
 		}
-		if err = router.Handle(e.Path, e.Methods, handler); err != nil {
+		if err = router.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
-		p.log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Methods, e.Path)
+		p.log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
 	p.router.Store(router)
 	return nil
