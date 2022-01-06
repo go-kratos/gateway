@@ -56,10 +56,10 @@ func makeDiscovery() registry.Discovery {
 	if discoveryDSN == "" {
 		return nil
 	}
-
 	impl, err := discovery.Create(discoveryDSN)
 	if err != nil {
 		panic(fmt.Errorf("failed to create discovery: %v", err))
+
 	}
 	return impl
 }

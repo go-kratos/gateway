@@ -98,7 +98,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("invalid statue code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("invalid status code: %d", resp.StatusCode)
 	}
 	out, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

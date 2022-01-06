@@ -37,8 +37,7 @@ endpoints:
     backends:
       - target: '127.0.0.1:8000'
   - path: /helloworld.Greeter/*
-    methods:
-      - POST
+    method: POST
     timeout: 1s
     protocol: GRPC
     backends:

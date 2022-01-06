@@ -22,32 +22,22 @@ func defaultClient() *http.Client {
 	tr.MaxConnsPerHost = 100
 	tr.MaxIdleConnsPerHost = 100
 	tr.DisableCompression = true
-	client := &http.Client{
-		Transport: tr,
-	}
-	return client
+	return &http.Client{Transport: tr}
 }
 
 func defaultH2Client() *http.Client {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.MaxIdleConns = 100
-	tr.MaxConnsPerHost = 100
-	tr.MaxIdleConnsPerHost = 100
-	tr.DisableCompression = true
-	client := &http.Client{
-		Transport: tr,
-	}
-	client.Transport = &http2.Transport{
-		// So http2.Transport doesn't complain the URL scheme isn't 'https'
-		AllowHTTP:          true,
-		DisableCompression: true,
-		// Pretend we are dialing a TLS endpoint.
-		// Note, we ignore the passed tls.Config
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			return net.Dial(network, addr)
+	return &http.Client{
+		Transport: &http2.Transport{
+			// So http2.Transport doesn't complain the URL scheme isn't 'https'
+			AllowHTTP:          true,
+			DisableCompression: true,
+			// Pretend we are dialing a TLS endpoint.
+			// Note, we ignore the passed tls.Config
+			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+				return net.Dial(network, addr)
+			},
 		},
 	}
-	return client
 }
 
 func globalClient() *http.Client {
@@ -96,17 +86,18 @@ func (n *node) Metadata() map[string]string {
 	return n.metadata
 }
 
-func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration) *node {
-	client := globalClient()
-	if protocol == config.Protocol_GRPC {
-		client = globalH2Client()
-	}
+func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
 	node := &node{
 		protocol: protocol,
 		address:  addr,
-		client:   client,
 		weight:   weight,
 		timeout:  timeout,
+		metadata: md,
+	}
+	if protocol == config.Protocol_GRPC {
+		node.client = globalH2Client()
+	} else {
+		node.client = globalClient()
 	}
 	return node
 }
