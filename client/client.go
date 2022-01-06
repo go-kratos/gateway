@@ -28,7 +28,7 @@ type client struct {
 }
 
 func (c *client) Close() error {
-	c.applier.cancel()
+	c.applier.Cancel()
 	return nil
 }
 
