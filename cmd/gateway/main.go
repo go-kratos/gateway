@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"net/url"
 	"os"
 	"time"
 
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/configloader"
 	"github.com/go-kratos/gateway/configloader/ctrlloader"
+	"github.com/go-kratos/gateway/discovery"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/server"
-	"github.com/hashicorp/consul/api"
 
+	_ "github.com/go-kratos/gateway/discovery/consul"
 	_ "github.com/go-kratos/gateway/middleware/color"
 	_ "github.com/go-kratos/gateway/middleware/cors"
 	_ "github.com/go-kratos/gateway/middleware/logging"
@@ -25,12 +25,9 @@ import (
 	_ "github.com/go-kratos/gateway/middleware/prometheus"
 	_ "go.uber.org/automaxprocs"
 
-	"github.com/go-kratos/kratos/contrib/registry/consul/v2"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
-
-	discoveryapi "git.bilibili.co/middleware/kratos/discovery"
 )
 
 var (
@@ -39,12 +36,8 @@ var (
 	bind        string
 	timeout     time.Duration
 	idleTimeout time.Duration
-	// consul
-	consulAddress    string
-	consulToken      string
-	consulDatacenter string
-	// registry
-	registryDSN string
+	// discovery
+	discoveryDSN string
 	// debug
 	adminAddr string
 )
@@ -55,53 +48,20 @@ func init() {
 	flag.StringVar(&bind, "bind", ":8080", "server address, eg: 127.0.0.1:8080")
 	flag.DurationVar(&timeout, "timeout", time.Second*15, "server timeout, eg: 15s")
 	flag.DurationVar(&idleTimeout, "idleTimeout", time.Second*300, "server idleTimeout, eg: 300s")
-	flag.StringVar(&consulAddress, "consul.address", "", "consul address, eg: 127.0.0.1:8500")
-	flag.StringVar(&consulToken, "consul.token", "", "consul token, eg: xxx")
-	flag.StringVar(&consulDatacenter, "consul.datacenter", "", "consul datacenter, eg: xxx")
 	flag.StringVar(&adminAddr, "pprof", "0.0.0.0:7070", "admin addr, eg: 127.0.0.1:7070")
-	flag.StringVar(&registryDSN, "registry.dsn", "", "registry dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
+	flag.StringVar(&discoveryDSN, "discovery.dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 }
 
-func makeRegistry() registry.Discovery {
-	if registryDSN == "" {
+func makeDiscovery() registry.Discovery {
+	if discoveryDSN == "" {
 		return nil
 	}
 
-	dsn, err := url.Parse(registryDSN)
+	impl, err := discovery.Create(discoveryDSN)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to create discovery: %v", err))
 	}
-
-	switch dsn.Scheme {
-	case "consul":
-		c := api.DefaultConfig()
-		c.Address = consulAddress
-		c.Token = consulToken
-		c.Datacenter = consulDatacenter
-		client, err := api.NewClient(c)
-		if err != nil {
-			panic(err)
-		}
-		return consul.New(client)
-	case "discovery":
-		opts := []discoveryapi.Option{}
-		region := dsn.Query().Get("region")
-		if region != "" {
-			opts = append(opts, discoveryapi.WithRegion(region))
-		}
-		zone := dsn.Query().Get("zone")
-		if zone != "" {
-			opts = append(opts, discoveryapi.WithZone(zone))
-		}
-		deployEnv := dsn.Query().Get("deployenv")
-		if deployEnv != "" {
-			opts = append(opts, discoveryapi.WithZone(deployEnv))
-		}
-		d := discoveryapi.New(opts...)
-		return d
-	default:
-		panic(fmt.Errorf("unrecognized scheme: %s", dsn.Scheme))
-	}
+	return impl
 }
 
 func main() {
@@ -112,7 +72,7 @@ func main() {
 		log.Fatal(http.ListenAndServe(adminAddr, nil))
 	}()
 
-	clientFactory := client.NewFactory(logger, makeRegistry())
+	clientFactory := client.NewFactory(logger, makeDiscovery())
 	p, err := proxy.New(logger, clientFactory, middleware.Create)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)

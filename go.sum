@@ -1,9 +1,5 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-git.bilibili.co/middleware/discovery-go v0.0.0-20220104085449-57c4d1dd2ac5 h1:OSG2wM6yARMIq8SfVK/k+jyCm2+3kdP2e1is8iZdS0E=
-git.bilibili.co/middleware/discovery-go v0.0.0-20220104085449-57c4d1dd2ac5/go.mod h1:bNCT/s0YxjRUNApQnWx01BL9Xc4xllE1WpQXW60Wm5Y=
-git.bilibili.co/middleware/kratos v0.0.0-20220104113843-b835b10fb74b h1:N7Gk4Mshi5rWQHota98IRNfF6lqeG81Y6dARfveMcdo=
-git.bilibili.co/middleware/kratos v0.0.0-20220104113843-b835b10fb74b/go.mod h1:NjmMhJh/NGnZQwBViT+OJNJzz3/Ktb8dfKugtBJba5k=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
