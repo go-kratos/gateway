@@ -96,6 +96,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				return nil
 			})
 			if existed {
+				na.logHelper.Infof("watch target %+v already existed, will exist current watcher", target)
 				w.Stop()
 			}
 		default:
