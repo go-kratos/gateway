@@ -2,9 +2,9 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -49,6 +49,7 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 }
 
 type nodeApplier struct {
+	canceled  int64
 	cancel    context.CancelFunc
 	endpoint  *config.Endpoint
 	registry  registry.Discovery
@@ -69,35 +70,35 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
-			w, err := na.registry.Watch(ctx, target.Endpoint)
+			w, err := na.registry.Watch(context.Background(), target.Authority)
 			if err != nil {
 				return err
 			}
-			go func() {
-				// TODO: goroutine leak
-				// only one backend configuration allowed when using service discovery
-				for {
-					services, err := w.Next()
-					if err != nil && errors.Is(err, context.Canceled) {
-						return
-					}
-					if len(services) == 0 {
-						continue
-					}
-					var nodes []selector.Node
-					for _, ser := range services {
-						scheme := strings.ToLower(na.endpoint.Protocol.String())
-						addr, err := parseEndpoint(ser.Endpoints, scheme, false)
-						if err != nil || addr == "" {
-							na.logHelper.Errorf("failed to parse endpoint: %v", err)
-							continue
-						}
-						node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), ser.Metadata)
-						nodes = append(nodes, node)
-					}
-					dst.Apply(nodes)
+			existed := AddWatch(target.Endpoint, w, func(services []*registry.ServiceInstance) error {
+				if atomic.LoadInt64(&na.canceled) == 1 {
+					return ErrCancelWatch
 				}
-			}()
+				if len(services) == 0 {
+					return nil
+				}
+				var nodes []selector.Node
+				for _, ser := range services {
+					scheme := strings.ToLower(na.endpoint.Protocol.String())
+					addr, err := parseEndpoint(ser.Endpoints, scheme, false)
+					if err != nil || addr == "" {
+						na.logHelper.Errorf("failed to parse endpoint: %v", err)
+						return nil
+					}
+					node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), ser.Metadata)
+					nodes = append(nodes, node)
+				}
+				dst.Apply(nodes)
+				return nil
+			})
+			if existed {
+				na.logHelper.Infof("watch target %+v already existed, will exist current watcher", target)
+				w.Stop()
+			}
 		default:
 			return fmt.Errorf("unknown scheme: %s", target.Scheme)
 		}
@@ -157,4 +158,9 @@ func parseRetryConditon(endpoint *config.Endpoint) ([]retryCondition, error) {
 		}
 	}
 	return conditions, nil
+}
+
+func (na *nodeApplier) Cancel() {
+	atomic.StoreInt64(&na.canceled, 1)
+	na.cancel()
 }

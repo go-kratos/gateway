@@ -28,13 +28,11 @@ type client struct {
 }
 
 func (c *client) Close() error {
-	c.applier.cancel()
+	c.applier.Cancel()
 	return nil
 }
 
 func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	// copy request to prevent body from being polluted
-	req = req.WithContext(ctx)
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
 	if c.attempts > 1 {
@@ -52,6 +50,9 @@ func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, err
 	defer done(ctx, selector.DoneInfo{Err: err})
 	node := selected.(*node)
 	req.URL.Host = selected.Address()
+	ctx, cancel := context.WithTimeout(ctx, node.timeout)
+	defer cancel()
+	req = req.WithContext(ctx)
 	return node.client.Do(req)
 }
 

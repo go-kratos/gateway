@@ -13,6 +13,40 @@ import (
 )
 
 var _ selector.Node = &node{}
+var _gloalClient = defaultClient()
+var _globalH2Client = defaultH2Client()
+
+func defaultClient() *http.Client {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConns = 100
+	tr.MaxConnsPerHost = 100
+	tr.MaxIdleConnsPerHost = 100
+	tr.DisableCompression = true
+	return &http.Client{Transport: tr}
+}
+
+func defaultH2Client() *http.Client {
+	return &http.Client{
+		Transport: &http2.Transport{
+			// So http2.Transport doesn't complain the URL scheme isn't 'https'
+			AllowHTTP:          true,
+			DisableCompression: true,
+			// Pretend we are dialing a TLS endpoint.
+			// Note, we ignore the passed tls.Config
+			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+				return net.Dial(network, addr)
+			},
+		},
+	}
+}
+
+func globalClient() *http.Client {
+	return _gloalClient
+}
+
+func globalH2Client() *http.Client {
+	return _globalH2Client
+}
 
 type node struct {
 	address  string
@@ -22,6 +56,7 @@ type node struct {
 	metadata map[string]string
 
 	client   *http.Client
+	timeout  time.Duration
 	protocol config.Protocol
 }
 
@@ -52,33 +87,17 @@ func (n *node) Metadata() map[string]string {
 }
 
 func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.MaxIdleConns = 100
-	tr.MaxConnsPerHost = 100
-	tr.MaxIdleConnsPerHost = 100
-	tr.DisableCompression = true
-	client := &http.Client{
-		Timeout:   timeout,
-		Transport: tr,
-	}
-	if protocol == config.Protocol_GRPC {
-		client.Transport = &http2.Transport{
-			// So http2.Transport doesn't complain the URL scheme isn't 'https'
-			AllowHTTP:          true,
-			DisableCompression: true,
-			// Pretend we are dialing a TLS endpoint.
-			// Note, we ignore the passed tls.Config
-			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return net.Dial(network, addr)
-			},
-		}
-	}
 	node := &node{
 		protocol: protocol,
 		address:  addr,
-		client:   client,
 		weight:   weight,
+		timeout:  timeout,
 		metadata: md,
+	}
+	if protocol == config.Protocol_GRPC {
+		node.client = globalH2Client()
+	} else {
+		node.client = globalClient()
 	}
 	return node
 }
