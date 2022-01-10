@@ -9,7 +9,6 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/p2c"
@@ -19,16 +18,14 @@ import (
 type Factory func(*config.Endpoint) (Client, error)
 
 // NewFactory new a client factory.
-func NewFactory(logger log.Logger, r registry.Discovery) Factory {
-	log := log.NewHelper(logger)
+func NewFactory(r registry.Discovery) Factory {
 	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
-			cancel:    cancel,
-			endpoint:  endpoint,
-			logHelper: log,
-			registry:  r,
+			cancel:   cancel,
+			endpoint: endpoint,
+			registry: r,
 		}
 		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
@@ -49,11 +46,10 @@ func NewFactory(logger log.Logger, r registry.Discovery) Factory {
 }
 
 type nodeApplier struct {
-	canceled  int64
-	cancel    context.CancelFunc
-	endpoint  *config.Endpoint
-	registry  registry.Discovery
-	logHelper *log.Helper
+	canceled int64
+	cancel   context.CancelFunc
+	endpoint *config.Endpoint
+	registry registry.Discovery
 }
 
 func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
@@ -86,7 +82,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					scheme := strings.ToLower(na.endpoint.Protocol.String())
 					addr, err := parseEndpoint(ser.Endpoints, scheme, false)
 					if err != nil || addr == "" {
-						na.logHelper.Errorf("failed to parse endpoint: %v", err)
+						LOG.Errorf("failed to parse endpoint: %v", err)
 						return nil
 					}
 					node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), ser.Metadata)
@@ -96,7 +92,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				return nil
 			})
 			if existed {
-				na.logHelper.Infof("watch target %+v already existed, will exist current watcher", target)
+				LOG.Infof("watch target %+v already existed, will exist current watcher", target)
 				w.Stop()
 			}
 		default:

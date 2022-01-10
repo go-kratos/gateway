@@ -1,4 +1,4 @@
-package configloader
+package config
 
 import (
 	"context"
@@ -105,7 +105,7 @@ func TestFileLoader(t *testing.T) {
 	fl := &fileLoader{
 		confPath: "./fixtures/config.yaml",
 	}
-	cfg, err := fl.Pull(context.TODO())
+	cfg, err := fl.Load(context.TODO())
 	if err != nil {
 		t.Error(err)
 	}

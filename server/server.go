@@ -11,15 +11,17 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+var (
+	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "server"))
+)
+
 // Server is a gateway server.
 type Server struct {
 	*http.Server
-
-	log *log.Helper
 }
 
 // New new a gateway server.
-func New(logger log.Logger, handler http.Handler, addr string, timeout time.Duration, idleTimeout time.Duration) *Server {
+func New(handler http.Handler, addr string, timeout time.Duration, idleTimeout time.Duration) *Server {
 	srv := &Server{
 		Server: &http.Server{
 			Addr: addr,
@@ -31,14 +33,13 @@ func New(logger log.Logger, handler http.Handler, addr string, timeout time.Dura
 			WriteTimeout:      timeout,
 			IdleTimeout:       idleTimeout,
 		},
-		log: log.NewHelper(logger),
 	}
 	return srv
 }
 
 // Start start the server.
 func (s *Server) Start(ctx context.Context) error {
-	s.log.Infof("server listening on %s", s.Addr)
+	LOG.Infof("server listening on %s", s.Addr)
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
@@ -47,6 +48,6 @@ func (s *Server) Start(ctx context.Context) error {
 
 // Stop stop the server.
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("server stopping")
+	LOG.Info("server stopping")
 	return s.Shutdown(ctx)
 }

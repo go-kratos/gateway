@@ -11,10 +11,7 @@ import (
 
 var ErrCancelWatch = errors.New("cancel watch")
 
-var globalServiceWatcher = &serviceWatcher{
-	watcher:  make(map[string]registry.Watcher),
-	callback: make(map[string]map[string]func([]*registry.ServiceInstance) error),
-}
+var globalServiceWatcher = newServiceWatcher()
 
 func uuid4() string {
 	return uuid.NewString()
@@ -26,10 +23,18 @@ type serviceWatcher struct {
 	callback map[string]map[string]func([]*registry.ServiceInstance) error
 }
 
+func newServiceWatcher() *serviceWatcher {
+	return &serviceWatcher{
+		watcher:  make(map[string]registry.Watcher),
+		callback: make(map[string]map[string]func([]*registry.ServiceInstance) error),
+	}
+}
+
 func (s *serviceWatcher) Add(endpoint string, watcher registry.Watcher, callback func([]*registry.ServiceInstance) error) (watcherExisted bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	LOG.Infof("Add watcher on endpoint: %s", endpoint)
 	existed := func() bool {
 		if _, ok := s.watcher[endpoint]; ok {
 			return true
@@ -52,6 +57,7 @@ func (s *serviceWatcher) Add(endpoint string, watcher registry.Watcher, callback
 		return false
 	}()
 
+	LOG.Infof("Add callback on endpoint: %s", endpoint)
 	if callback != nil {
 		if _, ok := s.callback[endpoint]; !ok {
 			s.callback[endpoint] = make(map[string]func([]*registry.ServiceInstance) error)
@@ -72,7 +78,10 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 			if err := callback(services); err != nil {
 				if errors.Is(err, ErrCancelWatch) {
 					cleanup = append(cleanup, id)
+					LOG.Warnf("callback on endpoint: %s, id: %s is canceled, will delete later", endpoint, id)
+					continue
 				}
+				LOG.Errorf("Failed to call callback on endpoint: %q: %+v", endpoint, err)
 			}
 		}
 	}()
@@ -80,6 +89,7 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 	if len(cleanup) <= 0 {
 		return
 	}
+	LOG.Infof("Cleanup callback on endpoint: %q with key: %+v", endpoint, cleanup)
 	func() {
 		s.lock.Lock()
 		defer s.lock.Unlock()
