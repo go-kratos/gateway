@@ -1,4 +1,4 @@
-package configloader
+package config
 
 import (
 	"context"
@@ -9,14 +9,19 @@ import (
 	"time"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/kratos/v2/log"
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/yaml"
+)
+
+var (
+	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "config"))
 )
 
 type OnChange func()
 
 type ConfigLoader interface {
-	Pull(context.Context) (*configv1.Gateway, error)
+	Load(context.Context) (*configv1.Gateway, error)
 	Watch(OnChange)
 	Close()
 }
@@ -47,6 +52,7 @@ func (f *fileLoader) initialize() error {
 		return err
 	}
 	f.confSHA256 = sha256hex
+	LOG.Infof("the initial config file sha256: %s", sha256hex)
 
 	watchCtx, cancel := context.WithCancel(context.Background())
 	f.watchCancel = cancel
@@ -67,7 +73,9 @@ func (f *fileLoader) configSHA256() (string, error) {
 	return sha256sum(configData), nil
 }
 
-func (f *fileLoader) Pull(_ context.Context) (*configv1.Gateway, error) {
+func (f *fileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
+	LOG.Infof("loading config file: %s", f.confPath)
+
 	configData, err := ioutil.ReadFile(f.confPath)
 	if err != nil {
 		return nil, err
@@ -85,12 +93,14 @@ func (f *fileLoader) Pull(_ context.Context) (*configv1.Gateway, error) {
 }
 
 func (f *fileLoader) Watch(fn OnChange) {
+	LOG.Info("add config file change event handler")
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.onChangeHandlers = append(f.onChangeHandlers, fn)
 }
 
 func (f *fileLoader) executeLoader() {
+	LOG.Info("execute config loader")
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 	for _, fn := range f.onChangeHandlers {
@@ -99,20 +109,28 @@ func (f *fileLoader) executeLoader() {
 }
 
 func (f *fileLoader) watchproc(ctx context.Context) {
+	LOG.Info("start watch config file")
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(time.Second * 5):
 		}
-		sha256hex, err := f.configSHA256()
-		if err != nil {
-			return
-		}
-		if sha256hex != f.confSHA256 {
-			f.confSHA256 = sha256hex
-			f.executeLoader()
-		}
+		func() {
+			sha256hex, err := f.configSHA256()
+			if err != nil {
+				LOG.Errorf("watch config file error: %+v", err)
+				return
+			}
+			if sha256hex != f.confSHA256 {
+				LOG.Infof("config file changed, reload config, last sha256: %s, new sha256: %s", f.confSHA256, sha256hex)
+				f.confSHA256 = sha256hex
+				f.executeLoader()
+				return
+			}
+			LOG.Info("config file not changed, latest sha256: ", sha256hex)
+		}()
+
 	}
 }
 

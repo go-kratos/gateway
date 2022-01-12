@@ -18,18 +18,18 @@ import (
 
 const xff = "X-Forwarded-For"
 
+var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "proxy"))
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
-	log               *log.Helper
 	clientFactory     client.Factory
 	middlewareFactory middleware.Factory
 }
 
 // New is new a gateway proxy.
-func New(logger log.Logger, clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
+func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
-		log:               log.NewHelper(logger),
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 	}
@@ -108,7 +108,7 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		if err = router.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
-		p.log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+		LOG.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
 	p.router.Store(router)
 	return nil
@@ -120,7 +120,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)
-			p.log.Errorf("panic recovered: %s", buf[:n])
+			LOG.Errorf("panic recovered: %s", buf[:n])
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)

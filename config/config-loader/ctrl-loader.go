@@ -3,22 +3,32 @@ package ctrlloader
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"sigs.k8s.io/yaml"
+)
+
+var (
+	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "config-loader"))
 )
 
 type CtrlConfigLoader struct {
 	ctrlService string
 	dstPath     string
 	cancel      context.CancelFunc
+
+	hostname      string
+	advertiseAddr string
 }
 
 type LoadResponse struct {
@@ -27,10 +37,13 @@ type LoadResponse struct {
 }
 
 func New(ctrlService, dstPath string) *CtrlConfigLoader {
-	return &CtrlConfigLoader{
+	cl := &CtrlConfigLoader{
 		ctrlService: ctrlService,
 		dstPath:     dstPath,
 	}
+	cl.hostname = cl.getHostname()
+	cl.advertiseAddr = cl.getAdvertiseAddr()
+	return cl
 }
 
 func (c *CtrlConfigLoader) urlfor(upath string, params url.Values) (string, error) {
@@ -69,20 +82,73 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) error {
 	return nil
 }
 
-func hostname() string {
+func (c *CtrlConfigLoader) getHostname() string {
 	hn, _ := os.Hostname()
-	hn = "test-gw"
 	return hn
 }
 
-func advertiseAddr() string {
-	return "192.168.1.10"
+func (c *CtrlConfigLoader) getIPInterface(name string) (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Name != name {
+			continue // not the name specified
+		}
+
+		if iface.Flags&net.FlagUp == 0 {
+			return "", errors.New("interfaces is down")
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue
+			}
+			return ip.String(), nil
+		}
+		return "", errors.New("interfaces does not have a valid IPv4")
+	}
+	return "", errors.New("interface not found")
+}
+
+func (c *CtrlConfigLoader) getAdvertiseAddr() string {
+	advAddr := os.Getenv("ADVERTISE_ADDR")
+	if advAddr != "" {
+		return advAddr
+	}
+	advDevice := os.Getenv("ADVERTISE_DEVICE")
+	if advDevice == "" {
+		advDevice = "eth0"
+	}
+	advAddr, err := c.getIPInterface(advDevice)
+	if err != nil {
+		LOG.Errorf("%q There was a problem with the IP %+v", c.hostname, err)
+		return ""
+	}
+	LOG.Infof("%s uses IP %s\n", c.hostname, advAddr)
+	return advAddr
 }
 
 func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params := url.Values{}
-	params.Set("gateway", hostname())
-	params.Set("ip_addr", advertiseAddr())
+	params.Set("gateway", c.hostname)
+	params.Set("ip_addr", c.advertiseAddr)
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
 		return nil, err

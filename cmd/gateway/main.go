@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"time"
 
 	"github.com/go-kratos/gateway/client"
-	"github.com/go-kratos/gateway/configloader"
-	"github.com/go-kratos/gateway/configloader/ctrlloader"
+	"github.com/go-kratos/gateway/config"
+	configLoader "github.com/go-kratos/gateway/config/config-loader"
 	"github.com/go-kratos/gateway/discovery"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
@@ -42,6 +41,10 @@ var (
 	adminAddr string
 )
 
+var (
+	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "main"))
+)
+
 func init() {
 	flag.StringVar(&conf, "conf", "config.yaml", "config path, eg: -conf config.yaml")
 	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://172.16.0.5:8000")
@@ -59,70 +62,69 @@ func makeDiscovery() registry.Discovery {
 	impl, err := discovery.Create(discoveryDSN)
 	if err != nil {
 		panic(fmt.Errorf("failed to create discovery: %v", err))
-
 	}
 	return impl
 }
 
 func main() {
 	flag.Parse()
-	logger := log.NewStdLogger(os.Stdout)
-	log := log.NewHelper(logger)
+	// logger := log.NewStdLogger(os.Stdout)
+	// log := log.NewHelper(logger)
 	go func() {
-		log.Fatal(http.ListenAndServe(adminAddr, nil))
+		LOG.Fatal(http.ListenAndServe(adminAddr, nil))
 	}()
 
-	clientFactory := client.NewFactory(logger, makeDiscovery())
-	p, err := proxy.New(logger, clientFactory, middleware.Create)
+	clientFactory := client.NewFactory(makeDiscovery())
+	p, err := proxy.New(clientFactory, middleware.Create)
 	if err != nil {
-		log.Fatalf("failed to new proxy: %v", err)
+		LOG.Fatalf("failed to new proxy: %v", err)
 	}
 
 	ctx := context.Background()
 	if ctrlService != "" {
-		log.Infof("setup control service to: %q", ctrlService)
-		ctrlLoader := ctrlloader.New(ctrlService, conf)
+		LOG.Infof("setup control service to: %q", ctrlService)
+		ctrlLoader := configLoader.New(ctrlService, conf)
 		if err := ctrlLoader.Load(ctx); err != nil {
-			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
+			LOG.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
 		go ctrlLoader.Run(context.TODO())
 	}
 
-	confLoader, err := configloader.NewFileLoader(conf)
+	confLoader, err := config.NewFileLoader(conf)
 	if err != nil {
-		log.Fatalf("failed to create config file loader: %v", err)
+		LOG.Fatalf("failed to create config file loader: %v", err)
 	}
 	defer confLoader.Close()
-	bc, err := confLoader.Pull(context.Background())
+	bc, err := confLoader.Load(context.Background())
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		LOG.Fatalf("failed to load config: %v", err)
 	}
 
 	if err := p.Update(bc); err != nil {
-		log.Fatalf("failed to update service config: %v", err)
+		LOG.Fatalf("failed to update service config: %v", err)
 	}
 	reloader := func() {
-		bc, err := confLoader.Pull(context.Background())
+		bc, err := confLoader.Load(context.Background())
 		if err != nil {
-			log.Fatalf("failed to load config: %v", err)
+			LOG.Fatalf("failed to load config: %v", err)
 			return
 		}
 		if err := p.Update(bc); err != nil {
-			log.Errorf("failed to update service config: %v", err)
+			LOG.Errorf("failed to update service config: %v", err)
 			return
 		}
-		log.Infof("config reloaded")
+		LOG.Infof("config reloaded")
 	}
 	confLoader.Watch(reloader)
 
-	ctx = middleware.NewLoggingContext(ctx, logger)
-	srv := server.New(logger, p, bind, timeout, idleTimeout)
+	ctx = middleware.NewLoggingContext(ctx, log.With(log.GetLogger(), "source", "kratos.app"))
+	srv := server.New(p, bind, timeout, idleTimeout)
 	app := kratos.New(
 		kratos.Name(bc.Name),
 		kratos.Context(ctx),
 		kratos.Server(srv),
 	)
 	if err := app.Run(); err != nil {
-		log.Errorf("failed to run servers: %v", err)
+		LOG.Errorf("failed to run servers: %v", err)
 	}
 }
