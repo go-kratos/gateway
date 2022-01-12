@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"time"
 
@@ -40,9 +39,6 @@ func New(handler http.Handler, addr string, timeout time.Duration, idleTimeout t
 // Start start the server.
 func (s *Server) Start(ctx context.Context) error {
 	LOG.Infof("server listening on %s", s.Addr)
-	s.BaseContext = func(net.Listener) context.Context {
-		return ctx
-	}
 	return s.ListenAndServe()
 }
 
