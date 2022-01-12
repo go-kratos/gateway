@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"time"
@@ -30,15 +29,13 @@ import (
 )
 
 var (
-	conf        string
-	ctrlService string
-	bind        string
-	timeout     time.Duration
-	idleTimeout time.Duration
-	// discovery
+	conf         string
+	bind         string
+	ctrlService  string
 	discoveryDSN string
-	// debug
-	adminAddr string
+	adminAddr    string
+	timeout      time.Duration
+	idleTimeout  time.Duration
 )
 
 var (
@@ -61,15 +58,13 @@ func makeDiscovery() registry.Discovery {
 	}
 	impl, err := discovery.Create(discoveryDSN)
 	if err != nil {
-		panic(fmt.Errorf("failed to create discovery: %v", err))
+		log.Fatalf("failed to create discovery: %v", err)
 	}
 	return impl
 }
 
 func main() {
 	flag.Parse()
-	// logger := log.NewStdLogger(os.Stdout)
-	// log := log.NewHelper(logger)
 	go func() {
 		LOG.Fatal(http.ListenAndServe(adminAddr, nil))
 	}()
@@ -87,7 +82,7 @@ func main() {
 		if err := ctrlLoader.Load(ctx); err != nil {
 			LOG.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
-		go ctrlLoader.Run(context.TODO())
+		go ctrlLoader.Run(ctx)
 	}
 
 	confLoader, err := config.NewFileLoader(conf)
@@ -117,12 +112,12 @@ func main() {
 	}
 	confLoader.Watch(reloader)
 
-	ctx = middleware.NewLoggingContext(ctx, log.With(log.GetLogger(), "source", "kratos.app"))
-	srv := server.New(p, bind, timeout, idleTimeout)
 	app := kratos.New(
 		kratos.Name(bc.Name),
 		kratos.Context(ctx),
-		kratos.Server(srv),
+		kratos.Server(
+			server.New(p, bind, timeout, idleTimeout),
+		),
 	)
 	if err := app.Run(); err != nil {
 		LOG.Errorf("failed to run servers: %v", err)

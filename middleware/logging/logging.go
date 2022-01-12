@@ -11,6 +11,10 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 )
 
+var (
+	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
+)
+
 func init() {
 	middleware.Register("logging", Middleware)
 }
@@ -24,26 +28,23 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
 			reply, err = handler(ctx, req)
-			logger, ok := middleware.FromLoggingContext(ctx)
-			if ok {
-				startTime := time.Now()
-				level := log.LevelInfo
-				code := http.StatusBadGateway
-				if err != nil {
-					level = log.LevelError
-				} else {
-					code = reply.StatusCode
-				}
-				_ = log.WithContext(ctx, logger).Log(level,
-					"method", req.Method,
-					"scheme", req.URL.Scheme,
-					"host", req.URL.Host,
-					"path", req.URL.Path,
-					"query", req.URL.RawQuery,
-					"code", code,
-					"latency", time.Since(startTime).Seconds(),
-				)
+			startTime := time.Now()
+			level := log.LevelInfo
+			code := http.StatusBadGateway
+			if err != nil {
+				level = log.LevelError
+			} else {
+				code = reply.StatusCode
 			}
+			LOG.WithContext(ctx).Log(level,
+				"method", req.Method,
+				"scheme", req.URL.Scheme,
+				"host", req.URL.Host,
+				"path", req.URL.Path,
+				"query", req.URL.RawQuery,
+				"code", code,
+				"latency", time.Since(startTime).Seconds(),
+			)
 			return reply, err
 		}
 	}, nil
