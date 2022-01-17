@@ -83,6 +83,10 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) error {
 }
 
 func (c *CtrlConfigLoader) getHostname() string {
+	advName := os.Getenv("ADVERTISE_NAME")
+	if advName != "" {
+		return advName
+	}
 	hn, _ := os.Hostname()
 	return hn
 }
@@ -149,6 +153,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params := url.Values{}
 	params.Set("gateway", c.hostname)
 	params.Set("ip_addr", c.advertiseAddr)
+	LOG.Infof("%s is requesting config from %s with params: %+v", c.hostname, c.ctrlService, params)
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
 		return nil, err
