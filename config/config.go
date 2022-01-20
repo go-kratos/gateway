@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io/ioutil"
 	"sync"
 	"time"
@@ -18,7 +19,7 @@ var (
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "config"))
 )
 
-type OnChange func()
+type OnChange func() error
 
 type ConfigLoader interface {
 	Load(context.Context) (*configv1.Gateway, error)
@@ -99,13 +100,19 @@ func (f *fileLoader) Watch(fn OnChange) {
 	f.onChangeHandlers = append(f.onChangeHandlers, fn)
 }
 
-func (f *fileLoader) executeLoader() {
+func (f *fileLoader) executeLoader() error {
 	LOG.Info("execute config loader")
 	f.lock.RLock()
 	defer f.lock.RUnlock()
+
+	var chainedError error
 	for _, fn := range f.onChangeHandlers {
-		fn()
+		if err := fn(); err != nil {
+			LOG.Errorf("execute config loader error on handler: %+v: %+v", fn, err)
+			chainedError = errors.New(err.Error())
+		}
 	}
+	return chainedError
 }
 
 func (f *fileLoader) watchproc(ctx context.Context) {
@@ -124,8 +131,11 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 			}
 			if sha256hex != f.confSHA256 {
 				LOG.Infof("config file changed, reload config, last sha256: %s, new sha256: %s", f.confSHA256, sha256hex)
+				if err := f.executeLoader(); err != nil {
+					LOG.Errorf("execute config loader error with new sha256: %s: %+v, config digest will not be changed until all loaders are succeeded", sha256hex, err)
+					return
+				}
 				f.confSHA256 = sha256hex
-				f.executeLoader()
 				return
 			}
 			LOG.Info("config file not changed, latest sha256: ", sha256hex)

@@ -98,17 +98,18 @@ func main() {
 	if err := p.Update(bc); err != nil {
 		LOG.Fatalf("failed to update service config: %v", err)
 	}
-	reloader := func() {
+	reloader := func() error {
 		bc, err := confLoader.Load(context.Background())
 		if err != nil {
-			LOG.Fatalf("failed to load config: %v", err)
-			return
+			LOG.Errorf("failed to load config: %v", err)
+			return err
 		}
 		if err := p.Update(bc); err != nil {
 			LOG.Errorf("failed to update service config: %v", err)
-			return
+			return err
 		}
 		LOG.Infof("config reloaded")
+		return nil
 	}
 	confLoader.Watch(reloader)
 
