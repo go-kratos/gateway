@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"net/http"
 	"sync"
 	"time"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
+	gorillamux "github.com/gorilla/mux"
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/yaml"
 )
@@ -146,4 +149,34 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 
 func (f *fileLoader) Close() {
 	f.watchCancel()
+}
+
+type InspectFileLoader struct {
+	ConfPath         string
+	ConfSHA256       string
+	OnChangeHandlers int64
+}
+
+func (f *fileLoader) DebugHandler() http.Handler {
+	debugMux := gorillamux.NewRouter()
+	debugMux.Methods("GET").Path("/_/debug/config/file-loader/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		out := &InspectFileLoader{
+			ConfPath:         f.confPath,
+			ConfSHA256:       f.confSHA256,
+			OnChangeHandlers: int64(len(f.onChangeHandlers)),
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(out)
+	})
+	debugMux.Methods("POST").Path("/_/debug/config/file-loader/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		out, err := f.Load(context.Background())
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(out)
+	})
+	return debugMux
 }

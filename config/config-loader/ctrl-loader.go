@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
+	gorillamux "github.com/gorilla/mux"
 	"sigs.k8s.io/yaml"
 )
 
@@ -192,4 +193,35 @@ func (c *CtrlConfigLoader) Run(ctx context.Context) {
 		case <-time.After(time.Second * 5):
 		}
 	}
+}
+
+type InspectCtrlConfigLoader struct {
+	CtrlService   string `json:"ctrl_service"`
+	DstPath       string `json:"dst_path"`
+	Hostname      string `json:"hostname"`
+	AdvertiseAddr string `json:"advertise_addr"`
+}
+
+func (c *CtrlConfigLoader) DebugHandler() http.Handler {
+	debugMux := gorillamux.NewRouter()
+	debugMux.Methods("GET").Path("/_/debug/config/ctrl-loader/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		out := &InspectCtrlConfigLoader{
+			CtrlService:   c.ctrlService,
+			DstPath:       c.dstPath,
+			Hostname:      c.hostname,
+			AdvertiseAddr: c.advertiseAddr,
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(out)
+	})
+	debugMux.Methods("POST").Path("/_/debug/config/ctrl-loader/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if err := c.Load(context.Background()); err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(struct{}{})
+	})
+	return debugMux
 }

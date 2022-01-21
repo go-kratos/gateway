@@ -13,6 +13,7 @@ import (
 	"github.com/go-kratos/gateway/discovery"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
+	"github.com/go-kratos/gateway/proxy/debug"
 	"github.com/go-kratos/gateway/server"
 
 	_ "github.com/go-kratos/gateway/discovery/consul"
@@ -36,6 +37,7 @@ var (
 	adminAddr    string
 	timeout      time.Duration
 	idleTimeout  time.Duration
+	withDebug    bool
 )
 
 var (
@@ -50,6 +52,7 @@ func init() {
 	flag.DurationVar(&idleTimeout, "idleTimeout", time.Second*300, "server idleTimeout, eg: 300s")
 	flag.StringVar(&adminAddr, "pprof", "0.0.0.0:7070", "admin addr, eg: 127.0.0.1:7070")
 	flag.StringVar(&discoveryDSN, "discovery.dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
+	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 }
 
 func makeDiscovery() registry.Discovery {
@@ -76,9 +79,10 @@ func main() {
 	}
 
 	ctx := context.Background()
+	var ctrlLoader *configLoader.CtrlConfigLoader
 	if ctrlService != "" {
 		LOG.Infof("setup control service to: %q", ctrlService)
-		ctrlLoader := configLoader.New(ctrlService, conf)
+		ctrlLoader = configLoader.New(ctrlService, conf)
 		if err := ctrlLoader.Load(ctx); err != nil {
 			LOG.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
@@ -113,11 +117,21 @@ func main() {
 	}
 	confLoader.Watch(reloader)
 
+	var serverHandler http.Handler = p
+	if withDebug {
+		debugService := debug.New()
+		debugService.Register("proxy", p)
+		debugService.Register("config/file-loader", confLoader)
+		if ctrlLoader != nil {
+			debugService.Register("config/ctrl-loader", ctrlLoader)
+		}
+		serverHandler = debug.MashupWithDebugHandler(debugService, p)
+	}
 	app := kratos.New(
 		kratos.Name(bc.Name),
 		kratos.Context(ctx),
 		kratos.Server(
-			server.New(p, bind, timeout, idleTimeout),
+			server.New(serverHandler, bind, timeout, idleTimeout),
 		),
 	)
 	if err := app.Run(); err != nil {

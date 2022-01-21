@@ -43,3 +43,35 @@ func (r *muxRouter) Handle(pattern, method string, handler http.Handler) error {
 	}
 	return next.GetError()
 }
+
+type RouterInspect struct {
+	PathTemplate     string   `json:"path_template"`
+	PathRegexp       string   `json:"path_regexp"`
+	QueriesTemplates []string `json:"queries_templates"`
+	QueriesRegexps   []string `json:"queries_regexps"`
+	Methods          []string `json:"methods"`
+}
+
+func InspectMuxRouter(in interface{}) []*RouterInspect {
+	r, ok := in.(*muxRouter)
+	if !ok {
+		return nil
+	}
+	out := []*RouterInspect{}
+	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, _ := route.GetPathTemplate()
+		pathRegexp, _ := route.GetPathRegexp()
+		queriesTemplates, _ := route.GetQueriesTemplates()
+		queriesRegexps, _ := route.GetQueriesRegexp()
+		methods, _ := route.GetMethods()
+		out = append(out, &RouterInspect{
+			PathTemplate:     pathTemplate,
+			PathRegexp:       pathRegexp,
+			QueriesTemplates: queriesTemplates,
+			QueriesRegexps:   queriesRegexps,
+			Methods:          methods,
+		})
+		return nil
+	})
+	return out
+}
