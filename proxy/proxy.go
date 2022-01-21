@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
+	gorillamux "github.com/gorilla/mux"
 )
 
 const xff = "X-Forwarded-For"
@@ -124,4 +126,18 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)
+}
+
+func (p *Proxy) DebugHandler() http.Handler {
+	debugMux := gorillamux.NewRouter()
+	debugMux.Methods("GET").Path("/_/debug/proxy/router/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		router, ok := p.router.Load().(router.Router)
+		if !ok {
+			return
+		}
+		inspect := mux.InspectMuxRouter(router)
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(inspect)
+	})
+	return debugMux
 }
