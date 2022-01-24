@@ -66,7 +66,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
-			w, err := na.registry.Watch(context.Background(), target.Authority)
+			w, err := na.registry.Watch(context.Background(), target.Endpoint)
 			if err != nil {
 				return err
 			}
