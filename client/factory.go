@@ -70,7 +70,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 			if err != nil {
 				return err
 			}
-			existed := AddWatch(target.Endpoint, w, func(services []*registry.ServiceInstance) error {
+			existed := AddWatch(target.Authority, w, func(services []*registry.ServiceInstance) error {
 				if atomic.LoadInt64(&na.canceled) == 1 {
 					return ErrCancelWatch
 				}
