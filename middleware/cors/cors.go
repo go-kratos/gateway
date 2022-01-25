@@ -70,15 +70,17 @@ func newResponse(statusCode int, header http.Header) (*http.Response, error) {
 }
 
 // Middleware automatically sets the allow response header.
-func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Cors{
 		AllowCredentials: true,
 		AllowedMethods:   defaultCorsMethods,
 		AllowedHeaders:   defaultCorsHeaders,
 		MaxAge:           durationpb.New(time.Minute * 10),
 	}
-	if err := anypb.UnmarshalTo(cfg.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
-		return nil, err
+	if c.Options != nil {
+		if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
+			return nil, err
+		}
 	}
 	maxAge := int(options.MaxAge.AsDuration() / time.Second)
 	return func(handler middleware.Handler) middleware.Handler {

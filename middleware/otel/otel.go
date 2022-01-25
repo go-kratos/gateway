@@ -12,7 +12,6 @@ import (
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -22,6 +21,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -40,12 +41,13 @@ func init() {
 }
 
 // Middleware is a opentelemetry middleware.
-func Middleware(cfg *config.Middleware) (middleware.Middleware, error) {
+func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Otel{}
-	if err := cfg.Options.UnmarshalTo(options); err != nil {
-		return nil, errors.WithStack(err)
+	if c.Options != nil {
+		if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
+			return nil, err
+		}
 	}
-
 	if globaltp.provider == nil {
 		globaltp.initOnce.Do(func() {
 			globaltp.provider = newTracerProvider(context.Background(), options)

@@ -47,8 +47,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Prometheus{
 		Path: "/metrics",
 	}
-	if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
-		return nil, err
+	if c.Options != nil {
+		if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
+			return nil, err
+		}
 	}
 	once.Do(func() {
 		http.Handle(options.Path, promhttp.Handler())
