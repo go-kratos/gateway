@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"net/http"
-	"time"
 
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/config"
@@ -31,14 +30,11 @@ import (
 )
 
 var (
-	ctrlService      string
-	discoveryDSN     string
-	adminAddr        string
-	proxyAddr        string
-	proxyConfig      string
-	proxyTimeout     time.Duration
-	proxyIdleTimeout time.Duration
-	withDebug        bool
+	ctrlService  string
+	discoveryDSN string
+	adminAddr    string
+	proxyConfig  string
+	withDebug    bool
 )
 
 var (
@@ -50,10 +46,7 @@ func init() {
 	flag.StringVar(&ctrlService, "ctrl-service", "", "control service host, eg: http://172.16.0.5:8000")
 	flag.StringVar(&discoveryDSN, "discovery-dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 	flag.StringVar(&adminAddr, "admin-address", ":7070", "admin server address, eg: 127.0.0.1:7070")
-	flag.StringVar(&proxyAddr, "proxy-address", ":8080", "proxy server address, eg: 127.0.0.1:8080")
 	flag.StringVar(&proxyConfig, "proxy-config", "config.yaml", "config path, eg: -proxy-config config.yaml")
-	flag.DurationVar(&proxyTimeout, "proxy-timeout", time.Second*15, "server timeout, eg: 15s")
-	flag.DurationVar(&proxyIdleTimeout, "proxy-idle-timeout", time.Second*300, "server idleTimeout, eg: 300s")
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 }
 
@@ -131,7 +124,7 @@ func main() {
 		kratos.Context(ctx),
 		kratos.Server(
 			server.NewAdmin(adminAddr),
-			server.NewProxy(serverHandler, proxyAddr, proxyTimeout, proxyIdleTimeout),
+			server.NewProxy(serverHandler, bc),
 		),
 	)
 	if err := app.Run(); err != nil {

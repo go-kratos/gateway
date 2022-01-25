@@ -9,10 +9,15 @@ import "google/protobuf/duration.proto";
 
 message Gateway {
     string name = 1;
-    repeated string hosts = 2;
-    repeated Endpoint endpoints = 3;
+    string address = 2;
+    repeated string hosts = 3;
+    repeated Endpoint endpoints = 4;
     // default middlewares
-    repeated Middleware middlewares = 4;
+    repeated Middleware middlewares = 5;
+    // default 15s
+    google.protobuf.Duration timeout = 6;
+    // default 300s
+    google.protobuf.Duration idleTimeout = 7;
 }
 
 message Endpoint {

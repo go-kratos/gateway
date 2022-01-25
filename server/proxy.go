@@ -5,17 +5,16 @@ import (
 	"net/http"
 	"time"
 
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var (
 	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "server"))
-
-	defaultTimeout     = time.Second * 15
-	defaultIdleTimeout = time.Second * 300
 )
 
 // ProxyServer is a proxy server.
@@ -24,23 +23,26 @@ type ProxyServer struct {
 }
 
 // NewProxy new a gateway server.
-func NewProxy(handler http.Handler, addr string, timeout time.Duration, idleTimeout time.Duration) *ProxyServer {
-	if timeout <= 0 {
-		timeout = defaultTimeout
+func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
+	if c.Address == "" {
+		c.Address = ":8080"
 	}
-	if idleTimeout <= 0 {
-		idleTimeout = defaultIdleTimeout
+	if c.Timeout == nil {
+		c.Timeout = durationpb.New(time.Second * 15)
+	}
+	if c.IdleTimeout == nil {
+		c.IdleTimeout = durationpb.New(time.Second * 300)
 	}
 	return &ProxyServer{
 		Server: &http.Server{
-			Addr: addr,
+			Addr: c.Address,
 			Handler: h2c.NewHandler(handler, &http2.Server{
-				IdleTimeout: idleTimeout,
+				IdleTimeout: c.IdleTimeout.AsDuration(),
 			}),
-			ReadTimeout:       timeout,
-			ReadHeaderTimeout: timeout,
-			WriteTimeout:      timeout,
-			IdleTimeout:       idleTimeout,
+			ReadTimeout:       c.Timeout.AsDuration(),
+			ReadHeaderTimeout: c.Timeout.AsDuration(),
+			WriteTimeout:      c.Timeout.AsDuration(),
+			IdleTimeout:       c.IdleTimeout.AsDuration(),
 		},
 	}
 }
