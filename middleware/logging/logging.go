@@ -9,6 +9,8 @@ import (
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var (
@@ -22,8 +24,10 @@ func init() {
 // Middleware is a logging middleware.
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Logging{}
-	if err := c.Options.UnmarshalTo(options); err != nil {
-		return nil, err
+	if c.Options != nil {
+		if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
+			return nil, err
+		}
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
