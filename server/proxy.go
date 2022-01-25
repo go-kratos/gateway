@@ -27,8 +27,11 @@ func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
 	if c.Address == "" {
 		c.Address = ":8080"
 	}
-	if c.Timeout == nil {
-		c.Timeout = durationpb.New(time.Second * 15)
+	if c.ReadTimeout == nil {
+		c.ReadTimeout = durationpb.New(time.Second * 15)
+	}
+	if c.WriteTimeout == nil {
+		c.WriteTimeout = durationpb.New(time.Second * 15)
 	}
 	if c.IdleTimeout == nil {
 		c.IdleTimeout = durationpb.New(time.Second * 300)
@@ -39,9 +42,9 @@ func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
 			Handler: h2c.NewHandler(handler, &http2.Server{
 				IdleTimeout: c.IdleTimeout.AsDuration(),
 			}),
-			ReadTimeout:       c.Timeout.AsDuration(),
-			ReadHeaderTimeout: c.Timeout.AsDuration(),
-			WriteTimeout:      c.Timeout.AsDuration(),
+			ReadTimeout:       c.ReadTimeout.AsDuration(),
+			ReadHeaderTimeout: c.ReadTimeout.AsDuration(),
+			WriteTimeout:      c.WriteTimeout.AsDuration(),
 			IdleTimeout:       c.IdleTimeout.AsDuration(),
 		},
 	}
