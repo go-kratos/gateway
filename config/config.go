@@ -141,9 +141,7 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 				f.confSHA256 = sha256hex
 				return
 			}
-			LOG.Info("config file not changed, latest sha256: ", sha256hex)
 		}()
-
 	}
 }
 
