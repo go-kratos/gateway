@@ -15,8 +15,9 @@ message Gateway {
     repeated Endpoint endpoints = 5;
     repeated Middleware middlewares = 6;
     google.protobuf.Duration read_timeout = 7;
-    google.protobuf.Duration write_timeout = 8;
-    google.protobuf.Duration idle_timeout = 9;
+    google.protobuf.Duration read_header_timeout = 8;
+    google.protobuf.Duration write_timeout = 9;
+    google.protobuf.Duration idle_timeout = 10;
 }
 
 message Endpoint {

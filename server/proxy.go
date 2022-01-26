@@ -15,6 +15,12 @@ import (
 var (
 	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "server"))
+
+	_defaultAddress           = ":8080"
+	_defaultReadHeaderTimeout = time.Second * 10
+	_defaultReadTimeout       = time.Second * 15
+	_defaultWriteTimeout      = time.Second * 15
+	_defaultIdleTimeout       = time.Second * 300
 )
 
 // ProxyServer is a proxy server.
@@ -25,16 +31,19 @@ type ProxyServer struct {
 // NewProxy new a gateway server.
 func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
 	if c.Address == "" {
-		c.Address = ":8080"
+		c.Address = _defaultAddress
+	}
+	if c.ReadHeaderTimeout == nil {
+		c.ReadHeaderTimeout = durationpb.New(_defaultReadHeaderTimeout)
 	}
 	if c.ReadTimeout == nil {
-		c.ReadTimeout = durationpb.New(time.Second * 15)
+		c.ReadTimeout = durationpb.New(_defaultReadTimeout)
 	}
 	if c.WriteTimeout == nil {
-		c.WriteTimeout = durationpb.New(time.Second * 15)
+		c.WriteTimeout = durationpb.New(_defaultWriteTimeout)
 	}
 	if c.IdleTimeout == nil {
-		c.IdleTimeout = durationpb.New(time.Second * 300)
+		c.IdleTimeout = durationpb.New(_defaultIdleTimeout)
 	}
 	return &ProxyServer{
 		Server: &http.Server{
@@ -43,7 +52,7 @@ func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
 				IdleTimeout: c.IdleTimeout.AsDuration(),
 			}),
 			ReadTimeout:       c.ReadTimeout.AsDuration(),
-			ReadHeaderTimeout: c.ReadTimeout.AsDuration(),
+			ReadHeaderTimeout: c.ReadHeaderTimeout.AsDuration(),
 			WriteTimeout:      c.WriteTimeout.AsDuration(),
 			IdleTimeout:       c.IdleTimeout.AsDuration(),
 		},
