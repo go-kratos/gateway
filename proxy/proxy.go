@@ -20,6 +20,7 @@ import (
 
 const xff = "X-Forwarded-For"
 
+// LOG .
 var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "proxy"))
 
 // Proxy is a gateway proxy.
