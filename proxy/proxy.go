@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -18,11 +19,6 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
 	gorillamux "github.com/gorilla/mux"
-)
-
-const (
-	_headerGRPCStatus   = "Grpc-Status"
-	_headerForwardedFor = "X-Forwarded-For"
 )
 
 // LOG .
@@ -41,7 +37,7 @@ func writeError(w http.ResponseWriter, err error, protocol config.Protocol) {
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
-		w.Header().Set(_headerGRPCStatus, code)
+		w.Header().Set("Grpc-Status", code)
 		statusCode = 200
 	}
 	w.WriteHeader(statusCode)
@@ -89,9 +85,19 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err == nil {
-			r.Header[_headerForwardedFor] = append(r.Header[_headerForwardedFor], ip)
+		// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
+		if clientIP, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			// If we aren't the first proxy retain prior
+			// X-Forwarded-For information as a comma+space
+			// separated list and fold multiple headers into one.
+			prior, ok := r.Header["X-Forwarded-For"]
+			omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
+			if len(prior) > 0 {
+				clientIP = strings.Join(prior, ", ") + ", " + clientIP
+			}
+			if !omit {
+				r.Header.Set("X-Forwarded-For", clientIP)
+			}
 		}
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
