@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -15,13 +16,36 @@ import (
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/transport/http/status"
 	gorillamux "github.com/gorilla/mux"
 )
 
-const xff = "X-Forwarded-For"
+const (
+	_headerGRPCStatus   = "Grpc-Status"
+	_headerForwardedFor = "X-Forwarded-For"
+)
 
 // LOG .
 var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "proxy"))
+
+func writeError(w http.ResponseWriter, err error, protocol config.Protocol) {
+	var statusCode int
+	switch err {
+	case context.Canceled:
+		statusCode = 499
+	case context.DeadlineExceeded:
+		statusCode = 504
+	default:
+		statusCode = 502
+	}
+	if protocol == config.Protocol_GRPC {
+		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
+		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
+		w.Header().Set(_headerGRPCStatus, code)
+		statusCode = 200
+	}
+	w.WriteHeader(statusCode)
+}
 
 // Proxy is a gateway proxy.
 type Proxy struct {
@@ -67,21 +91,14 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err == nil {
-			r.Header[xff] = append(r.Header[xff], ip)
+			r.Header[_headerForwardedFor] = append(r.Header[_headerForwardedFor], ip)
 		}
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
 		resp, err := handler(ctx, r)
 		if err != nil {
-			switch err {
-			case context.Canceled:
-				w.WriteHeader(499)
-			case context.DeadlineExceeded:
-				w.WriteHeader(504)
-			default:
-				w.WriteHeader(502)
-			}
+			writeError(w, err, e.Protocol)
 			return
 		}
 		headers := w.Header()
