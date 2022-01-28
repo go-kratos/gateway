@@ -46,7 +46,7 @@ func init() {
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
 	flag.StringVar(&adminAddr, "admin.addr", ":7070", "admin server address, eg: 127.0.0.1:7070")
-	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://172.16.0.5:8000")
+	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://127.0.0.1:8000")
 	flag.StringVar(&discoveryDSN, "discovery.dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 }
 
