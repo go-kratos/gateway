@@ -74,9 +74,9 @@ func main() {
 	fmt.Printf("Transfer/sec: %d\n", transfer)
 	if len(errorCount) > 0 {
 		fmt.Printf("Failures: %d\n", fail)
-		lk.Lock()
-		fmt.Println(errorCount)
-		lk.Unlock()
+		for k, v := range errorCount {
+			fmt.Printf("- %s : %d\n", k, v)
+		}
 	}
 }
 
