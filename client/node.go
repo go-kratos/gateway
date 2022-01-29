@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/tls"
+	"math/rand"
 	"net"
 	"net/http"
 	"time"
@@ -12,16 +13,28 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
-var _ selector.Node = &node{}
-var _globalClient = defaultClient()
-var _globalH2Client = defaultH2Client()
+const _globalClientPool = 10
+
+var (
+	_                selector.Node = &node{}
+	_globalClients   []*http.Client
+	_globalH2Clients []*http.Client
+)
+
+func init() {
+	for i := 0; i < _globalClientPool; i++ {
+		_globalClients = append(_globalClients, defaultClient())
+	}
+	for i := 0; i < _globalClientPool; i++ {
+		_globalH2Clients = append(_globalH2Clients, defaultH2Client())
+	}
+}
 
 func defaultClient() *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.MaxIdleConns = 1000
 	tr.MaxConnsPerHost = 100
 	tr.MaxIdleConnsPerHost = 100
-	tr.ForceAttemptHTTP2 = true
 	tr.DisableCompression = true
 	return &http.Client{Transport: tr}
 }
@@ -41,6 +54,14 @@ func defaultH2Client() *http.Client {
 	}
 }
 
+func globalClient() *http.Client {
+	return _globalClients[rand.Intn(_globalClientPool)]
+}
+
+func globalH2Client() *http.Client {
+	return _globalH2Clients[rand.Intn(_globalClientPool)]
+}
+
 func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
 	node := &node{
 		protocol: protocol,
@@ -50,9 +71,9 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 		metadata: md,
 	}
 	if protocol == config.Protocol_GRPC {
-		node.client = _globalH2Client
+		node.client = globalH2Client()
 	} else {
-		node.client = _globalClient
+		node.client = globalClient()
 	}
 	return node
 }
