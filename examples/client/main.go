@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,11 +15,11 @@ import (
 )
 
 var (
-	addr        string
-	length      int
-	concurrent  int
-	duration    int
-	connPerHost bool
+	length     int
+	concurrent int
+	conns      int
+	duration   time.Duration
+	flagSet    = flag.NewFlagSet("bench", flag.ExitOnError)
 )
 
 var (
@@ -25,55 +27,70 @@ var (
 	errorCount map[string]int
 	lk         sync.Mutex
 
-	success int64
-	failure int64
+	wrr      int64
+	transfer int64
+	success  int64
+	failure  int64
 )
 
 func init() {
-	flag.StringVar(&addr, "addr", "127.0.0.1:9000", "")
-	flag.IntVar(&length, "length", 1, "")
-	flag.IntVar(&duration, "duration", 3, "")
-	flag.IntVar(&concurrent, "concurrent", 10, "")
-	flag.BoolVar(&connPerHost, "connPerHost", false, "")
+	flagSet.IntVar(&length, "b", 1, "Length of request message")
+	flagSet.IntVar(&conns, "c", 1, "Connections to keep open")
+	flagSet.IntVar(&concurrent, "t", 1, " Number of concurrent to use")
+	flagSet.DurationVar(&duration, "d", time.Second*30, "Duration of test")
 
 	errorCount = make(map[string]int)
 }
 
 func main() {
-	flag.Parse()
-	fmt.Println(addr, length, concurrent, duration, connPerHost)
+	if len(os.Args) < 2 {
+		fmt.Println("client target is required")
+		return
+	}
+	target := os.Args[1]
+	flagSet.Parse(os.Args[2:])
+	fmt.Printf("Running %v test @ %s\n", duration, target)
 	for i := 0; i < length; i++ {
 		name += "1"
 	}
-	var client pb.GreeterClient
-	if !connPerHost {
-		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	var (
+		ctx, cancel = context.WithCancel(context.Background())
+		clients     []pb.GreeterClient
+	)
+	for i := 0; i < conns; i++ {
+		conn, err := grpc.Dial(target, grpc.WithInsecure())
 		if err != nil {
 			panic(err)
 		}
-		client = pb.NewGreeterClient(conn)
+		clients = append(clients, pb.NewGreeterClient(conn))
 	}
 	for i := 0; i < concurrent; i++ {
-		go worker(client)
+		go worker(ctx, target, clients)
 	}
 	start := time.Now()
-	time.Sleep(time.Second * time.Duration(duration))
+	time.Sleep(duration)
+	cancel()
 	gap := time.Since(start)
 	suc := atomic.LoadInt64(&success)
 	fail := atomic.LoadInt64(&failure)
-	fmt.Println("gap:", gap)
-	fmt.Println("qps:", int64(float64(suc+fail)/gap.Seconds()))
-	fmt.Println("failure:", fail)
-	lk.Lock()
-	fmt.Println(errorCount)
-	lk.Unlock()
+	fmt.Printf("Requests/sec: %d\n", int64(float64(suc+fail)/gap.Seconds()))
+	fmt.Printf("Transfer/sec: %d\n", transfer)
+	if len(errorCount) > 0 {
+		fmt.Printf("Failures: %d\n", fail)
+		lk.Lock()
+		fmt.Println(errorCount)
+		lk.Unlock()
+	}
 }
 
-func do(client pb.GreeterClient) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+func do(ctx context.Context, client pb.GreeterClient) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 	reply, err := client.SayHello(ctx, &pb.HelloRequest{Name: name})
-	if err != nil || reply.Message == "" {
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return
+		}
 		atomic.AddInt64(&failure, 1)
 		if err != nil {
 			lk.Lock()
@@ -83,17 +100,18 @@ func do(client pb.GreeterClient) {
 		return
 	}
 	atomic.AddInt64(&success, 1)
+	atomic.AddInt64(&transfer, int64(len(reply.Message)))
 }
 
-func worker(client pb.GreeterClient) {
-	if client == nil {
-		conn, err := grpc.Dial(addr, grpc.WithInsecure())
-		if err != nil {
-			panic(err)
-		}
-		client = pb.NewGreeterClient(conn)
-	}
+func worker(ctx context.Context, target string, clients []pb.GreeterClient) {
+	n := int64(len(clients))
 	for {
-		do(client)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			idx := atomic.AddInt64(&wrr, 1) % n
+			do(ctx, clients[idx])
+		}
 	}
 }
