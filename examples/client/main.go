@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -24,8 +23,8 @@ var (
 
 var (
 	name       string
-	errorCount map[string]int
 	lk         sync.Mutex
+	errorCount = make(map[string]int)
 
 	wrr      int64
 	transfer int64
@@ -38,8 +37,6 @@ func init() {
 	flagSet.IntVar(&conns, "c", 1, "Connections to keep open")
 	flagSet.IntVar(&concurrent, "t", 1, " Number of concurrent to use")
 	flagSet.DurationVar(&duration, "d", time.Second*30, "Duration of test")
-
-	errorCount = make(map[string]int)
 }
 
 func main() {
@@ -83,20 +80,15 @@ func main() {
 	}
 }
 
-func do(ctx context.Context, client pb.GreeterClient) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
+func do(client pb.GreeterClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	reply, err := client.SayHello(ctx, &pb.HelloRequest{Name: name})
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return
-		}
+		lk.Lock()
+		errorCount[err.Error()]++
+		lk.Unlock()
 		atomic.AddInt64(&failure, 1)
-		if err != nil {
-			lk.Lock()
-			errorCount[err.Error()]++
-			lk.Unlock()
-		}
 		return
 	}
 	atomic.AddInt64(&success, 1)
@@ -111,7 +103,7 @@ func worker(ctx context.Context, target string, clients []pb.GreeterClient) {
 			return
 		default:
 			idx := atomic.AddInt64(&wrr, 1) % n
-			do(ctx, clients[idx])
+			do(clients[idx])
 		}
 	}
 }
