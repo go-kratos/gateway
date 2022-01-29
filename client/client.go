@@ -109,13 +109,13 @@ func (c *retryClient) doRetry(ctx context.Context, req *http.Request) (resp *htt
 	)
 	for i := 0; i < int(c.attempts); i++ {
 		// canceled or deadline exceeded
-		if err := ctx.Err(); err != nil {
-			return nil, err
+		if err = ctx.Err(); err != nil {
+			break
 		}
 
 		n, done, err = c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 		if err != nil {
-			return nil, err
+			break
 		}
 		addr := n.Address()
 		reader.Seek(0, io.SeekStart)

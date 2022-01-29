@@ -41,8 +41,10 @@ func main() {
 func httpServer() {
 	http.HandleFunc("/helloworld/foo", func(w http.ResponseWriter, req *http.Request) {
 		b := req.URL.Query().Get("b")
-		n, _ := strconv.ParseInt(b, 10, 32)
-		w.Write(make([]byte, n))
+		if b != "" {
+			n, _ := strconv.ParseInt(b, 10, 32)
+			w.Write(make([]byte, n))
+		}
 	})
 	log.Println("HTTPServer listening at:", httpAddr)
 	log.Fatal(http.ListenAndServe(httpAddr, nil))
