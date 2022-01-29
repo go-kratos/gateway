@@ -1,11 +1,10 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"sync"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
@@ -14,6 +13,7 @@ import (
 )
 
 var (
+	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "client"))
 )
 
@@ -23,21 +23,35 @@ type Client interface {
 	Close() error
 }
 
-type client struct {
-	selector selector.Selector
-	applier  *nodeApplier
-
+type retryClient struct {
+	readers    *sync.Pool
+	applier    *nodeApplier
+	selector   selector.Selector
 	protocol   config.Protocol
 	attempts   uint32
 	conditions []retryCondition
 }
 
-func (c *client) Close() error {
+func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *retryClient {
+	return &retryClient{
+		protocol: c.Protocol,
+		attempts: calcAttempts(c),
+		applier:  applier,
+		selector: selector,
+		readers: &sync.Pool{
+			New: func() interface{} {
+				return &BodyReader{}
+			},
+		},
+	}
+}
+
+func (c *retryClient) Close() error {
 	c.applier.Cancel()
 	return nil
 }
 
-func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+func (c *retryClient) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
 	if c.attempts > 1 {
@@ -46,42 +60,33 @@ func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response
 	return c.do(ctx, req)
 }
 
-func (c *client) do(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *retryClient) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	opts, _ := middleware.FromRequestContext(ctx)
-	selected, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
+	n, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 	if err != nil {
 		return nil, err
 	}
 	defer done(ctx, selector.DoneInfo{Err: err})
-	node := selected.(*node)
-	req.URL.Host = selected.Address()
+	node := n.(*node)
+	req.URL.Host = n.Address()
 	ctx, cancel := context.WithTimeout(ctx, node.timeout)
 	defer cancel()
 	req = req.WithContext(ctx)
 	return node.client.Do(req)
 }
 
-func duplicateRequestBody(req *http.Request) (*bytes.Reader, error) {
-	content, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
-	}
-	body := bytes.NewReader(content)
-	req.Body = ioutil.NopCloser(body)
-	return body, nil
-}
-
-func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	opts, _ := middleware.FromRequestContext(ctx)
-
-	selects := map[string]struct{}{}
-	filter := func(ctx context.Context, nodes []selector.Node) []selector.Node {
-		if len(selects) == 0 {
+func (c *retryClient) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+	var (
+		opts, _  = middleware.FromRequestContext(ctx)
+		selected = make(map[string]struct{}, 1)
+	)
+	opts.Filters = append(opts.Filters, func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		if len(selected) == 0 {
 			return nodes
 		}
 		newNodes := nodes[:0]
 		for _, node := range nodes {
-			if _, ok := selects[node.Address()]; !ok {
+			if _, ok := selected[node.Address()]; !ok {
 				newNodes = append(newNodes, node)
 			}
 		}
@@ -89,29 +94,34 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 			return nodes
 		}
 		return newNodes
-	}
-	filters := opts.Filters
-	filters = append(filters, filter)
+	})
 
-	body, err := duplicateRequestBody(req)
-	if err != nil {
+	reader := c.readers.Get().(*BodyReader)
+	if _, err := reader.ReadFrom(req.Body); err != nil {
+		c.readers.Put(reader)
 		return nil, err
 	}
+	req.Body = reader
+
+	var (
+		n    selector.Node
+		done selector.DoneFunc
+	)
 	for i := 0; i < int(c.attempts); i++ {
 		// canceled or deadline exceeded
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		selected, done, err := c.selector.Select(ctx, selector.WithFilter(filters...))
+		n, done, err = c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 		if err != nil {
 			return nil, err
 		}
-		addr := selected.Address()
-		body.Seek(0, io.SeekStart)
-		selects[addr] = struct{}{}
+		addr := n.Address()
+		reader.Seek(0, io.SeekStart)
+		selected[addr] = struct{}{}
 		req.URL.Host = addr
-		resp, err = selected.(*node).client.Do(req)
+		resp, err = n.(*node).client.Do(req)
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			// logging error
@@ -123,6 +133,7 @@ func (c *client) doRetry(ctx context.Context, req *http.Request) (resp *http.Res
 		}
 		// continue the retry loop
 	}
+	c.readers.Put(reader)
 	return
 }
 

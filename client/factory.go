@@ -30,12 +30,7 @@ func NewFactory(r registry.Discovery) Factory {
 		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
 		}
-		client := &client{
-			selector: picker,
-			applier:  applier,
-			attempts: calcAttempts(endpoint),
-			protocol: endpoint.Protocol,
-		}
+		client := newClient(endpoint, applier, picker)
 		retryCond, err := parseRetryConditon(endpoint)
 		if err != nil {
 			return nil, err

@@ -18,9 +18,9 @@ var _globalH2Client = defaultH2Client()
 
 func defaultClient() *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.MaxIdleConns = 100
-	tr.MaxConnsPerHost = 100
-	tr.MaxIdleConnsPerHost = 100
+	tr.MaxIdleConns = 200
+	tr.MaxConnsPerHost = 200
+	tr.MaxIdleConnsPerHost = 200
 	tr.DisableCompression = true
 	return &http.Client{Transport: tr}
 }
