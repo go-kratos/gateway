@@ -71,9 +71,9 @@ func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.
 		metadata: md,
 	}
 	if protocol == config.Protocol_GRPC {
-		node.client = globalH2Client()
+		node.client = defaultH2Client()
 	} else {
-		node.client = globalClient()
+		node.client = defaultClient()
 	}
 	return node
 }
