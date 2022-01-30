@@ -73,6 +73,7 @@ func main() {
 	}
 	for i := 0; i < thread; i++ {
 		go worker(ctx, target, clients)
+		time.Sleep(duration / time.Duration(thread))
 	}
 	start := time.Now()
 	time.Sleep(duration)
