@@ -38,8 +38,8 @@ func writeError(w http.ResponseWriter, err error, protocol config.Protocol) {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
 		w.Header().Set("Content-Type", "application/grpc")
-		w.Header().Set(http.TrailerPrefix+"Grpc-Status", code)
-		w.Header().Set(http.TrailerPrefix+"Grpc-Message", err.Error())
+		w.Header().Set("Grpc-Status", code)
+		w.Header().Set("Grpc-Message", err.Error())
 		statusCode = 200
 	}
 	w.WriteHeader(statusCode)
