@@ -115,7 +115,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		}
 		w.WriteHeader(resp.StatusCode)
 		if body := resp.Body; body != nil {
-			_, _ = io.Copy(w, body)
+			if _, err := io.Copy(w, body); err != nil {
+				LOG.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
+			}
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {
