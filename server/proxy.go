@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"time"
 
@@ -49,7 +50,8 @@ func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
 		Server: &http.Server{
 			Addr: c.Address,
 			Handler: h2c.NewHandler(handler, &http2.Server{
-				IdleTimeout: c.IdleTimeout.AsDuration(),
+				IdleTimeout:          c.IdleTimeout.AsDuration(),
+				MaxConcurrentStreams: math.MaxUint32,
 			}),
 			ReadTimeout:       c.ReadTimeout.AsDuration(),
 			ReadHeaderTimeout: c.ReadHeaderTimeout.AsDuration(),
