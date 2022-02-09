@@ -40,7 +40,7 @@ func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selec
 		selector: selector,
 		readers: &sync.Pool{
 			New: func() interface{} {
-				return &NopReader{}
+				return &BodyReader{}
 			},
 		},
 	}
@@ -51,35 +51,15 @@ func (c *retryClient) Close() error {
 	return nil
 }
 
-func (c *retryClient) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
-	if c.attempts > 1 {
-		return c.doRetry(ctx, req)
+	if c.attempts <= 0 {
+		c.attempts = 1
 	}
-	return c.do(ctx, req)
-}
 
-func (c *retryClient) do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	opts, _ := middleware.FromRequestContext(ctx)
-	n, done, err := c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
-	if err != nil {
-		return nil, err
-	}
-	defer done(ctx, selector.DoneInfo{Err: err})
-	node := n.(*node)
-	req.URL.Host = n.Address()
-	ctx, cancel := context.WithTimeout(ctx, node.timeout)
-	defer cancel()
-	req = req.WithContext(ctx)
-	return node.client.Do(req)
-}
-
-func (c *retryClient) doRetry(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	var (
-		opts, _  = middleware.FromRequestContext(ctx)
-		selected = make(map[string]struct{}, 1)
-	)
+	selected := make(map[string]struct{}, 1)
 	opts.Filters = append(opts.Filters, func(ctx context.Context, nodes []selector.Node) []selector.Node {
 		if len(selected) == 0 {
 			return nodes
@@ -96,7 +76,7 @@ func (c *retryClient) doRetry(ctx context.Context, req *http.Request) (resp *htt
 		return newNodes
 	})
 
-	reader := c.readers.Get().(*NopReader)
+	reader := c.readers.Get().(*BodyReader)
 	if _, err := reader.ReadFrom(req.Body); err != nil {
 		c.readers.Put(reader)
 		return nil, err

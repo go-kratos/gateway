@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 
@@ -30,6 +31,11 @@ func newServiceWatcher() *serviceWatcher {
 	}
 }
 
+func jsonify(in interface{}) string {
+	bs, _ := json.Marshal(in)
+	return string(bs)
+}
+
 func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) (watcherExisted bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -41,7 +47,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 			LOG.Errorf("Failed to do initial services discovery on endpoint: %s, err: %+v, starting with empty service instance", endpoint, err)
 			services = []*registry.ServiceInstance{}
 		}
-		LOG.Infof("Initialize services discovery on endpoint: %s, services: %+v", endpoint, services)
+		LOG.Infof("Initialize services discovery on endpoint: %s, services: %s", endpoint, jsonify(services))
 		callback(services)
 
 		if _, ok := s.watcher[endpoint]; ok {
