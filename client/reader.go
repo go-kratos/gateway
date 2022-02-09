@@ -5,15 +5,15 @@ import (
 	"io"
 )
 
-// BodyReader is a requset body reader.
+// NopReader is a requset body reader.
 // - io.ReadCloser
 // - io.Seeker
-type BodyReader struct {
+type NopReader struct {
 	rd bytes.Reader
 }
 
 // ReadFrom reads data from r until EOF.
-func (r *BodyReader) ReadFrom(src io.Reader) (int64, error) {
+func (r *NopReader) ReadFrom(src io.Reader) (int64, error) {
 	b, err := io.ReadAll(src)
 	if err != nil {
 		return 0, err
@@ -23,21 +23,21 @@ func (r *BodyReader) ReadFrom(src io.Reader) (int64, error) {
 }
 
 // Read implements the io.Reader interface.
-func (r *BodyReader) Read(b []byte) (n int, err error) {
+func (r *NopReader) Read(b []byte) (n int, err error) {
 	return r.rd.Read(b)
 }
 
 // Seek implements the io.Seeker interface.
-func (r *BodyReader) Seek(offset int64, whence int) (int64, error) {
+func (r *NopReader) Seek(offset int64, whence int) (int64, error) {
 	return r.rd.Seek(offset, whence)
 }
 
 // Reset resets the Reader to be reading from b.
-func (r *BodyReader) Reset(b []byte) {
+func (r *NopReader) Reset(b []byte) {
 	r.rd.Reset(b)
 }
 
 // Close close the Reader.
-func (r *BodyReader) Close() error {
+func (r *NopReader) Close() error {
 	return nil
 }

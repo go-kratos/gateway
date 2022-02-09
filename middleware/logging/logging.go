@@ -35,8 +35,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			startTime := time.Now()
 			level := log.LevelInfo
 			code := http.StatusBadGateway
+			errMsg := ""
 			if err != nil {
 				level = log.LevelError
+				errMsg = err.Error()
 			} else {
 				code = reply.StatusCode
 			}
@@ -47,6 +49,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"path", req.URL.Path,
 				"query", req.URL.RawQuery,
 				"code", code,
+				"error", errMsg,
 				"latency", time.Since(startTime).Seconds(),
 			)
 			return reply, err

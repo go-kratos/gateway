@@ -15,11 +15,8 @@ import (
 const _globalClientPool = 10
 
 var _ selector.Node = &node{}
-
-var (
-	_globalClient   = defaultClient()
-	_globalH2Client = defaultH2Client()
-)
+var _globalClient = defaultClient()
+var _globalH2Client = defaultH2Client()
 
 func defaultClient() *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
