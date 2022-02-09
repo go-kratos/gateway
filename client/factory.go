@@ -61,11 +61,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
-			w, err := na.registry.Watch(context.Background(), target.Endpoint)
-			if err != nil {
-				return err
-			}
-			existed := AddWatch(target.Endpoint, w, func(services []*registry.ServiceInstance) error {
+			existed := AddWatch(ctx, na.registry, target.Endpoint, func(services []*registry.ServiceInstance) error {
 				if atomic.LoadInt64(&na.canceled) == 1 {
 					return ErrCancelWatch
 				}
@@ -87,8 +83,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				return nil
 			})
 			if existed {
-				LOG.Infof("watch target %+v already existed, will exist current watcher", target)
-				w.Stop()
+				LOG.Infof("watch target %+v already existed", target)
 			}
 		default:
 			return fmt.Errorf("unknown scheme: %s", target.Scheme)

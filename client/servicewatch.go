@@ -30,14 +30,27 @@ func newServiceWatcher() *serviceWatcher {
 	}
 }
 
-func (s *serviceWatcher) Add(endpoint string, watcher registry.Watcher, callback func([]*registry.ServiceInstance) error) (watcherExisted bool) {
+func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) (watcherExisted bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	LOG.Infof("Add watcher on endpoint: %s", endpoint)
 	existed := func() bool {
+		services, err := discovery.GetService(ctx, endpoint)
+		if err != nil {
+			LOG.Errorf("Failed to do initial services discovery on endpoint: %s, err: %+v, starting with empty service instance", endpoint, err)
+			services = []*registry.ServiceInstance{}
+		}
+		LOG.Infof("Initialize services discovery on endpoint: %s, services: %+v", endpoint, services)
+		callback(services)
+
 		if _, ok := s.watcher[endpoint]; ok {
 			return true
+		}
+		watcher, err := discovery.Watch(ctx, endpoint)
+		if err != nil {
+			LOG.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
+			return false
 		}
 		s.watcher[endpoint] = watcher
 
@@ -99,6 +112,6 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 	}()
 }
 
-func AddWatch(endpoint string, watcher registry.Watcher, callback func([]*registry.ServiceInstance) error) bool {
-	return globalServiceWatcher.Add(endpoint, watcher, callback)
+func AddWatch(ctx context.Context, registry registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) bool {
+	return globalServiceWatcher.Add(ctx, registry, endpoint, callback)
 }
