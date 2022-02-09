@@ -40,7 +40,7 @@ func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selec
 		selector: selector,
 		readers: &sync.Pool{
 			New: func() interface{} {
-				return &BodyReader{}
+				return &NopReader{}
 			},
 		},
 	}
@@ -96,12 +96,16 @@ func (c *retryClient) doRetry(ctx context.Context, req *http.Request) (resp *htt
 		return newNodes
 	})
 
-	reader := c.readers.Get().(*BodyReader)
+	reader := c.readers.Get().(*NopReader)
 	if _, err := reader.ReadFrom(req.Body); err != nil {
 		c.readers.Put(reader)
 		return nil, err
 	}
 	req.Body = reader
+	req.GetBody = func() (io.ReadCloser, error) {
+		reader.Seek(0, io.SeekStart)
+		return reader, nil
+	}
 
 	var (
 		n    selector.Node

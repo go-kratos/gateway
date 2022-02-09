@@ -12,8 +12,10 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
+const _globalClientPool = 10
+
 var _ selector.Node = &node{}
-var _gloalClient = defaultClient()
+var _globalClient = defaultClient()
 var _globalH2Client = defaultH2Client()
 
 func defaultClient() *http.Client {
@@ -40,12 +42,20 @@ func defaultH2Client() *http.Client {
 	}
 }
 
-func globalClient() *http.Client {
-	return _gloalClient
-}
-
-func globalH2Client() *http.Client {
-	return _globalH2Client
+func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
+	node := &node{
+		protocol: protocol,
+		address:  addr,
+		weight:   weight,
+		timeout:  timeout,
+		metadata: md,
+	}
+	if protocol == config.Protocol_GRPC {
+		node.client = _globalH2Client
+	} else {
+		node.client = _globalClient
+	}
+	return node
 }
 
 type node struct {
@@ -84,20 +94,4 @@ func (n *node) Version() string {
 // version,namespace,region,protocol etc..
 func (n *node) Metadata() map[string]string {
 	return n.metadata
-}
-
-func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
-	node := &node{
-		protocol: protocol,
-		address:  addr,
-		weight:   weight,
-		timeout:  timeout,
-		metadata: md,
-	}
-	if protocol == config.Protocol_GRPC {
-		node.client = globalH2Client()
-	} else {
-		node.client = globalClient()
-	}
-	return node
 }
