@@ -47,9 +47,13 @@ func prepareCtrlService(in string) []string {
 	for _, part := range parts {
 		u, err := url.Parse(part)
 		if err != nil {
+			LOG.Warnf("Failed to parse control service url %s: %s, will skip this one", part, err)
 			continue
 		}
 		out = append(out, u.String())
+	}
+	if len(out) == 0 {
+		LOG.Warnf("No control service url found, control service will not be available")
 	}
 	rand.Shuffle(len(out), func(i, j int) {
 		out[i], out[j] = out[j], out[i]
