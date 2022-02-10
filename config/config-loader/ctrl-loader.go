@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -24,9 +26,11 @@ var (
 )
 
 type CtrlConfigLoader struct {
-	ctrlService string
-	dstPath     string
-	cancel      context.CancelFunc
+	ctrlService     []string
+	ctrlServiceIdx  int
+	nextCtrlService bool
+	dstPath         string
+	cancel          context.CancelFunc
 
 	hostname      string
 	advertiseAddr string
@@ -37,9 +41,29 @@ type LoadResponse struct {
 	Version string `json:"version"`
 }
 
-func New(ctrlService, dstPath string) *CtrlConfigLoader {
+func prepareCtrlService(in string) []string {
+	parts := strings.Split(in, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		u, err := url.Parse(part)
+		if err != nil {
+			LOG.Warnf("Failed to parse control service url %s: %s, will skip this one", part, err)
+			continue
+		}
+		out = append(out, u.String())
+	}
+	if len(out) == 0 {
+		LOG.Warnf("No control service url found, control service will not be available")
+	}
+	rand.Shuffle(len(out), func(i, j int) {
+		out[i], out[j] = out[j], out[i]
+	})
+	return out
+}
+
+func New(rawCtrlService, dstPath string) *CtrlConfigLoader {
 	cl := &CtrlConfigLoader{
-		ctrlService: ctrlService,
+		ctrlService: prepareCtrlService(rawCtrlService),
 		dstPath:     dstPath,
 	}
 	cl.hostname = cl.getHostname()
@@ -47,8 +71,17 @@ func New(ctrlService, dstPath string) *CtrlConfigLoader {
 	return cl
 }
 
+func (c *CtrlConfigLoader) choseCtrlService() string {
+	if c.nextCtrlService {
+		c.ctrlServiceIdx = (c.ctrlServiceIdx + 1) % len(c.ctrlService)
+		c.nextCtrlService = false
+		return c.ctrlService[c.ctrlServiceIdx]
+	}
+	return c.ctrlService[c.ctrlServiceIdx]
+}
+
 func (c *CtrlConfigLoader) urlfor(upath string, params url.Values) (string, error) {
-	u, err := url.Parse(c.ctrlService)
+	u, err := url.Parse(c.choseCtrlService())
 	if err != nil {
 		return "", err
 	}
@@ -57,7 +90,13 @@ func (c *CtrlConfigLoader) urlfor(upath string, params url.Values) (string, erro
 	return u.String(), nil
 }
 
-func (c *CtrlConfigLoader) Load(ctx context.Context) error {
+func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
+	defer func() {
+		if err != nil {
+			c.nextCtrlService = true
+		}
+	}()
+
 	cfgBytes, err := c.load(ctx)
 	if err != nil {
 		return err
@@ -196,20 +235,24 @@ func (c *CtrlConfigLoader) Run(ctx context.Context) {
 }
 
 type InspectCtrlConfigLoader struct {
-	CtrlService   string `json:"ctrl_service"`
-	DstPath       string `json:"dst_path"`
-	Hostname      string `json:"hostname"`
-	AdvertiseAddr string `json:"advertise_addr"`
+	CtrlService     []string `json:"ctrl_service"`
+	CtrlServiceIdx  int      `json:"ctrl_service_idx"`
+	NextCtrlService bool     `json:"next_ctrl_service"`
+	DstPath         string   `json:"dst_path"`
+	Hostname        string   `json:"hostname"`
+	AdvertiseAddr   string   `json:"advertise_addr"`
 }
 
 func (c *CtrlConfigLoader) DebugHandler() http.Handler {
 	debugMux := gorillamux.NewRouter()
 	debugMux.Methods("GET").Path("/_/debug/config/ctrl-loader/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out := &InspectCtrlConfigLoader{
-			CtrlService:   c.ctrlService,
-			DstPath:       c.dstPath,
-			Hostname:      c.hostname,
-			AdvertiseAddr: c.advertiseAddr,
+			CtrlService:     c.ctrlService,
+			CtrlServiceIdx:  c.ctrlServiceIdx,
+			NextCtrlService: c.nextCtrlService,
+			DstPath:         c.dstPath,
+			Hostname:        c.hostname,
+			AdvertiseAddr:   c.advertiseAddr,
 		}
 		rw.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(rw).Encode(out)
