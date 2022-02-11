@@ -87,7 +87,7 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		n    selector.Node
 		done selector.DoneFunc
 	)
-	for i := 0; i < int(c.attempts); i++ {
+	for i := 0; i < c.attempts; i++ {
 		// canceled or deadline exceeded
 		if err := ctx.Err(); err != nil {
 			break
