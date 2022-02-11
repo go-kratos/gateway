@@ -105,14 +105,14 @@ func calcTimeout(endpoint *config.Endpoint) time.Duration {
 	return timeout
 }
 
-func calcAttempts(endpoint *config.Endpoint) uint32 {
+func calcAttempts(endpoint *config.Endpoint) int {
 	if endpoint.Retry == nil {
 		return 1
 	}
 	if endpoint.Retry.Attempts == 0 {
 		return 1
 	}
-	return endpoint.Retry.Attempts
+	return int(endpoint.Retry.Attempts)
 }
 
 func parseRetryConditon(endpoint *config.Endpoint) ([]retryCondition, error) {
