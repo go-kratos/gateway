@@ -11,7 +11,7 @@ import (
 func TestCalcAttempts(t *testing.T) {
 	testCases := []struct {
 		endpoint *config.Endpoint
-		attempts uint32
+		attempts int
 	}{
 		{
 			endpoint: &config.Endpoint{
