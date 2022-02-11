@@ -28,7 +28,7 @@ type retryClient struct {
 	applier    *nodeApplier
 	selector   selector.Selector
 	protocol   config.Protocol
-	attempts   uint32
+	attempts   int
 	conditions []retryCondition
 }
 
@@ -52,12 +52,6 @@ func (c *retryClient) Close() error {
 }
 
 func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	req.URL.Scheme = "http"
-	req.RequestURI = ""
-	if c.attempts <= 0 {
-		c.attempts = 1
-	}
-
 	opts, _ := middleware.FromRequestContext(ctx)
 	selected := make(map[string]struct{}, 1)
 	opts.Filters = append(opts.Filters, func(ctx context.Context, nodes []selector.Node) []selector.Node {
@@ -81,6 +75,8 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		c.readers.Put(reader)
 		return nil, err
 	}
+	req.URL.Scheme = "http"
+	req.RequestURI = ""
 	req.Body = reader
 	req.GetBody = func() (io.ReadCloser, error) {
 		reader.Seek(0, io.SeekStart)
@@ -91,7 +87,7 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		n    selector.Node
 		done selector.DoneFunc
 	)
-	for i := 0; i < int(c.attempts); i++ {
+	for i := 0; i < c.attempts; i++ {
 		// canceled or deadline exceeded
 		if err := ctx.Err(); err != nil {
 			break
@@ -102,10 +98,10 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 			break
 		}
 		addr := n.Address()
-		reader.Seek(0, io.SeekStart)
 		selected[addr] = struct{}{}
 		req.URL.Host = addr
-		resp, err = n.(*node).client.Do(req)
+		req.GetBody() // seek reader to start
+		resp, err = n.(*node).client.Do(req.WithContext(ctx))
 		done(ctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			// logging error

@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -26,10 +27,10 @@ var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "proxy"))
 
 func writeError(w http.ResponseWriter, err error, protocol config.Protocol) {
 	var statusCode int
-	switch err {
-	case context.Canceled:
+	switch {
+	case errors.Is(err, context.Canceled):
 		statusCode = 499
-	case context.DeadlineExceeded:
+	case errors.Is(err, context.DeadlineExceeded):
 		statusCode = 504
 	default:
 		statusCode = 502
