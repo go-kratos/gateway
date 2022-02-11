@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/google/uuid"
@@ -42,10 +43,11 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 
 	LOG.Infof("Add watcher on endpoint: %s", endpoint)
 	existed := func() bool {
+		ctx, cancel := context.WithTimeout(ctx, time.Second*15)
+		defer cancel()
 		services, err := discovery.GetService(ctx, endpoint)
 		if err != nil {
 			LOG.Errorf("Failed to do initial services discovery on endpoint: %s, err: %+v, starting with empty service instance", endpoint, err)
-			services = []*registry.ServiceInstance{}
 		}
 		LOG.Infof("Initialize services discovery on endpoint: %s, services: %s", endpoint, jsonify(services))
 		callback(services)
