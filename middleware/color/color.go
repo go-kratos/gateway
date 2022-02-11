@@ -50,10 +50,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			if color := req.Header.Get(options.Header); color != "" {
-				if o, ok := middleware.FromRequestContext(ctx); ok {
-					o.Filters = append(o.Filters, filter(options.Label, color))
-				}
+			color := req.Header.Get(options.Header)
+			if o, ok := middleware.FromRequestContext(ctx); ok {
+				o.Filters = append(o.Filters, filter(options.Label, color))
 			}
 			return handler(ctx, req)
 		}
