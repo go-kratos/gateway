@@ -52,16 +52,15 @@ func TestCalcTimeout(t *testing.T) {
 	}{
 		{
 			endpoint: &config.Endpoint{
-				Timeout: &durationpb.Duration{Seconds: 1},
+				Timeout: &durationpb.Duration{},
 			},
 			timeout: time.Second,
 		},
 		{
 			endpoint: &config.Endpoint{
 				Timeout: &durationpb.Duration{Seconds: 5},
-				Retry:   &config.Retry{PerTryTimeout: &durationpb.Duration{Seconds: 2}},
 			},
-			timeout: time.Second * 2,
+			timeout: time.Second * 5,
 		},
 	}
 
