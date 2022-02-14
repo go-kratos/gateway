@@ -115,6 +115,20 @@ func calcAttempts(endpoint *config.Endpoint) int {
 	return int(endpoint.Retry.Attempts)
 }
 
+func calcPerTryTimeout(endpoint *config.Endpoint) time.Duration {
+	var perTryTimeout time.Duration
+	if endpoint.Retry != nil && endpoint.Retry.PerTryTimeout != nil {
+		perTryTimeout = endpoint.Retry.PerTryTimeout.AsDuration()
+	}
+	if endpoint.Timeout != nil {
+		perTryTimeout = endpoint.Timeout.AsDuration()
+	}
+	if perTryTimeout <= 0 {
+		perTryTimeout = time.Second
+	}
+	return perTryTimeout
+}
+
 func parseRetryConditon(endpoint *config.Endpoint) ([]retryCondition, error) {
 	if endpoint.Retry == nil {
 		return []retryCondition{}, nil

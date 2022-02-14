@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
@@ -24,20 +25,22 @@ type Client interface {
 }
 
 type retryClient struct {
-	readers    *sync.Pool
-	applier    *nodeApplier
-	selector   selector.Selector
-	protocol   config.Protocol
-	attempts   int
-	conditions []retryCondition
+	readers       *sync.Pool
+	applier       *nodeApplier
+	selector      selector.Selector
+	protocol      config.Protocol
+	attempts      int
+	perTryTimeout time.Duration
+	conditions    []retryCondition
 }
 
 func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *retryClient {
 	return &retryClient{
-		protocol: c.Protocol,
-		attempts: calcAttempts(c),
-		applier:  applier,
-		selector: selector,
+		protocol:      c.Protocol,
+		attempts:      calcAttempts(c),
+		perTryTimeout: calcPerTryTimeout(c),
+		applier:       applier,
+		selector:      selector,
 		readers: &sync.Pool{
 			New: func() interface{} {
 				return &BodyReader{}
@@ -92,6 +95,8 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		if err := ctx.Err(); err != nil {
 			break
 		}
+		ctx, cancel := context.WithTimeout(ctx, c.perTryTimeout)
+		defer cancel()
 
 		n, done, err = c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
 		if err != nil {
