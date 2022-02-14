@@ -103,8 +103,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			}
 		}
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
-		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
-		defer cancel()
 		resp, err := handler(ctx, r)
 		if err != nil {
 			writeError(w, err, e.Protocol)
