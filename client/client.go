@@ -30,6 +30,7 @@ type retryClient struct {
 	selector      selector.Selector
 	protocol      config.Protocol
 	attempts      int
+	timeout       time.Duration
 	perTryTimeout time.Duration
 	conditions    []retryCondition
 }
@@ -37,6 +38,7 @@ type retryClient struct {
 func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *retryClient {
 	return &retryClient{
 		protocol:      c.Protocol,
+		timeout:       calcTimeout(c),
 		attempts:      calcAttempts(c),
 		perTryTimeout: calcPerTryTimeout(c),
 		applier:       applier,
@@ -90,6 +92,8 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		n    selector.Node
 		done selector.DoneFunc
 	)
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 	for i := 0; i < c.attempts; i++ {
 		// canceled or deadline exceeded
 		if err := ctx.Err(); err != nil {

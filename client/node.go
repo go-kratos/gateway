@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/go-kratos/kratos/v2/selector"
 	"golang.org/x/net/http2"
@@ -42,12 +41,11 @@ func defaultH2Client() *http.Client {
 	}
 }
 
-func newNode(addr string, protocol config.Protocol, weight *int64, timeout time.Duration, md map[string]string) *node {
+func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string) *node {
 	node := &node{
 		protocol: protocol,
 		address:  addr,
 		weight:   weight,
-		timeout:  timeout,
 		metadata: md,
 	}
 	if protocol == config.Protocol_GRPC {
@@ -66,7 +64,6 @@ type node struct {
 	metadata map[string]string
 
 	client   *http.Client
-	timeout  time.Duration
 	protocol config.Protocol
 }
 

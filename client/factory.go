@@ -57,7 +57,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 		weighted := backend.Weight
 		switch target.Scheme {
 		case "direct":
-			node := newNode(backend.Target, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), map[string]string{})
+			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{})
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
@@ -76,7 +76,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 						LOG.Errorf("failed to parse endpoint: %v", err)
 						return nil
 					}
-					node := newNode(addr, na.endpoint.Protocol, weighted, calcTimeout(na.endpoint), ser.Metadata)
+					node := newNode(addr, na.endpoint.Protocol, weighted, ser.Metadata)
 					nodes = append(nodes, node)
 				}
 				dst.Apply(nodes)
@@ -93,14 +93,12 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 }
 
 func calcTimeout(endpoint *config.Endpoint) time.Duration {
-	timeout := endpoint.Timeout.AsDuration()
-	if endpoint.Retry == nil {
-		return timeout
+	var timeout time.Duration
+	if endpoint.Timeout != nil {
+		timeout = endpoint.Timeout.AsDuration()
 	}
-	if endpoint.Retry.PerTryTimeout != nil &&
-		endpoint.Retry.PerTryTimeout.AsDuration() > 0 &&
-		endpoint.Retry.PerTryTimeout.AsDuration() < timeout {
-		return endpoint.Retry.PerTryTimeout.AsDuration()
+	if timeout <= 0 {
+		timeout = time.Second
 	}
 	return timeout
 }
