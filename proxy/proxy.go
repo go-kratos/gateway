@@ -64,7 +64,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	default:
 		statusCode = 502
 	}
-	_metricRequestsTotol.WithLabelValues(protocol.String(), r.Method, r.RequestURI, strconv.Itoa(statusCode)).Inc()
+	_metricRequestsTotol.WithLabelValues(protocol.String(), r.Method, r.URL.Path, strconv.Itoa(statusCode)).Inc()
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
