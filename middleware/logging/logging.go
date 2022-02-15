@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -31,6 +32,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
+			host := req.URL.Host
 			reply, err = handler(ctx, req)
 			startTime := time.Now()
 			level := log.LevelInfo
@@ -42,15 +44,17 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			} else {
 				code = reply.StatusCode
 			}
+			opts, _ := middleware.FromRequestContext(ctx)
 			LOG.WithContext(ctx).Log(level,
+				"host", host,
 				"method", req.Method,
 				"scheme", req.URL.Scheme,
-				"host", req.URL.Host,
 				"path", req.URL.Path,
 				"query", req.URL.RawQuery,
 				"code", code,
 				"error", errMsg,
 				"latency", time.Since(startTime).Seconds(),
+				"backend", strings.Join(opts.Backends, ","),
 			)
 			return reply, err
 		}

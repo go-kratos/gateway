@@ -26,10 +26,6 @@ middlewares:
   - name: logging
     options:
       '@type': type.googleapis.com/gateway.middleware.logging.v1.Logging
-  - name: prometheus
-    options:
-      '@type': type.googleapis.com/gateway.middleware.prometheus.v1.Prometheus
-      path: /metrics
 endpoints:
   - path: /helloworld/*
     timeout: 1s

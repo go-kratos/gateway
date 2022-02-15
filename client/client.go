@@ -11,12 +11,31 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
 	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "client"))
+
+	_metricRetries = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_retry_total",
+		Help:      "The total number of retry requests",
+	}, []string{"protocol", "method", "path"})
+	_metricReceivedBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_rx_bytes",
+		Help:      "Total received connection bytes",
+	}, []string{"protocol", "method", "path"})
 )
+
+func init() {
+	prometheus.MustRegister(_metricRetries)
+	prometheus.MustRegister(_metricReceivedBytes)
+}
 
 // Client is a proxy client.
 type Client interface {
@@ -26,9 +45,9 @@ type Client interface {
 
 type retryClient struct {
 	readers       *sync.Pool
+	protocol      string
 	applier       *nodeApplier
 	selector      selector.Selector
-	protocol      config.Protocol
 	attempts      int
 	timeout       time.Duration
 	perTryTimeout time.Duration
@@ -37,7 +56,7 @@ type retryClient struct {
 
 func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *retryClient {
 	return &retryClient{
-		protocol:      c.Protocol,
+		protocol:      c.Protocol.String(),
 		timeout:       calcTimeout(c),
 		attempts:      calcAttempts(c),
 		perTryTimeout: calcPerTryTimeout(c),
@@ -76,10 +95,12 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 	})
 
 	reader := c.readers.Get().(*BodyReader)
-	if _, err := reader.ReadFrom(req.Body); err != nil {
+	received, err := reader.ReadFrom(req.Body)
+	if err != nil {
 		c.readers.Put(reader)
 		return nil, err
 	}
+	_metricReceivedBytes.WithLabelValues(c.protocol, req.Method, req.RequestURI).Add(float64(received))
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
 	req.Body = reader
@@ -101,12 +122,12 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		}
 		rctx, cancel := context.WithTimeout(ctx, c.perTryTimeout)
 		defer cancel()
-
 		n, done, err = c.selector.Select(rctx, selector.WithFilter(opts.Filters...))
 		if err != nil {
 			break
 		}
 		addr := n.Address()
+		opts.Backends = append(opts.Backends, addr)
 		selected[addr] = struct{}{}
 		req.URL.Host = addr
 		req.GetBody() // seek reader to start
@@ -116,11 +137,11 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 			// logging error
 			continue
 		}
-
 		if !judgeRetryRequired(c.conditions, resp) {
 			break
 		}
 		// continue the retry loop
+		_metricRetries.WithLabelValues(c.protocol, req.Method, req.RequestURI).Inc()
 	}
 	c.readers.Put(reader)
 	return
