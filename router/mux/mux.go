@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-kratos/gateway/router"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var _ = new(router.Router)
@@ -19,6 +20,7 @@ func NewRouter() router.Router {
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(true),
 	}
+	r.Router.Handle("/metrics", promhttp.Handler())
 	r.Router.HandleFunc("/_/ping", func(rw http.ResponseWriter, r *http.Request) {})
 	return r
 }

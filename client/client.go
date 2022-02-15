@@ -100,7 +100,7 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		c.readers.Put(reader)
 		return nil, err
 	}
-	_metricReceivedBytes.WithLabelValues(c.protocol, req.Method, req.RequestURI).Add(float64(received))
+	_metricReceivedBytes.WithLabelValues(c.protocol, req.Method, req.URL.Path).Add(float64(received))
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
 	req.Body = reader
@@ -135,13 +135,15 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		done(rctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			// logging error
+			// TODO: judge retry error
+			_metricRetries.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
 			continue
 		}
 		if !judgeRetryRequired(c.conditions, resp) {
 			break
 		}
 		// continue the retry loop
-		_metricRetries.WithLabelValues(c.protocol, req.Method, req.RequestURI).Inc()
+		_metricRetries.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
 	}
 	c.readers.Put(reader)
 	return

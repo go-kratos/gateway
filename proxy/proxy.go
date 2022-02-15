@@ -44,7 +44,7 @@ var (
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_tx_bytes",
-		Help:      "The total number of response bytes",
+		Help:      "Total sent connection bytes",
 	}, []string{"protocol", "method", "path"})
 )
 
@@ -64,7 +64,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	default:
 		statusCode = 502
 	}
-	_metricRequestsTotol.WithLabelValues(protocol.String(), r.Method, r.RequestURI, strconv.Itoa(statusCode)).Inc()
+	_metricRequestsTotol.WithLabelValues(protocol.String(), r.Method, r.URL.Path, strconv.Itoa(statusCode)).Inc()
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
@@ -139,7 +139,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			writeError(w, r, err, e.Protocol)
 			return
 		}
-		_metricRequestsTotol.WithLabelValues(protocol, r.Method, r.RequestURI, "200").Inc()
+		_metricRequestsTotol.WithLabelValues(protocol, r.Method, r.URL.Path, "200").Inc()
 		headers := w.Header()
 		for k, v := range resp.Header {
 			headers[k] = v
@@ -150,7 +150,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			if err != nil {
 				LOG.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
 			}
-			_metricSentBytes.WithLabelValues(protocol, r.Method, r.RequestURI).Add(float64(sent))
+			_metricSentBytes.WithLabelValues(protocol, r.Method, r.URL.Path).Add(float64(sent))
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {

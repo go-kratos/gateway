@@ -8,7 +8,6 @@ import (
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
 	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
-	prometheus "github.com/go-kratos/gateway/api/gateway/middleware/prometheus"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -83,12 +82,6 @@ func equalTo() *configv1.Gateway {
 			{
 				Name:    "logging",
 				Options: asAny(&loggingv1.Logging{}),
-			},
-			{
-				Name: "prometheus",
-				Options: asAny(&prometheus.Prometheus{
-					Path: "/metrics",
-				}),
 			},
 		},
 	}
