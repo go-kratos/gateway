@@ -37,7 +37,7 @@ var (
 	_metricRequestsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
-		Name:      "duration_seconds_bucket",
+		Name:      "requests_duration_seconds",
 		Help:      "Requests duration(sec).",
 		Buckets:   []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.250, 0.5, 1},
 	}, []string{"protocol", "method", "path"})
