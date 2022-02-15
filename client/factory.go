@@ -117,8 +117,7 @@ func calcPerTryTimeout(endpoint *config.Endpoint) time.Duration {
 	var perTryTimeout time.Duration
 	if endpoint.Retry != nil && endpoint.Retry.PerTryTimeout != nil {
 		perTryTimeout = endpoint.Retry.PerTryTimeout.AsDuration()
-	}
-	if endpoint.Timeout != nil {
+	} else if endpoint.Timeout != nil {
 		perTryTimeout = endpoint.Timeout.AsDuration()
 	}
 	if perTryTimeout <= 0 {

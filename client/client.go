@@ -99,10 +99,10 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		if err := ctx.Err(); err != nil {
 			break
 		}
-		ctx, cancel := context.WithTimeout(ctx, c.perTryTimeout)
+		rctx, cancel := context.WithTimeout(ctx, c.perTryTimeout)
 		defer cancel()
 
-		n, done, err = c.selector.Select(ctx, selector.WithFilter(opts.Filters...))
+		n, done, err = c.selector.Select(rctx, selector.WithFilter(opts.Filters...))
 		if err != nil {
 			break
 		}
@@ -110,8 +110,8 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		selected[addr] = struct{}{}
 		req.URL.Host = addr
 		req.GetBody() // seek reader to start
-		resp, err = n.(*node).client.Do(req.WithContext(ctx))
-		done(ctx, selector.DoneInfo{Err: err})
+		resp, err = n.(*node).client.Do(req.WithContext(rctx))
+		done(rctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			// logging error
 			continue
