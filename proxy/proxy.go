@@ -20,12 +20,41 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
 	gorillamux "github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // LOG .
 var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "proxy"))
 
-func writeError(w http.ResponseWriter, err error, protocol config.Protocol) {
+var (
+	_metricRequestsTotol = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_code_total",
+		Help:      "The total number of processed requests",
+	}, []string{"protocol", "method", "path", "code"})
+	_metricRequestsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "duration_seconds_bucket",
+		Help:      "Requests duration(sec).",
+		Buckets:   []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.250, 0.5, 1},
+	}, []string{"protocol", "method", "path"})
+	_metricSentBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_tx_bytes",
+		Help:      "The total number of response bytes",
+	}, []string{"protocol", "method", "path"})
+)
+
+func init() {
+	prometheus.MustRegister(_metricRequestsTotol)
+	prometheus.MustRegister(_metricRequestsDuration)
+	prometheus.MustRegister(_metricSentBytes)
+}
+
+func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol) {
 	var statusCode int
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -35,6 +64,7 @@ func writeError(w http.ResponseWriter, err error, protocol config.Protocol) {
 	default:
 		statusCode = 502
 	}
+	_metricRequestsTotol.WithLabelValues(protocol.String(), r.Method, r.RequestURI, strconv.Itoa(statusCode)).Inc()
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
@@ -87,6 +117,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
+	protocol := e.Protocol.String()
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
 		if clientIP, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
@@ -105,18 +136,21 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
 		resp, err := handler(ctx, r)
 		if err != nil {
-			writeError(w, err, e.Protocol)
+			writeError(w, r, err, e.Protocol)
 			return
 		}
+		_metricRequestsTotol.WithLabelValues(protocol, r.Method, r.RequestURI, "200").Inc()
 		headers := w.Header()
 		for k, v := range resp.Header {
 			headers[k] = v
 		}
 		w.WriteHeader(resp.StatusCode)
 		if body := resp.Body; body != nil {
-			if _, err := io.Copy(w, body); err != nil {
+			sent, err := io.Copy(w, body)
+			if err != nil {
 				LOG.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
 			}
+			_metricSentBytes.WithLabelValues(protocol, r.Method, r.RequestURI).Add(float64(sent))
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {
