@@ -18,11 +18,17 @@ var (
 	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "client"))
 
-	_metricRetries = prometheus.NewCounterVec(prometheus.CounterOpts{
+	_metricRetryTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_retry_total",
-		Help:      "The total number of retry requests",
+		Help:      "Total request retries",
+	}, []string{"protocol", "method", "path"})
+	_metricRetrySuccess = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_retry_success",
+		Help:      "Total request retry successes",
 	}, []string{"protocol", "method", "path"})
 	_metricReceivedBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
@@ -33,7 +39,8 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(_metricRetries)
+	prometheus.MustRegister(_metricRetryTotal)
+	prometheus.MustRegister(_metricRetrySuccess)
 	prometheus.MustRegister(_metricReceivedBytes)
 }
 
@@ -134,16 +141,18 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		resp, err = n.(*node).client.Do(req.WithContext(rctx))
 		done(rctx, selector.DoneInfo{Err: err})
 		if err != nil {
-			// logging error
 			// TODO: judge retry error
-			_metricRetries.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
+			_metricRetryTotal.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
 			continue
 		}
 		if !judgeRetryRequired(c.conditions, resp) {
+			if i > 0 {
+				_metricRetrySuccess.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
+			}
 			break
 		}
 		// continue the retry loop
-		_metricRetries.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
+		_metricRetryTotal.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
 	}
 	c.readers.Put(reader)
 	return
