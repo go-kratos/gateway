@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
@@ -119,6 +120,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	}
 	protocol := e.Protocol.String()
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
 		// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
 		if clientIP, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 			// If we aren't the first proxy retain prior
@@ -137,6 +139,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		resp, err := handler(ctx, r)
 		if err != nil {
 			writeError(w, r, err, e.Protocol)
+			_metricRequestsDuration.WithLabelValues(protocol, r.Method, r.URL.Path).Observe(time.Since(startTime).Seconds())
 			return
 		}
 		_metricRequestsTotol.WithLabelValues(protocol, r.Method, r.URL.Path, "200").Inc()
@@ -157,6 +160,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			headers[http.TrailerPrefix+k] = v
 		}
 		resp.Body.Close()
+		_metricRequestsDuration.WithLabelValues(protocol, r.Method, r.URL.Path).Observe(time.Since(startTime).Seconds())
 	})), nil
 }
 
