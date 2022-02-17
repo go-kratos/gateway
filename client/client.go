@@ -123,6 +123,9 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	for i := 0; i < c.attempts; i++ {
+		if i > 0 {
+			_metricRetryTotal.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
+		}
 		// canceled or deadline exceeded
 		if err := ctx.Err(); err != nil {
 			break
@@ -142,7 +145,6 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		done(rctx, selector.DoneInfo{Err: err})
 		if err != nil {
 			// TODO: judge retry error
-			_metricRetryTotal.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
 			continue
 		}
 		if !judgeRetryRequired(c.conditions, resp) {
@@ -152,7 +154,6 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 			break
 		}
 		// continue the retry loop
-		_metricRetryTotal.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
 	}
 	c.readers.Put(reader)
 	return
