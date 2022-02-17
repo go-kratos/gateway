@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/go-kratos/kratos/v2/selector"
 	"golang.org/x/net/http2"
@@ -17,11 +19,20 @@ var _ selector.Node = &node{}
 var _globalClient = defaultClient()
 var _globalH2Client = defaultH2Client()
 
+func env2int(in string, def int) int {
+	v := os.Getenv(in)
+	if v == "" {
+		return def
+	}
+	i, _ := strconv.ParseInt(v, 10, 64)
+	return int(i)
+}
+
 func defaultClient() *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.MaxIdleConns = 1000
-	tr.MaxConnsPerHost = 100
-	tr.MaxIdleConnsPerHost = 100
+	tr.MaxIdleConns = env2int("MAX_IDLE_CONNS", 1000)                //1000
+	tr.MaxConnsPerHost = env2int("MAX_CONNS_PER_HOST", 100)          //100
+	tr.MaxIdleConnsPerHost = env2int("MAX_IDLE_CONNS_PER_HOST", 100) //100
 	tr.DisableCompression = true
 	return &http.Client{Transport: tr}
 }
