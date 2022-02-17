@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/selector"
 	"golang.org/x/net/http2"
@@ -28,9 +29,22 @@ func env2int(in string, def int) int {
 	return int(i)
 }
 
+var DefaultTransport http.RoundTripper = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 600 * time.Second,
+	}).DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
+}
+
 func defaultClient() *http.Client {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.MaxIdleConns = env2int("MAX_IDLE_CONNS", 1000)                //1000
+	tr := DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConns = env2int("MAX_IDLE_CONNS", 100)                 //1000
 	tr.MaxConnsPerHost = env2int("MAX_CONNS_PER_HOST", 100)          //100
 	tr.MaxIdleConnsPerHost = env2int("MAX_IDLE_CONNS_PER_HOST", 100) //100
 	tr.DisableCompression = true
