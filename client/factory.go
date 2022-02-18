@@ -31,11 +31,11 @@ func NewFactory(r registry.Discovery) Factory {
 			return nil, err
 		}
 		client := newClient(endpoint, applier, picker)
-		retryCond, err := parseRetryConditon(endpoint)
-		if err != nil {
-			return nil, err
-		}
-		client.conditions = retryCond
+		// retryCond, err := parseRetryConditon(endpoint)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// client.conditions = retryCond
 		return client, nil
 	}
 }
