@@ -92,17 +92,6 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 	return nil
 }
 
-func calcTimeout(endpoint *config.Endpoint) time.Duration {
-	var timeout time.Duration
-	if endpoint.Timeout != nil {
-		timeout = endpoint.Timeout.AsDuration()
-	}
-	if timeout <= 0 {
-		timeout = time.Second
-	}
-	return timeout
-}
-
 func calcAttempts(endpoint *config.Endpoint) int {
 	if endpoint.Retry == nil {
 		return 1

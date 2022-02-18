@@ -138,7 +138,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
 		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
 		defer cancel()
-		resp, err := handler(ctx, r)
+		resp, err := handler(r.WithContext(ctx))
 		if err != nil {
 			writeError(w, r, err, e.Protocol)
 			_metricRequestsDuration.WithLabelValues(protocol, r.Method, r.URL.Path).Observe(time.Since(startTime).Seconds())

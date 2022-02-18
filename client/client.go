@@ -1,10 +1,10 @@
 package client
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
@@ -44,29 +44,27 @@ func init() {
 
 // Client is a proxy client.
 type Client interface {
-	Do(ctx context.Context, req *http.Request) (*http.Response, error)
+	Do(req *http.Request) (*http.Response, error)
 	Close() error
 }
 
 type retryClient struct {
-	readers  *sync.Pool
-	protocol string
-	applier  *nodeApplier
-	selector selector.Selector
-	// attempts int
-	// timeout       time.Duration
-	// perTryTimeout time.Duration
-	// conditions []retryCondition
+	readers       *sync.Pool
+	protocol      string
+	applier       *nodeApplier
+	selector      selector.Selector
+	attempts      int
+	perTryTimeout time.Duration
+	conditions    []retryCondition
 }
 
 func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *retryClient {
 	return &retryClient{
-		protocol: c.Protocol.String(),
-		// timeout:       calcTimeout(c),
-		// attempts: calcAttempts(c),
-		// perTryTimeout: calcPerTryTimeout(c),
-		applier:  applier,
-		selector: selector,
+		protocol:      c.Protocol.String(),
+		attempts:      calcAttempts(c),
+		perTryTimeout: calcPerTryTimeout(c),
+		applier:       applier,
+		selector:      selector,
 		readers: &sync.Pool{
 			New: func() interface{} {
 				return &BodyReader{}
@@ -80,7 +78,7 @@ func (c *retryClient) Close() error {
 	return nil
 }
 
-func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
+func (c *retryClient) Do(req *http.Request) (resp *http.Response, err error) {
 	reader := c.readers.Get().(*BodyReader)
 	received, err := reader.ReadFrom(req.Body)
 	if err != nil {
@@ -95,16 +93,14 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		reader.Seek(0, io.SeekStart)
 		return reader, nil
 	}
-
+	ctx := req.Context()
 	n, done, err := c.selector.Select(ctx)
 	if err != nil {
 		return nil, err
 	}
 	addr := n.Address()
 	req.URL.Host = addr
-	req.Host = addr
-	req.GetBody() // seek reader to start
-	resp, err = n.(*node).client.Do(req.WithContext(ctx))
+	resp, err = n.(*node).client.Do(req)
 	done(ctx, selector.DoneInfo{Err: err})
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/selector"
 	"golang.org/x/net/http2"
@@ -11,7 +12,10 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
-const _globalClientPool = 10
+const (
+	_dialTimeout = 100 * time.Millisecond
+	_keepAlive   = 30 * time.Second
+)
 
 var _ selector.Node = &node{}
 var _globalClient = defaultClient()
@@ -19,6 +23,10 @@ var _globalH2Client = defaultH2Client()
 
 func defaultClient() *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.DialContext = (&net.Dialer{
+		Timeout:   _dialTimeout,
+		KeepAlive: _keepAlive,
+	}).DialContext
 	tr.MaxIdleConns = 1000
 	tr.MaxConnsPerHost = 100
 	tr.MaxIdleConnsPerHost = 100
@@ -35,7 +43,7 @@ func defaultH2Client() *http.Client {
 			// Pretend we are dialing a TLS endpoint.
 			// Note, we ignore the passed tls.Config
 			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return net.Dial(network, addr)
+				return net.DialTimeout(network, addr, _dialTimeout)
 			},
 		},
 	}
