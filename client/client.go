@@ -7,6 +7,7 @@ import (
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/prometheus/client_golang/prometheus"
@@ -99,6 +100,7 @@ func (c *retryClient) Do(req *http.Request) (resp *http.Response, err error) {
 		return nil, err
 	}
 	addr := n.Address()
+	middleware.WithRequestBackends(ctx, addr)
 	req.URL.Host = addr
 	resp, err = n.(*node).client.Do(req)
 	done(ctx, selector.DoneInfo{Err: err})
