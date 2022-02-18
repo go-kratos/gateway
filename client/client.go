@@ -5,10 +5,8 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/prometheus/client_golang/prometheus"
@@ -51,24 +49,24 @@ type Client interface {
 }
 
 type retryClient struct {
-	readers       *sync.Pool
-	protocol      string
-	applier       *nodeApplier
-	selector      selector.Selector
-	attempts      int
-	timeout       time.Duration
-	perTryTimeout time.Duration
-	conditions    []retryCondition
+	readers  *sync.Pool
+	protocol string
+	applier  *nodeApplier
+	selector selector.Selector
+	// attempts int
+	// timeout       time.Duration
+	// perTryTimeout time.Duration
+	// conditions []retryCondition
 }
 
 func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *retryClient {
 	return &retryClient{
-		protocol:      c.Protocol.String(),
-		timeout:       calcTimeout(c),
-		attempts:      calcAttempts(c),
-		perTryTimeout: calcPerTryTimeout(c),
-		applier:       applier,
-		selector:      selector,
+		protocol: c.Protocol.String(),
+		// timeout:       calcTimeout(c),
+		// attempts: calcAttempts(c),
+		// perTryTimeout: calcPerTryTimeout(c),
+		applier:  applier,
+		selector: selector,
 		readers: &sync.Pool{
 			New: func() interface{} {
 				return &BodyReader{}
@@ -83,24 +81,6 @@ func (c *retryClient) Close() error {
 }
 
 func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
-	opts, _ := middleware.FromRequestContext(ctx)
-	selected := make(map[string]struct{}, 1)
-	opts.Filters = append(opts.Filters, func(ctx context.Context, nodes []selector.Node) []selector.Node {
-		if len(selected) == 0 {
-			return nodes
-		}
-		newNodes := nodes[:0]
-		for _, node := range nodes {
-			if _, ok := selected[node.Address()]; !ok {
-				newNodes = append(newNodes, node)
-			}
-		}
-		if len(newNodes) == 0 {
-			return nodes
-		}
-		return newNodes
-	})
-
 	reader := c.readers.Get().(*BodyReader)
 	received, err := reader.ReadFrom(req.Body)
 	if err != nil {
@@ -116,47 +96,21 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		return reader, nil
 	}
 
-	var (
-		n    selector.Node
-		done selector.DoneFunc
-	)
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	for i := 0; i < c.attempts; i++ {
-		if i > 0 {
-			_metricRetryTotal.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
-		}
-		// canceled or deadline exceeded
-		if err := ctx.Err(); err != nil {
-			break
-		}
-		rctx, cancel := context.WithTimeout(ctx, c.perTryTimeout)
-		defer cancel()
-		n, done, err = c.selector.Select(rctx, selector.WithFilter(opts.Filters...))
-		if err != nil {
-			break
-		}
-		addr := n.Address()
-		opts.Backends = append(opts.Backends, addr)
-		selected[addr] = struct{}{}
-		req.URL.Host = addr
-		req.GetBody() // seek reader to start
-		resp, err = n.(*node).client.Do(req.WithContext(rctx))
-		done(rctx, selector.DoneInfo{Err: err})
-		if err != nil {
-			// TODO: judge retry error
-			continue
-		}
-		if !judgeRetryRequired(c.conditions, resp) {
-			if i > 0 {
-				_metricRetrySuccess.WithLabelValues(c.protocol, req.Method, req.URL.Path).Inc()
-			}
-			break
-		}
-		// continue the retry loop
+	n, done, err := c.selector.Select(ctx)
+	if err != nil {
+		return nil, err
+	}
+	addr := n.Address()
+	req.URL.Host = addr
+	req.Host = addr
+	req.GetBody() // seek reader to start
+	resp, err = n.(*node).client.Do(req.WithContext(ctx))
+	done(ctx, selector.DoneInfo{Err: err})
+	if err != nil {
+		return nil, err
 	}
 	c.readers.Put(reader)
-	return
+	return resp, nil
 }
 
 func judgeRetryRequired(conditions []retryCondition, resp *http.Response) bool {
