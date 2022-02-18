@@ -17,10 +17,7 @@ import (
 	_ "net/http/pprof"
 
 	_ "github.com/go-kratos/gateway/discovery/consul"
-	_ "github.com/go-kratos/gateway/middleware/color"
-	_ "github.com/go-kratos/gateway/middleware/cors"
 	_ "github.com/go-kratos/gateway/middleware/logging"
-	_ "github.com/go-kratos/gateway/middleware/otel"
 	_ "go.uber.org/automaxprocs"
 
 	"github.com/go-kratos/kratos/v2"

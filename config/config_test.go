@@ -5,11 +5,7 @@ import (
 	"testing"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
-	colorv1 "github.com/go-kratos/gateway/api/gateway/middleware/color/v1"
-	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
-	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
-	prometheus "github.com/go-kratos/gateway/api/gateway/middleware/prometheus"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -59,35 +55,8 @@ func equalTo() *configv1.Gateway {
 		},
 		Middlewares: []*configv1.Middleware{
 			{
-				Name: "cors",
-				Options: asAny(&corsv1.Cors{
-					AllowCredentials: true,
-					AllowedOrigins:   []string{".google.com"},
-					AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-				}),
-			},
-			{
-				Name: "color",
-				Options: asAny(&colorv1.Color{
-					Header: "x-md-global-color",
-					Label:  "color",
-				}),
-			},
-			{
-				Name: "otel",
-				Options: asAny(&otelv1.Otel{
-					HttpEndpoint: "localhost:4318",
-				}),
-			},
-			{
 				Name:    "logging",
 				Options: asAny(&loggingv1.Logging{}),
-			},
-			{
-				Name: "prometheus",
-				Options: asAny(&prometheus.Prometheus{
-					Path: "/metrics",
-				}),
 			},
 		},
 	}
