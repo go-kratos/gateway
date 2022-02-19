@@ -19,8 +19,38 @@ func NewRequestContext(ctx context.Context, o *RequestOptions) context.Context {
 	return context.WithValue(ctx, contextKey{}, o)
 }
 
-// FromRequestContext returns the Context value stored in ctx, if any.
-func FromRequestContext(ctx context.Context) (o *RequestOptions, ok bool) {
-	o, ok = ctx.Value(contextKey{}).(*RequestOptions)
-	return
+// RequestBackendsFromContext returns backend nodes from context.
+func RequestBackendsFromContext(ctx context.Context) ([]string, bool) {
+	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
+	if ok {
+		return o.Backends, true
+	}
+	return nil, false
+}
+
+// WithRequestBackends with backend nodes into context.
+func WithRequestBackends(ctx context.Context, backend ...string) context.Context {
+	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
+	if ok {
+		o.Backends = append(o.Backends, backend...)
+	}
+	return ctx
+}
+
+// SelectorFiltersFromContext returns selector filter from context.
+func SelectorFiltersFromContext(ctx context.Context) ([]selector.Filter, bool) {
+	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
+	if ok {
+		return o.Filters, true
+	}
+	return nil, false
+}
+
+// WithSelectorFitler with selector filter into context.
+func WithSelectorFitler(ctx context.Context, fn selector.Filter) context.Context {
+	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
+	if ok {
+		o.Filters = append(o.Filters, fn)
+	}
+	return ctx
 }

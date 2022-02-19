@@ -44,7 +44,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			} else {
 				code = reply.StatusCode
 			}
-			opts, _ := middleware.FromRequestContext(ctx)
+			nodes, _ := middleware.RequestBackendsFromContext(ctx)
 			LOG.WithContext(ctx).Log(level,
 				"host", host,
 				"method", req.Method,
@@ -54,7 +54,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"code", code,
 				"error", errMsg,
 				"latency", time.Since(startTime).Seconds(),
-				"backend", strings.Join(opts.Backends, ","),
+				"backend", strings.Join(nodes, ","),
 			)
 			return reply, err
 		}
