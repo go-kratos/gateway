@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
 	gorillamux "github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -47,12 +49,19 @@ var (
 		Name:      "requests_tx_bytes",
 		Help:      "Total sent connection bytes",
 	}, []string{"protocol", "method", "path"})
+	_metricReceivedBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_rx_bytes",
+		Help:      "Total received connection bytes",
+	}, []string{"protocol", "method", "path"})
 )
 
 func init() {
 	prometheus.MustRegister(_metricRequestsTotol)
 	prometheus.MustRegister(_metricRequestsDuration)
 	prometheus.MustRegister(_metricSentBytes)
+	prometheus.MustRegister(_metricReceivedBytes)
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol) {
@@ -79,6 +88,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 
 // Proxy is a gateway proxy.
 type Proxy struct {
+	readers           *sync.Pool
 	router            atomic.Value
 	clientFactory     client.Factory
 	middlewareFactory middleware.Factory
@@ -87,6 +97,11 @@ type Proxy struct {
 // New is new a gateway proxy.
 func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
+		readers: &sync.Pool{
+			New: func() interface{} {
+				return &BodyReader{}
+			},
+		},
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 	}
@@ -105,6 +120,46 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Hand
 	return handler, nil
 }
 
+func retryFilter(reqOpt *middleware.RequestOptions) selector.Filter {
+	return func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		if len(reqOpt.Backends) <= 0 {
+			return nodes
+		}
+		selected := make(map[string]struct{}, len(reqOpt.Backends))
+		for _, b := range reqOpt.Backends {
+			selected[b] = struct{}{}
+		}
+
+		newNodes := nodes[:0]
+		for _, node := range nodes {
+			if _, ok := selected[node.Address()]; !ok {
+				newNodes = append(newNodes, node)
+			}
+		}
+		if len(newNodes) == 0 {
+			return nodes
+		}
+		return newNodes
+	}
+}
+
+func setXFFHeader(req *http.Request) {
+	// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
+	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+		// If we aren't the first proxy retain prior
+		// X-Forwarded-For information as a comma+space
+		// separated list and fold multiple headers into one.
+		prior, ok := req.Header["X-Forwarded-For"]
+		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
+		if len(prior) > 0 {
+			clientIP = strings.Join(prior, ", ") + ", " + clientIP
+		}
+		if !omit {
+			req.Header.Set("X-Forwarded-For", clientIP)
+		}
+	}
+}
+
 func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
 	caller, err := p.clientFactory(e)
 	if err != nil {
@@ -118,33 +173,61 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
+	retryStrategy, err := prepareRetryStrategy(e)
+	if err != nil {
+		return nil, err
+	}
 	protocol := e.Protocol.String()
-	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
-		// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
-		if clientIP, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-			// If we aren't the first proxy retain prior
-			// X-Forwarded-For information as a comma+space
-			// separated list and fold multiple headers into one.
-			prior, ok := r.Header["X-Forwarded-For"]
-			omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
-			if len(prior) > 0 {
-				clientIP = strings.Join(prior, ", ") + ", " + clientIP
-			}
-			if !omit {
-				r.Header.Set("X-Forwarded-For", clientIP)
-			}
-		}
-		ctx := middleware.NewRequestContext(r.Context(), &middleware.RequestOptions{})
-		ctx, cancel := context.WithTimeout(ctx, e.Timeout.AsDuration())
-		defer cancel()
-		resp, err := handler(ctx, r)
+		setXFFHeader(req)
+
+		reqOpt := &middleware.RequestOptions{}
+		ctx := middleware.NewRequestContext(req.Context(), reqOpt)
+		reader := p.readers.Get().(*BodyReader)
+		defer p.readers.Put(reader)
+		received, err := reader.ReadFrom(req.Body)
 		if err != nil {
-			writeError(w, r, err, e.Protocol)
-			_metricRequestsDuration.WithLabelValues(protocol, r.Method, r.URL.Path).Observe(time.Since(startTime).Seconds())
+			writeError(w, req, err, e.Protocol)
 			return
 		}
-		_metricRequestsTotol.WithLabelValues(protocol, r.Method, r.URL.Path, "200").Inc()
+		_metricReceivedBytes.WithLabelValues(e.Protocol.String(), req.Method, req.URL.Path).Add(float64(received))
+		req.Body = reader
+		req.GetBody = func() (io.ReadCloser, error) {
+			reader.Seek(0, io.SeekStart)
+			return reader, nil
+		}
+
+		reqOpt.Filters = append(reqOpt.Filters, retryFilter(reqOpt))
+		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
+		defer cancel()
+
+		var resp *http.Response
+		for i := 0; i < int(retryStrategy.attempts); i++ {
+			// canceled or deadline exceeded
+			if err = ctx.Err(); err != nil {
+				break
+			}
+			tryCtx, cancel := context.WithTimeout(ctx, retryStrategy.perTryTimeout)
+			defer cancel()
+			req.GetBody() // seek reader to start
+			resp, err = handler(tryCtx, req)
+			if err != nil {
+				LOG.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
+				continue
+			}
+			if !judgeRetryRequired(retryStrategy.conditions, resp) {
+				break
+			}
+			// continue the retry loop
+		}
+		if err != nil {
+			writeError(w, req, err, e.Protocol)
+			_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
+			return
+		}
+
+		_metricRequestsTotol.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
 		headers := w.Header()
 		for k, v := range resp.Header {
 			headers[k] = v
@@ -155,14 +238,14 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			if err != nil {
 				LOG.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
 			}
-			_metricSentBytes.WithLabelValues(protocol, r.Method, r.URL.Path).Add(float64(sent))
+			_metricSentBytes.WithLabelValues(protocol, req.Method, req.URL.Path).Add(float64(sent))
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 		for k, v := range resp.Trailer {
 			headers[http.TrailerPrefix+k] = v
 		}
 		resp.Body.Close()
-		_metricRequestsDuration.WithLabelValues(protocol, r.Method, r.URL.Path).Observe(time.Since(startTime).Seconds())
+		_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
 	})), nil
 }
 
