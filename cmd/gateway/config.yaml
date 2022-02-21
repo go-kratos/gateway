@@ -14,11 +14,6 @@ middlewares:
         - GET
         - POST
         - OPTIONS
-  - name: color 
-    options:
-      '@type': type.googleapis.com/gateway.middleware.color.v1.Color
-      header: x-md-global-color
-      label: color
   - name: otel
     options:
       '@type': type.googleapis.com/gateway.middleware.otel.v1.Otel

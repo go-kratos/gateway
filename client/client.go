@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/prometheus/client_golang/prometheus"
@@ -95,14 +96,13 @@ func (c *retryClient) Do(ctx context.Context, req *http.Request) (resp *http.Res
 		reader.Seek(0, io.SeekStart)
 		return reader, nil
 	}
-
 	n, done, err := c.selector.Select(ctx)
 	if err != nil {
 		return nil, err
 	}
 	addr := n.Address()
+	middleware.WithRequestBackends(ctx, addr)
 	req.URL.Host = addr
-	req.Host = addr
 	req.GetBody() // seek reader to start
 	resp, err = n.(*node).client.Do(req.WithContext(ctx))
 	done(ctx, selector.DoneInfo{Err: err})
