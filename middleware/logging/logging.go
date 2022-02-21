@@ -32,7 +32,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			host := req.URL.Host
 			reply, err = handler(ctx, req)
 			startTime := time.Now()
 			level := log.LevelInfo
@@ -46,7 +45,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			}
 			nodes, _ := middleware.RequestBackendsFromContext(ctx)
 			LOG.WithContext(ctx).Log(level,
-				"host", host,
+				"host", req.Host,
 				"method", req.Method,
 				"scheme", req.URL.Scheme,
 				"path", req.URL.Path,
