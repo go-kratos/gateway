@@ -14,6 +14,31 @@ type RequestOptions struct {
 	Backends []string
 }
 
+// NewRequestOptions new a request options with retry filter.
+func NewRequestOptions() *RequestOptions {
+	o := &RequestOptions{}
+	o.Filters = []selector.Filter{func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		if len(o.Backends) <= 0 {
+			return nodes
+		}
+		selected := make(map[string]struct{}, len(o.Backends))
+		for _, b := range o.Backends {
+			selected[b] = struct{}{}
+		}
+		newNodes := nodes[:0]
+		for _, node := range nodes {
+			if _, ok := selected[node.Address()]; !ok {
+				newNodes = append(newNodes, node)
+			}
+		}
+		if len(newNodes) == 0 {
+			return nodes
+		}
+		return newNodes
+	}}
+	return o
+}
+
 // NewRequestContext returns a new Context that carries value.
 func NewRequestContext(ctx context.Context, o *RequestOptions) context.Context {
 	return context.WithValue(ctx, contextKey{}, o)

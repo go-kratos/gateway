@@ -8,31 +8,12 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
 	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "client"))
-
-	_metricRetryTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_retry_total",
-		Help:      "Total request retries",
-	}, []string{"protocol", "method", "path"})
-	_metricRetrySuccess = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_retry_success",
-		Help:      "Total request retry successes",
-	}, []string{"protocol", "method", "path"})
 )
-
-func init() {
-	prometheus.MustRegister(_metricRetryTotal)
-	prometheus.MustRegister(_metricRetrySuccess)
-}
 
 // Client is a proxy client.
 type Client interface {

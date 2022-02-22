@@ -45,7 +45,7 @@ func equalTo() *configv1.Gateway {
 				},
 				Retry: &configv1.Retry{
 					Attempts:      3,
-					PerTryTimeout: &durationpb.Duration{Nanos: 500000000},
+					PerTryTimeout: &durationpb.Duration{Nanos: 100000000},
 					Conditions: []*configv1.RetryCondition{
 						{Condition: &configv1.RetryCondition_ByStatusCode{ByStatusCode: "502-504"}},
 						{Condition: &configv1.RetryCondition_ByHeader{ByHeader: &configv1.RetryConditionHeader{
