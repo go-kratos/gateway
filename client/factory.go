@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 
@@ -30,13 +29,7 @@ func NewFactory(r registry.Discovery) Factory {
 		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
 		}
-		client := newClient(endpoint, applier, picker)
-		// retryCond, err := parseRetryConditon(endpoint)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// client.conditions = retryCond
-		return client, nil
+		return newClient(endpoint, applier, picker), nil
 	}
 }
 
@@ -90,71 +83,6 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 		}
 	}
 	return nil
-}
-
-func calcTimeout(endpoint *config.Endpoint) time.Duration {
-	var timeout time.Duration
-	if endpoint.Timeout != nil {
-		timeout = endpoint.Timeout.AsDuration()
-	}
-	if timeout <= 0 {
-		timeout = time.Second
-	}
-	return timeout
-}
-
-func calcAttempts(endpoint *config.Endpoint) int {
-	if endpoint.Retry == nil {
-		return 1
-	}
-	if endpoint.Retry.Attempts == 0 {
-		return 1
-	}
-	return int(endpoint.Retry.Attempts)
-}
-
-func calcPerTryTimeout(endpoint *config.Endpoint) time.Duration {
-	var perTryTimeout time.Duration
-	if endpoint.Retry != nil && endpoint.Retry.PerTryTimeout != nil {
-		perTryTimeout = endpoint.Retry.PerTryTimeout.AsDuration()
-	} else if endpoint.Timeout != nil {
-		perTryTimeout = endpoint.Timeout.AsDuration()
-	}
-	if perTryTimeout <= 0 {
-		perTryTimeout = time.Second
-	}
-	return perTryTimeout
-}
-
-func parseRetryConditon(endpoint *config.Endpoint) ([]retryCondition, error) {
-	if endpoint.Retry == nil {
-		return []retryCondition{}, nil
-	}
-
-	conditions := make([]retryCondition, 0, len(endpoint.Retry.Conditions))
-	for _, rawCond := range endpoint.Retry.Conditions {
-		switch v := rawCond.Condition.(type) {
-		case *config.RetryCondition_ByHeader:
-			cond := &byHeader{
-				RetryCondition_ByHeader: v,
-			}
-			if err := cond.prepare(); err != nil {
-				return nil, err
-			}
-			conditions = append(conditions, cond)
-		case *config.RetryCondition_ByStatusCode:
-			cond := &byStatusCode{
-				RetryCondition_ByStatusCode: v,
-			}
-			if err := cond.prepare(); err != nil {
-				return nil, err
-			}
-			conditions = append(conditions, cond)
-		default:
-			return nil, fmt.Errorf("unknown condition type: %T", v)
-		}
-	}
-	return conditions, nil
 }
 
 func (na *nodeApplier) Cancel() {
