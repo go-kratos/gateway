@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -226,6 +227,13 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		for k, v := range resp.Header {
 			headers[k] = v
 		}
+		// gRPC HTTP/1.1 bridge
+		if e.Protocol == config.Protocol_GRPC && req.Proto == "HTTP/1.1" {
+			if headers.Get("Grpc-Status") == "" {
+				headers.Set("Grpc-Status", "0")
+				headers.Set("Grpc-Message", "")
+			}
+		}
 		w.WriteHeader(resp.StatusCode)
 		if body := resp.Body; body != nil {
 			sent, err := io.Copy(w, body)
@@ -238,6 +246,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		for k, v := range resp.Trailer {
 			headers[http.TrailerPrefix+k] = v
 		}
+		fmt.Println(resp.Trailer)
 		resp.Body.Close()
 		_metricRequestsTotol.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
 	})), nil
