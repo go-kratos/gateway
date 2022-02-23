@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -246,7 +245,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		for k, v := range resp.Trailer {
 			headers[http.TrailerPrefix+k] = v
 		}
-		fmt.Println(resp.Trailer)
 		resp.Body.Close()
 		_metricRequestsTotol.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
 	})), nil
