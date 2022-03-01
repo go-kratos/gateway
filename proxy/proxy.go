@@ -155,11 +155,11 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
-	handler, err := p.buildMiddleware(ms, caller.Do)
+	handler, err := p.buildMiddleware(e.Middlewares, caller.Do)
 	if err != nil {
 		return nil, err
 	}
-	handler, err = p.buildMiddleware(e.Middlewares, handler)
+	handler, err = p.buildMiddleware(ms, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		for k, v := range resp.Trailer {
 			headers[http.TrailerPrefix+k] = v
 		}
-		resp.Body.Close()
+		if resp.Body != nil {
+			resp.Body.Close()
+		}
 		_metricRequestsTotol.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
 	})), nil
 }
