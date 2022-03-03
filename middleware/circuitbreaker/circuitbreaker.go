@@ -1,7 +1,9 @@
 package circuitbreaker
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -84,11 +86,26 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (middleware.Handler, error) {
 	switch action := in.Action.(type) {
 	case *v1.CircuitBreaker_BackupService:
+		LOG.Infof("Making backup service as on break handler: %+v", action)
 		client, err := factory(action.BackupService.Endpoint)
 		if err != nil {
 			return nil, err
 		}
 		return client.Do, nil
+	case *v1.CircuitBreaker_ResponseData:
+		LOG.Infof("Making static response data as on break handler: %+v", action)
+		body := io.NopCloser(bytes.NewBuffer(action.ResponseData.Body))
+		resp := &http.Response{
+			StatusCode: int(action.ResponseData.StatusCode),
+			Header:     http.Header{},
+			Body:       body,
+		}
+		for _, h := range action.ResponseData.Header {
+			resp.Header[h.Key] = h.Value
+		}
+		return func(ctx context.Context, req *http.Request) (*http.Response, error) {
+			return resp, nil
+		}, nil
 	default:
 		LOG.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
 		return func(context.Context, *http.Request) (*http.Response, error) {
