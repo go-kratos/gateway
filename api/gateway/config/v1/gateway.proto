@@ -57,10 +57,10 @@ message Retry {
     // default attempts is 1
     uint32 attempts = 1;
     google.protobuf.Duration per_try_timeout = 2;
-    repeated RetryCondition conditions = 3;
+    repeated Condition conditions = 3;
 }
 
-message RetryCondition {
+message Condition {
     message header {
         string name = 1;
         string value = 2;
