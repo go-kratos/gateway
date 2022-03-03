@@ -13,6 +13,7 @@ import (
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy/condition"
+	"github.com/go-kratos/kratos/v2/log"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -22,7 +23,7 @@ func Init(in middleware.Factory) {
 }
 
 var (
-	_ circuitbreaker.CircuitBreaker = &ratioTrigger{}
+	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
 )
 
 type ratioTrigger struct {
@@ -75,6 +76,7 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	case *v1.CircuitBreaker_Ratio:
 		return newRatioTrigger(trigger)
 	default:
+		LOG.Warnf("Unrecoginzed circuit breaker trigger: %+v", trigger)
 		return nopTrigger{}
 	}
 }
@@ -88,7 +90,9 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (middlewa
 		}
 		return client.Do, nil
 	default:
+		LOG.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
 		return func(context.Context, *http.Request) (*http.Response, error) {
+			// TBD: on break response
 			return nil, circuitbreaker.ErrNotAllowed
 		}, nil
 	}
