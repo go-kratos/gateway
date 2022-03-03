@@ -16,6 +16,7 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy/condition"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -25,7 +26,13 @@ func Init(in middleware.Factory) {
 }
 
 var (
-	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
+	LOG                = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
+	_metricDeniedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_circuit_breaker_denied_total",
+		Help:      "The total number of denied requests",
+	}, []string{"method", "path"})
 )
 
 type ratioTrigger struct {
@@ -143,6 +150,7 @@ func New(factory client.Factory) middleware.Factory {
 					// NOTE: when client reject requets locally,
 					// continue add counter let the drop ratio higher.
 					breaker.MarkFailed()
+					_metricDeniedTotal.WithLabelValues(req.Method, req.URL.Path).Inc()
 					return onBreakHandler(ctx, req)
 				}
 				resp, err := handler(ctx, req)
