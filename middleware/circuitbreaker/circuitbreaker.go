@@ -21,8 +21,9 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func Init(in middleware.Factory) {
-	middleware.Register("circuitbreaker", in)
+func Init(clientFactory client.Factory) {
+	breakerFactory := New(clientFactory)
+	middleware.Register("circuitbreaker", breakerFactory)
 }
 
 var (
@@ -156,11 +157,11 @@ func New(factory client.Factory) middleware.Factory {
 				resp, err := handler(ctx, req)
 				if err != nil {
 					breaker.MarkFailed()
-					return nil, err
+					return onBreakHandler(ctx, req)
 				}
 				if !isSuccessResponse(assertCondtions, resp) {
 					breaker.MarkFailed()
-					return resp, nil
+					return onBreakHandler(ctx, req)
 				}
 				breaker.MarkSuccess()
 				return resp, nil

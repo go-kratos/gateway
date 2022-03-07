@@ -68,8 +68,7 @@ func main() {
 	if err != nil {
 		LOG.Fatalf("failed to new proxy: %v", err)
 	}
-	breakerFactory := circuitbreaker.New(clientFactory)
-	circuitbreaker.Init(breakerFactory)
+	circuitbreaker.Init(clientFactory)
 
 	ctx := context.Background()
 	var ctrlLoader *configLoader.CtrlConfigLoader
