@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	circuitbreakerv1 "github.com/go-kratos/gateway/api/gateway/middleware/circuitbreaker/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
 	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
@@ -30,6 +31,39 @@ func equalTo() *configv1.Gateway {
 				Backends: []*configv1.Backend{
 					{
 						Target: "127.0.0.1:8000",
+					},
+				},
+				Middlewares: []*configv1.Middleware{
+					{
+						Name: "circuitbreaker",
+						Options: asAny(&circuitbreakerv1.CircuitBreaker{
+							Trigger: &circuitbreakerv1.CircuitBreaker_SuccessRatio{
+								SuccessRatio: &circuitbreakerv1.SuccessRatio{
+									Success: 0.6,
+									Request: 1,
+									Bucket:  10,
+									Window:  &durationpb.Duration{Seconds: 3},
+								},
+							},
+							Action: &circuitbreakerv1.CircuitBreaker_BackupService{
+								BackupService: &circuitbreakerv1.BackupService{
+									Endpoint: &configv1.Endpoint{
+										Backends: []*configv1.Backend{
+											{
+												Target: "127.0.0.1:8001",
+											},
+										},
+									},
+								},
+							},
+							AssertCondtions: []*configv1.Condition{
+								{
+									Condition: &configv1.Condition_ByStatusCode{
+										ByStatusCode: "200",
+									},
+								},
+							},
+						}),
 					},
 				},
 			},
