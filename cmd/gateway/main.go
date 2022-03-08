@@ -17,6 +17,7 @@ import (
 	_ "net/http/pprof"
 
 	_ "github.com/go-kratos/gateway/discovery/consul"
+	"github.com/go-kratos/gateway/middleware/circuitbreaker"
 	_ "github.com/go-kratos/gateway/middleware/cors"
 	_ "github.com/go-kratos/gateway/middleware/logging"
 	_ "github.com/go-kratos/gateway/middleware/otel"
@@ -67,6 +68,7 @@ func main() {
 	if err != nil {
 		LOG.Fatalf("failed to new proxy: %v", err)
 	}
+	circuitbreaker.Init(clientFactory)
 
 	ctx := context.Background()
 	var ctrlLoader *configLoader.CtrlConfigLoader
