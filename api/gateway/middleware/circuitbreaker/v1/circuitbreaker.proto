@@ -2,7 +2,7 @@ syntax = "proto3";
 package gateway.middleware.circuitbreaker.v1;
 option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/circuitbreaker/v1";
 import "google/protobuf/duration.proto";
-import "api/gateway/config/v1/gateway.proto";
+import "gateway/config/v1/gateway.proto";
 
 // CircuitBreaker middleware config.
 message CircuitBreaker {
