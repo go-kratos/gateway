@@ -157,7 +157,7 @@ type InspectFileLoader struct {
 
 func (f *fileLoader) DebugHandler() http.Handler {
 	debugMux := gorillamux.NewRouter()
-	debugMux.Methods("GET").Path("/_/debug/config/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.Methods("GET").Path("/debug/config/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out := &InspectFileLoader{
 			ConfPath:         f.confPath,
 			ConfSHA256:       f.confSHA256,
@@ -166,7 +166,7 @@ func (f *fileLoader) DebugHandler() http.Handler {
 		rw.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(rw).Encode(out)
 	})
-	debugMux.Methods("GET").Path("/_/debug/config/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.Methods("GET").Path("/debug/config/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -176,7 +176,7 @@ func (f *fileLoader) DebugHandler() http.Handler {
 		rw.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(rw).Encode(out)
 	})
-	debugMux.Methods("GET").Path("/_/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.Methods("GET").Path("/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
