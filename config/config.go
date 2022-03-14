@@ -174,7 +174,8 @@ func (f *fileLoader) DebugHandler() http.Handler {
 			return
 		}
 		rw.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(rw).Encode(out)
+		b, _ := protojson.Marshal(out)
+		rw.Write(b)
 	})
 	debugMux.Methods("GET").Path("/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
