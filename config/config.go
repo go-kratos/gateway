@@ -150,14 +150,14 @@ func (f *fileLoader) Close() {
 }
 
 type InspectFileLoader struct {
-	ConfPath         string
-	ConfSHA256       string
-	OnChangeHandlers int64
+	ConfPath         string `json:"confPath"`
+	ConfSHA256       string `json:"confSha256"`
+	OnChangeHandlers int64  `json:"onChangeHandlers"`
 }
 
 func (f *fileLoader) DebugHandler() http.Handler {
 	debugMux := gorillamux.NewRouter()
-	debugMux.Methods("GET").Path("/_/debug/config/file-loader/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.Methods("GET").Path("/debug/config/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out := &InspectFileLoader{
 			ConfPath:         f.confPath,
 			ConfSHA256:       f.confSHA256,
@@ -166,7 +166,7 @@ func (f *fileLoader) DebugHandler() http.Handler {
 		rw.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(rw).Encode(out)
 	})
-	debugMux.Methods("POST").Path("/_/debug/config/file-loader/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.Methods("GET").Path("/debug/config/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -174,7 +174,20 @@ func (f *fileLoader) DebugHandler() http.Handler {
 			return
 		}
 		rw.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(rw).Encode(out)
+		b, _ := protojson.Marshal(out)
+		rw.Write(b)
+	})
+	debugMux.Methods("GET").Path("/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		out, err := f.Load(context.Background())
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(map[string]interface{}{
+			"version": out.Version,
+		})
 	})
 	return debugMux
 }

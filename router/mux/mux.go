@@ -21,7 +21,6 @@ func NewRouter() router.Router {
 		Router: mux.NewRouter().StrictSlash(true),
 	}
 	r.Router.Handle("/metrics", promhttp.Handler())
-	r.Router.HandleFunc("/_/ping", func(rw http.ResponseWriter, r *http.Request) {})
 	return r
 }
 

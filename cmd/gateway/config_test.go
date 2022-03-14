@@ -18,7 +18,8 @@ import (
 
 func equalTo() *configv1.Gateway {
 	return &configv1.Gateway{
-		Name: "helloworld",
+		Name:    "helloworld",
+		Version: "v1",
 		Hosts: []string{
 			"localhost",
 			"127.0.0.1",
