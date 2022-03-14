@@ -4,25 +4,48 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"os"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var (
 	// LOG .
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "server"))
 
-	_defaultAddress           = ":8080"
-	_defaultReadHeaderTimeout = time.Second * 10
-	_defaultReadTimeout       = time.Second * 15
-	_defaultWriteTimeout      = time.Second * 15
-	_defaultIdleTimeout       = time.Second * 300
+	readHeaderTimeout = time.Second * 10
+	readTimeout       = time.Second * 15
+	writeTimeout      = time.Second * 15
+	idleTimeout       = time.Second * 120
 )
+
+func init() {
+	var err error
+	if v := os.Getenv("PROXY_READ_HEADER_TIMEOUT"); v != "" {
+		if readHeaderTimeout, err = time.ParseDuration(v); err != nil {
+			panic(err)
+		}
+	}
+	if v := os.Getenv("PROXY_READ_TIMEOUT"); v != "" {
+		if readTimeout, err = time.ParseDuration(v); err != nil {
+			panic(err)
+		}
+	}
+	if v := os.Getenv("PROXY_WRITE_TIMEOUT"); v != "" {
+		if writeTimeout, err = time.ParseDuration(v); err != nil {
+			panic(err)
+		}
+	}
+	if v := os.Getenv("PROXY_IDLE_TIMEOUT"); v != "" {
+		if idleTimeout, err = time.ParseDuration(v); err != nil {
+			panic(err)
+		}
+	}
+}
 
 // ProxyServer is a proxy server.
 type ProxyServer struct {
@@ -30,45 +53,30 @@ type ProxyServer struct {
 }
 
 // NewProxy new a gateway server.
-func NewProxy(handler http.Handler, c *config.Gateway) *ProxyServer {
-	if c.Address == "" {
-		c.Address = _defaultAddress
-	}
-	if c.ReadHeaderTimeout == nil {
-		c.ReadHeaderTimeout = durationpb.New(_defaultReadHeaderTimeout)
-	}
-	if c.ReadTimeout == nil {
-		c.ReadTimeout = durationpb.New(_defaultReadTimeout)
-	}
-	if c.WriteTimeout == nil {
-		c.WriteTimeout = durationpb.New(_defaultWriteTimeout)
-	}
-	if c.IdleTimeout == nil {
-		c.IdleTimeout = durationpb.New(_defaultIdleTimeout)
-	}
+func NewProxy(handler http.Handler, addr string, c *config.Gateway) *ProxyServer {
 	return &ProxyServer{
 		Server: &http.Server{
-			Addr: c.Address,
+			Addr: addr,
 			Handler: h2c.NewHandler(handler, &http2.Server{
-				IdleTimeout:          c.IdleTimeout.AsDuration(),
+				IdleTimeout:          idleTimeout,
 				MaxConcurrentStreams: math.MaxUint32,
 			}),
-			ReadTimeout:       c.ReadTimeout.AsDuration(),
-			ReadHeaderTimeout: c.ReadHeaderTimeout.AsDuration(),
-			WriteTimeout:      c.WriteTimeout.AsDuration(),
-			IdleTimeout:       c.IdleTimeout.AsDuration(),
+			ReadTimeout:       readTimeout,
+			ReadHeaderTimeout: readHeaderTimeout,
+			WriteTimeout:      writeTimeout,
+			IdleTimeout:       idleTimeout,
 		},
 	}
 }
 
 // Start start the server.
 func (s *ProxyServer) Start(ctx context.Context) error {
-	LOG.Infof("proxy server listening on %s", s.Addr)
+	LOG.Infof("proxy listening on %s", s.Addr)
 	return s.ListenAndServe()
 }
 
 // Stop stop the server.
 func (s *ProxyServer) Stop(ctx context.Context) error {
-	LOG.Info("proxy server stopping")
+	LOG.Info("proxy stopping")
 	return s.Shutdown(ctx)
 }
