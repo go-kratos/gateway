@@ -1,5 +1,6 @@
 # This is a gateway config.
 name: helloworld
+version: v1
 hosts:
   - localhost
   - 127.0.0.1

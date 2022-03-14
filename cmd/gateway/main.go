@@ -31,7 +31,6 @@ import (
 var (
 	ctrlService  string
 	discoveryDSN string
-	adminAddr    string
 	proxyConfig  string
 	withDebug    bool
 )
@@ -44,7 +43,6 @@ var (
 func init() {
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
-	flag.StringVar(&adminAddr, "admin.addr", ":7070", "admin server address, eg: 127.0.0.1:7070")
 	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://127.0.0.1:8000")
 	flag.StringVar(&discoveryDSN, "discovery.dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 }
@@ -113,9 +111,9 @@ func main() {
 	if withDebug {
 		debugService := debug.New()
 		debugService.Register("proxy", p)
-		debugService.Register("config/file-loader", confLoader)
+		debugService.Register("config", confLoader)
 		if ctrlLoader != nil {
-			debugService.Register("config/ctrl-loader", ctrlLoader)
+			debugService.Register("ctrl", ctrlLoader)
 		}
 		serverHandler = debug.MashupWithDebugHandler(debugService, p)
 	}
@@ -123,7 +121,6 @@ func main() {
 		kratos.Name(bc.Name),
 		kratos.Context(ctx),
 		kratos.Server(
-			server.NewAdmin(adminAddr),
 			server.NewProxy(serverHandler, bc),
 		),
 	)
