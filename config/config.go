@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -32,7 +33,7 @@ type ConfigLoader interface {
 
 type fileLoader struct {
 	confPath         string
-	confSHA256       string
+	confModTime      int64
 	watchCancel      context.CancelFunc
 	lock             sync.RWMutex
 	onChangeHandlers []OnChange
@@ -51,12 +52,11 @@ func NewFileLoader(confPath string) (ConfigLoader, error) {
 }
 
 func (f *fileLoader) initialize() error {
-	sha256hex, err := f.configSHA256()
+	modTime, err := f.stat()
 	if err != nil {
 		return err
 	}
-	f.confSHA256 = sha256hex
-	LOG.Infof("the initial config file sha256: %s", sha256hex)
+	f.confModTime = modTime
 
 	watchCtx, cancel := context.WithCancel(context.Background())
 	f.watchCancel = cancel
@@ -75,6 +75,17 @@ func (f *fileLoader) configSHA256() (string, error) {
 		return "", err
 	}
 	return sha256sum(configData), nil
+}
+
+func (f *fileLoader) stat() (int64, error) {
+	fileInfo, err := os.Stat(f.confPath)
+	if err != nil {
+		return 0, err
+	}
+	if fileInfo.IsDir() {
+		return 0, errors.New("IT’S NOT A FILE")
+	}
+	return fileInfo.ModTime().Unix(), nil
 }
 
 func (f *fileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
@@ -127,18 +138,18 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 		case <-time.After(time.Second * 5):
 		}
 		func() {
-			sha256hex, err := f.configSHA256()
+			modTime, err := f.stat()
 			if err != nil {
 				LOG.Errorf("watch config file error: %+v", err)
 				return
 			}
-			if sha256hex != f.confSHA256 {
-				LOG.Infof("config file changed, reload config, last sha256: %s, new sha256: %s", f.confSHA256, sha256hex)
+			if modTime != f.confModTime {
+				LOG.Infof("config file changed, reload config, last modify time: %s, new modify time: %s", f.confModTime, modTime)
 				if err := f.executeLoader(); err != nil {
-					LOG.Errorf("execute config loader error with new sha256: %s: %+v, config digest will not be changed until all loaders are succeeded", sha256hex, err)
+					LOG.Errorf("execute config loader error with new modify time: %s: %+v, config digest will not be changed until all loaders are succeeded", modTime, err)
 					return
 				}
-				f.confSHA256 = sha256hex
+				f.confModTime = modTime
 				return
 			}
 		}()
@@ -151,7 +162,7 @@ func (f *fileLoader) Close() {
 
 type InspectFileLoader struct {
 	ConfPath         string `json:"confPath"`
-	ConfSHA256       string `json:"confSha256"`
+	ConfModTime      int64  `json:"confModTime"`
 	OnChangeHandlers int64  `json:"onChangeHandlers"`
 }
 
@@ -160,7 +171,7 @@ func (f *fileLoader) DebugHandler() http.Handler {
 	debugMux.Methods("GET").Path("/debug/config/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out := &InspectFileLoader{
 			ConfPath:         f.confPath,
-			ConfSHA256:       f.confSHA256,
+			ConfModTime:      f.confModTime,
 			OnChangeHandlers: int64(len(f.onChangeHandlers)),
 		}
 		rw.Header().Set("Content-Type", "application/json")
