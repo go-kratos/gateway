@@ -144,9 +144,9 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 				return
 			}
 			if modTime != f.confModTime {
-				LOG.Infof("config file changed, reload config, last modify time: %s, new modify time: %s", f.confModTime, modTime)
+				LOG.Infof("config file changed, reload config, last modify time: %d, new modify time: %s", f.confModTime, modTime)
 				if err := f.executeLoader(); err != nil {
-					LOG.Errorf("execute config loader error with new modify time: %s: %+v, config digest will not be changed until all loaders are succeeded", modTime, err)
+					LOG.Errorf("execute config loader error with new modify time: %d: %+v, config digest will not be changed until all loaders are succeeded", modTime, err)
 					return
 				}
 				f.confModTime = modTime
