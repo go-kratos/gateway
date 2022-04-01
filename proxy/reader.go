@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 )
 
@@ -20,6 +21,19 @@ func (r *BodyReader) ReadFrom(src io.Reader) (int64, error) {
 	}
 	r.rd.Reset(b)
 	return int64(len(b)), nil
+}
+
+// EncodeGRPC reads data from r until EOF.
+func (r *BodyReader) EncodeGRPC(src io.Reader) (int64, error) {
+	b, err := io.ReadAll(src)
+	if err != nil {
+		return 0, err
+	}
+	bb := make([]byte, len(b)+5)
+	binary.BigEndian.PutUint32(bb[1:], uint32(len(b)))
+	copy(bb[5:], b)
+	r.rd.Reset(bb)
+	return int64(len(bb)), nil
 }
 
 // Read implements the io.Reader interface.

@@ -22,6 +22,7 @@ middlewares:
   - name: logging
     options:
       '@type': type.googleapis.com/gateway.middleware.logging.v1.Logging
+  - name: grpc_transcoder
 endpoints:
   - path: /helloworld/*
     timeout: 1s

@@ -110,6 +110,9 @@ func equalTo() *configv1.Gateway {
 				Name:    "logging",
 				Options: asAny(&loggingv1.Logging{}),
 			},
+			{
+				Name: "grpc_transcoder",
+			},
 		},
 	}
 }
