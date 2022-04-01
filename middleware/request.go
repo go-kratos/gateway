@@ -46,6 +46,15 @@ func NewRequestContext(ctx context.Context, o *RequestOptions) context.Context {
 	return context.WithValue(ctx, contextKey{}, o)
 }
 
+// FromRequestContext returns request options from context.
+func FromRequestContext(ctx context.Context) (*RequestOptions, bool) {
+	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
+	if ok {
+		return o, true
+	}
+	return nil, false
+}
+
 // EndpointFromContext returns endpoint config from context.
 func EndpointFromContext(ctx context.Context) (*config.Endpoint, bool) {
 	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
