@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
@@ -10,13 +11,14 @@ type contextKey struct{}
 
 // RequestOptions is a request option.
 type RequestOptions struct {
+	Endpoint *config.Endpoint
 	Filters  []selector.Filter
 	Backends []string
 }
 
 // NewRequestOptions new a request options with retry filter.
-func NewRequestOptions() *RequestOptions {
-	o := &RequestOptions{}
+func NewRequestOptions(c *config.Endpoint) *RequestOptions {
+	o := &RequestOptions{Endpoint: c}
 	o.Filters = []selector.Filter{func(ctx context.Context, nodes []selector.Node) []selector.Node {
 		if len(o.Backends) <= 0 {
 			return nodes

@@ -53,6 +53,8 @@ message Retry {
     uint32 attempts = 1;
     google.protobuf.Duration per_try_timeout = 2;
     repeated Condition conditions = 3;
+    // primary,secondary
+    repeated string priorities = 4;
 }
 
 message Condition {
