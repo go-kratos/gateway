@@ -172,7 +172,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		startTime := time.Now()
 		setXFFHeader(req)
 
-		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions())
+		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
 		reader := p.readers.Get().(*BodyReader)
