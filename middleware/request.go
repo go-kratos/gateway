@@ -20,7 +20,7 @@ type RequestOptions struct {
 func NewRequestOptions(c *config.Endpoint) *RequestOptions {
 	o := &RequestOptions{Endpoint: c}
 	o.Filters = []selector.Filter{func(ctx context.Context, nodes []selector.Node) []selector.Node {
-		if len(o.Backends) <= 0 {
+		if len(o.Backends) == 0 {
 			return nodes
 		}
 		selected := make(map[string]struct{}, len(o.Backends))
