@@ -118,7 +118,10 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (middlewa
 		LOG.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
 		return func(context.Context, *http.Request) (*http.Response, error) {
 			// TBD: on break response
-			return nil, circuitbreaker.ErrNotAllowed
+			return &http.Response{
+				StatusCode: http.StatusServiceUnavailable,
+				Header:     http.Header{},
+			}, nil
 		}, nil
 	}
 }
