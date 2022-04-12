@@ -74,7 +74,7 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 			opts = append(opts, sre.WithBucket(int(trigger.SuccessRatio.Bucket)))
 		}
 		if trigger.SuccessRatio.Request != 0 {
-			opts = append(opts, sre.WithRequest(trigger.SuccessRatio.Request))
+			opts = append(opts, sre.WithRequest(int64(trigger.SuccessRatio.Request)))
 		}
 		if trigger.SuccessRatio.Success != 0 {
 			opts = append(opts, sre.WithSuccess(trigger.SuccessRatio.Success))
