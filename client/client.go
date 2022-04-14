@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
@@ -22,15 +23,12 @@ type Client interface {
 }
 
 type client struct {
-	// readers  *sync.Pool
-	protocol string
 	applier  *nodeApplier
 	selector selector.Selector
 }
 
 func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *client {
 	return &client{
-		protocol: c.Protocol.String(),
 		applier:  applier,
 		selector: selector,
 	}
@@ -44,7 +42,19 @@ func (c *client) Close() error {
 func (c *client) Do(ctx context.Context, req *http.Request) (resp *http.Response, err error) {
 	req.URL.Scheme = "http"
 	req.RequestURI = ""
+	isGRPC := strings.HasPrefix(req.Header.Get("Content-Type"), "application/grpc")
 	filter, _ := middleware.SelectorFiltersFromContext(ctx)
+	filter = append(filter, func(ctx context.Context, nodes []selector.Node) []selector.Node {
+		filtered := nodes[:0]
+		for _, n := range nodes {
+			if isGRPC && n.Scheme() == _schemeGRPC {
+				filtered = append(filtered, n)
+			} else {
+				filtered = append(filtered, n)
+			}
+		}
+		return filtered
+	})
 	n, done, err := c.selector.Select(ctx, selector.WithFilter(filter...))
 	if err != nil {
 		return nil, err

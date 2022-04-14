@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync/atomic"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -11,6 +10,11 @@ import (
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/p2c"
+)
+
+const (
+	_schemeHTTP = "http"
+	_schemeGRPC = "grpc"
 )
 
 // Factory is returns service client.
@@ -31,6 +35,16 @@ func NewFactory(r registry.Discovery) Factory {
 		}
 		return newClient(endpoint, applier, picker), nil
 	}
+}
+
+func parseScheme(scheme string) config.Protocol {
+	switch scheme {
+	case _schemeHTTP:
+		return config.Protocol_HTTP
+	case _schemeGRPC:
+		return config.Protocol_GRPC
+	}
+	return config.Protocol_UNSPECIFIED
 }
 
 type nodeApplier struct {
@@ -62,15 +76,16 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					return nil
 				}
 				var nodes []selector.Node
-				for _, ser := range services {
-					scheme := strings.ToLower(na.endpoint.Protocol.String())
-					addr, err := parseEndpoint(ser.Endpoints, scheme, false)
-					if err != nil || addr == "" {
+				for _, s := range services {
+					us, err := parseEndpoint(s.Endpoints, false)
+					if err != nil || len(us) == 0 {
 						LOG.Errorf("failed to parse endpoint: %v", err)
 						return nil
 					}
-					node := newNode(addr, na.endpoint.Protocol, weighted, ser.Metadata)
-					nodes = append(nodes, node)
+					for _, u := range us {
+						node := newNode(u.Host, parseScheme(u.Scheme), weighted, s.Metadata)
+						nodes = append(nodes, node)
+					}
 				}
 				dst.Apply(nodes)
 				return nil

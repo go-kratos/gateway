@@ -2,6 +2,8 @@ module github.com/go-kratos/gateway
 
 go 1.15
 
+replace github.com/go-kratos/kratos/v2 => github.com/go-kratos/kratos/v2 v2.0.0-20220414054820-d0b704b8f38d
+
 require (
 	github.com/go-kratos/aegis v0.1.1
 	github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20220318065833-e66a2905ab70

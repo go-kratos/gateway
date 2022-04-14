@@ -61,20 +61,22 @@ func defaultH2Client() *http.Client {
 
 func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string) *node {
 	node := &node{
-		protocol: protocol,
 		address:  addr,
 		weight:   weight,
 		metadata: md,
 	}
 	if protocol == config.Protocol_GRPC {
+		node.scheme = _schemeGRPC
 		node.client = _globalH2Client
 	} else {
+		node.scheme = _schemeHTTP
 		node.client = _globalClient
 	}
 	return node
 }
 
 type node struct {
+	scheme   string
 	address  string
 	name     string
 	weight   *int64
@@ -83,6 +85,10 @@ type node struct {
 
 	client   *http.Client
 	protocol config.Protocol
+}
+
+func (n *node) Scheme() string {
+	return n.scheme
 }
 
 func (n *node) Address() string {

@@ -29,19 +29,17 @@ func parseTarget(endpoint string) (*Target, error) {
 }
 
 // parseEndpoint parses an Endpoint URL.
-func parseEndpoint(endpoints []string, scheme string, isSecure bool) (string, error) {
+func parseEndpoint(endpoints []string, isSecure bool) (urls []*url.URL, err error) {
 	for _, e := range endpoints {
 		u, err := url.Parse(e)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if u.Scheme == scheme {
-			if IsSecure(u) == isSecure {
-				return u.Host, nil
-			}
+		if IsSecure(u) == isSecure {
+			urls = append(urls, u)
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
 // IsSecure parses isSecure for Endpoint URL.
