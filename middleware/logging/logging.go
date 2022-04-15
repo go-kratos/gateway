@@ -32,8 +32,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}
 	return func(handler middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			reply, err = handler(ctx, req)
 			startTime := time.Now()
+			reply, err = handler(ctx, req)
 			level := log.LevelInfo
 			code := http.StatusBadGateway
 			errMsg := ""
