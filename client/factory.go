@@ -54,6 +54,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
+			subset := makeSubsetFn(int(na.endpoint.Subset))
 			existed := AddWatch(ctx, na.registry, target.Endpoint, func(services []*registry.ServiceInstance) error {
 				if atomic.LoadInt64(&na.canceled) == 1 {
 					return ErrCancelWatch
@@ -61,6 +62,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				if len(services) == 0 {
 					return nil
 				}
+				services = subset(services)
 				var nodes []selector.Node
 				for _, ser := range services {
 					scheme := strings.ToLower(na.endpoint.Protocol.String())
