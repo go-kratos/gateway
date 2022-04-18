@@ -25,6 +25,7 @@ message Endpoint {
     repeated Backend backends = 7;
     Retry retry = 8;
     int64 subset = 9;
+    string ha = 10;
 }
 
 message Middleware {
