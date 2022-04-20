@@ -13,11 +13,29 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
+type options struct {
+	subsetFn subsetFn
+}
+
+type Option func(*options)
+
+func WithSubsetFn(in subsetFn) Option {
+	return func(o *options) {
+		o.subsetFn = in
+	}
+}
+
 // Factory is returns service client.
 type Factory func(*config.Endpoint) (Client, error)
 
 // NewFactory new a client factory.
-func NewFactory(r registry.Discovery) Factory {
+func NewFactory(r registry.Discovery, opts ...Option) Factory {
+	o := &options{
+		subsetFn: makeSubsetFn(20),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
 	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
 		ctx, cancel := context.WithCancel(context.Background())
@@ -25,6 +43,7 @@ func NewFactory(r registry.Discovery) Factory {
 			cancel:   cancel,
 			endpoint: endpoint,
 			registry: r,
+			subsetFn: o.subsetFn,
 		}
 		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
@@ -38,6 +57,7 @@ type nodeApplier struct {
 	cancel   context.CancelFunc
 	endpoint *config.Endpoint
 	registry registry.Discovery
+	subsetFn subsetFn
 }
 
 func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
@@ -54,7 +74,6 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 			nodes = append(nodes, node)
 			dst.Apply(nodes)
 		case "discovery":
-			subset := makeSubsetFn(int(na.endpoint.Subset))
 			existed := AddWatch(ctx, na.registry, target.Endpoint, func(services []*registry.ServiceInstance) error {
 				if atomic.LoadInt64(&na.canceled) == 1 {
 					return ErrCancelWatch
@@ -62,7 +81,9 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				if len(services) == 0 {
 					return nil
 				}
-				services = subset(services)
+				if na.subsetFn != nil {
+					services = na.subsetFn(services)
+				}
 				var nodes []selector.Node
 				for _, ser := range services {
 					scheme := strings.ToLower(na.endpoint.Protocol.String())
