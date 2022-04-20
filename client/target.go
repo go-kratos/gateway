@@ -19,7 +19,7 @@ type Target struct {
 	Endpoint  string
 }
 
-type subsetFn func(instances []*registry.ServiceInstance) []*registry.ServiceInstance
+type subsetFn func(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance
 
 func parseTarget(endpoint string) (*Target, error) {
 	if !strings.Contains(endpoint, "://") {
@@ -61,32 +61,30 @@ func IsSecure(u *url.URL) bool {
 	return ok
 }
 
-func makeSubsetFn(size int) subsetFn {
-	return func(instances []*registry.ServiceInstance) []*registry.ServiceInstance {
-		backends := instances
-		if size <= 0 {
-			return backends
-		}
-		if len(backends) <= int(size) {
-			return backends
-		}
-		clientID := env.Hostname
-		sort.Slice(backends, func(i, j int) bool {
-			return backends[i].ID < backends[j].ID
-		})
-		count := len(backends) / size
-		// hash得到ID
-		id := farm.Fingerprint64([]byte(clientID))
-		// 获得rand轮数
-		round := int64(id / uint64(count))
-
-		s := rand.NewSource(round)
-		ra := rand.New(s)
-		//  根据source洗牌
-		ra.Shuffle(len(backends), func(i, j int) {
-			backends[i], backends[j] = backends[j], backends[i]
-		})
-		start := (id % uint64(count)) * uint64(size)
-		return backends[int(start) : int(start)+int(size)]
+func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance {
+	backends := instances
+	if size <= 0 {
+		return backends
 	}
+	if len(backends) <= int(size) {
+		return backends
+	}
+	clientID := env.Hostname
+	sort.Slice(backends, func(i, j int) bool {
+		return backends[i].ID < backends[j].ID
+	})
+	count := len(backends) / size
+	// hash得到ID
+	id := farm.Fingerprint64([]byte(clientID))
+	// 获得rand轮数
+	round := int64(id / uint64(count))
+
+	s := rand.NewSource(round)
+	ra := rand.New(s)
+	//  根据source洗牌
+	ra.Shuffle(len(backends), func(i, j int) {
+		backends[i], backends[j] = backends[j], backends[i]
+	})
+	start := (id % uint64(count)) * uint64(size)
+	return backends[int(start) : int(start)+int(size)]
 }

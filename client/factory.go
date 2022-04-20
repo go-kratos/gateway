@@ -31,7 +31,7 @@ type Factory func(*config.Endpoint) (Client, error)
 // NewFactory new a client factory.
 func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	o := &options{
-		subsetFn: makeSubsetFn(20),
+		subsetFn: defaultSubset,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -82,7 +82,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					return nil
 				}
 				if na.subsetFn != nil {
-					services = na.subsetFn(services)
+					services = na.subsetFn(services, int(na.endpoint.Subset))
 				}
 				var nodes []selector.Node
 				for _, ser := range services {
