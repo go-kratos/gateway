@@ -13,6 +13,8 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
+const defaultSubsetSize = 20
+
 type options struct {
 	subsetFn subsetFn
 }
@@ -82,7 +84,11 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					return nil
 				}
 				if na.subsetFn != nil {
-					services = na.subsetFn(services, int(na.endpoint.Subset))
+					subsetSize := int(na.endpoint.Subset)
+					if subsetSize <= 0 {
+						subsetSize = defaultSubsetSize
+					}
+					services = na.subsetFn(services, subsetSize)
 				}
 				var nodes []selector.Node
 				for _, ser := range services {
