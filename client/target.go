@@ -3,12 +3,13 @@ package client
 import (
 	"math/rand"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dgryski/go-farm"
-	"github.com/go-kratos/kratos/pkg/conf/env"
 	"github.com/go-kratos/kratos/v2/registry"
 )
 
@@ -61,6 +62,18 @@ func IsSecure(u *url.URL) bool {
 	return ok
 }
 
+func genClientID() string {
+	hostname := os.Getenv("HOSTNAME")
+	if hostname != "" {
+		return hostname
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = strconv.Itoa(int(time.Now().UnixNano()))
+	}
+	return hostname
+}
+
 func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance {
 	backends := instances
 	if size <= 0 {
@@ -69,7 +82,7 @@ func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.
 	if len(backends) <= int(size) {
 		return backends
 	}
-	clientID := env.Hostname
+	clientID := genClientID()
 	sort.Slice(backends, func(i, j int) bool {
 		return backends[i].ID < backends[j].ID
 	})
