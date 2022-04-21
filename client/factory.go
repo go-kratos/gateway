@@ -99,7 +99,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					node := newNode(addr, na.endpoint.Protocol, weighted, ser.Metadata)
 					nodes = append(nodes, node)
 				}
-				LOG.Warnf("withsubset endpoint: %s services %d", target.Endpoint, len(services), services[0].ID)
+				LOG.Warnf("withsubset endpoint: %s services %d: %s", target.Endpoint, len(services), services[0].ID)
 				dst.Apply(nodes)
 				return nil
 			})
