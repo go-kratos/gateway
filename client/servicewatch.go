@@ -106,6 +106,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 			LOG.Errorf("Failed to do initial services discovery on endpoint: %s, err: %+v, starting with empty service instance", endpoint, err)
 		}
 		if globalSubsetImpl.subsetFn != nil {
+			LOG.Infof("Select subset on endpoint: %s with size: %d, all node size: %d", endpoint, globalSubsetImpl.size, len(services))
 			services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
 		}
 		LOG.Infof("Initialize services discovery on endpoint: %s, services: %s", endpoint, jsonify(services))
@@ -130,9 +131,6 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 				if len(services) == 0 {
 					continue
 				}
-				if globalSubsetImpl.subsetFn != nil {
-					services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
-				}
 				s.doCallback(endpoint, services)
 			}
 		}()
@@ -154,6 +152,10 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 func (s *serviceWatcher) doCallback(endpoint string, services []*registry.ServiceInstance) {
 	cleanup := []string{}
 
+	if globalSubsetImpl.subsetFn != nil {
+		LOG.Infof("Select subset on endpoint: %s with size: %d, all node size: %d", endpoint, globalSubsetImpl.size, len(services))
+		services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
+	}
 	func() {
 		s.lock.RLock()
 		defer s.lock.RUnlock()
