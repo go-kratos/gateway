@@ -105,6 +105,9 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 		if err != nil {
 			LOG.Errorf("Failed to do initial services discovery on endpoint: %s, err: %+v, starting with empty service instance", endpoint, err)
 		}
+		if globalSubsetImpl.subsetFn != nil {
+			services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
+		}
 		LOG.Infof("Initialize services discovery on endpoint: %s, services: %s", endpoint, jsonify(services))
 		callback(services)
 
