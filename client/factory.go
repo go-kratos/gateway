@@ -13,10 +13,9 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
-const defaultSubsetSize = 20
-
 type options struct {
-	subsetFn subsetFn
+	subsetSize int
+	subsetFn   subsetFn
 }
 
 type Option func(*options)
@@ -27,17 +26,25 @@ func WithSubsetFn(in subsetFn) Option {
 	}
 }
 
+func WithSubsetSize(in int) Option {
+	return func(o *options) {
+		o.subsetSize = in
+	}
+}
+
 // Factory is returns service client.
 type Factory func(*config.Endpoint) (Client, error)
 
 // NewFactory new a client factory.
 func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	o := &options{
-		subsetFn: defaultSubset,
+		subsetSize: defaultSubsetSize,
+		subsetFn:   defaultSubset,
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
+	setGlobalSubsetImpl(o.subsetFn, o.subsetSize)
 	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
 		ctx, cancel := context.WithCancel(context.Background())
@@ -45,7 +52,6 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 			cancel:   cancel,
 			endpoint: endpoint,
 			registry: r,
-			subsetFn: o.subsetFn,
 		}
 		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
@@ -59,7 +65,6 @@ type nodeApplier struct {
 	cancel   context.CancelFunc
 	endpoint *config.Endpoint
 	registry registry.Discovery
-	subsetFn subsetFn
 }
 
 func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
@@ -82,13 +87,6 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				}
 				if len(services) == 0 {
 					return nil
-				}
-				if na.subsetFn != nil {
-					subsetSize := int(na.endpoint.Subset)
-					if subsetSize <= 0 {
-						subsetSize = defaultSubsetSize
-					}
-					services = na.subsetFn(services, subsetSize)
 				}
 				var nodes []selector.Node
 				for _, ser := range services {

@@ -4,16 +4,72 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/rand"
+	"os"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/dgryski/go-farm"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/google/uuid"
 )
 
 var ErrCancelWatch = errors.New("cancel watch")
-
 var globalServiceWatcher = newServiceWatcher()
+
+const defaultSubsetSize = 20
+
+type subsetFn func(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance
+
+var globalSubsetImpl = &struct {
+	subsetFn subsetFn
+	size     int
+}{
+	subsetFn: defaultSubset,
+	size:     defaultSubsetSize,
+}
+
+func genClientID() string {
+	hostname := os.Getenv("HOSTNAME")
+	if hostname != "" {
+		return hostname
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = strconv.Itoa(int(time.Now().UnixNano()))
+	}
+	return hostname
+}
+
+func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance {
+	backends := instances
+	if size <= 0 {
+		return backends
+	}
+	if len(backends) <= int(size) {
+		return backends
+	}
+	clientID := genClientID()
+	sort.Slice(backends, func(i, j int) bool {
+		return backends[i].ID < backends[j].ID
+	})
+	count := len(backends) / size
+	// hash得到ID
+	id := farm.Fingerprint64([]byte(clientID))
+	// 获得rand轮数
+	round := int64(id / uint64(count))
+
+	s := rand.NewSource(round)
+	ra := rand.New(s)
+	//  根据source洗牌
+	ra.Shuffle(len(backends), func(i, j int) {
+		backends[i], backends[j] = backends[j], backends[i]
+	})
+	start := (id % uint64(count)) * uint64(size)
+	return backends[int(start) : int(start)+int(size)]
+}
 
 func uuid4() string {
 	return uuid.NewString()
@@ -71,6 +127,9 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 				if len(services) == 0 {
 					continue
 				}
+				if globalSubsetImpl.subsetFn != nil {
+					services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
+				}
 				s.doCallback(endpoint, services)
 			}
 		}()
@@ -122,4 +181,9 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 
 func AddWatch(ctx context.Context, registry registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) bool {
 	return globalServiceWatcher.Add(ctx, registry, endpoint, callback)
+}
+
+func setGlobalSubsetImpl(fn subsetFn, size int) {
+	globalSubsetImpl.subsetFn = fn
+	globalSubsetImpl.size = size
 }

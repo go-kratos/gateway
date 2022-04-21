@@ -1,16 +1,9 @@
 package client
 
 import (
-	"math/rand"
 	"net/url"
-	"os"
-	"sort"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/dgryski/go-farm"
-	"github.com/go-kratos/kratos/v2/registry"
 )
 
 // Target is resolver target
@@ -19,8 +12,6 @@ type Target struct {
 	Authority string
 	Endpoint  string
 }
-
-type subsetFn func(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance
 
 func parseTarget(endpoint string) (*Target, error) {
 	if !strings.Contains(endpoint, "://") {
@@ -60,44 +51,4 @@ func IsSecure(u *url.URL) bool {
 		return false
 	}
 	return ok
-}
-
-func genClientID() string {
-	hostname := os.Getenv("HOSTNAME")
-	if hostname != "" {
-		return hostname
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = strconv.Itoa(int(time.Now().UnixNano()))
-	}
-	return hostname
-}
-
-func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance {
-	backends := instances
-	if size <= 0 {
-		return backends
-	}
-	if len(backends) <= int(size) {
-		return backends
-	}
-	clientID := genClientID()
-	sort.Slice(backends, func(i, j int) bool {
-		return backends[i].ID < backends[j].ID
-	})
-	count := len(backends) / size
-	// hash得到ID
-	id := farm.Fingerprint64([]byte(clientID))
-	// 获得rand轮数
-	round := int64(id / uint64(count))
-
-	s := rand.NewSource(round)
-	ra := rand.New(s)
-	//  根据source洗牌
-	ra.Shuffle(len(backends), func(i, j int) {
-		backends[i], backends[j] = backends[j], backends[i]
-	})
-	start := (id % uint64(count)) * uint64(size)
-	return backends[int(start) : int(start)+int(size)]
 }
