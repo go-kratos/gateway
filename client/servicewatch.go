@@ -56,14 +56,11 @@ func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.
 		return backends[i].ID < backends[j].ID
 	})
 	count := len(backends) / size
-	// hash得到ID
 	id := farm.Fingerprint64([]byte(clientID))
-	// 获得rand轮数
 	round := int64(id / uint64(count))
 
 	s := rand.NewSource(round)
 	ra := rand.New(s)
-	//  根据source洗牌
 	ra.Shuffle(len(backends), func(i, j int) {
 		backends[i], backends[j] = backends[j], backends[i]
 	})
@@ -78,6 +75,7 @@ func uuid4() string {
 type serviceWatcher struct {
 	lock     sync.RWMutex
 	watcher  map[string]registry.Watcher
+	nodes    map[string][]*registry.ServiceInstance
 	callback map[string]map[string]func([]*registry.ServiceInstance) error
 }
 
@@ -99,22 +97,12 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 
 	LOG.Infof("Add watcher on endpoint: %s", endpoint)
 	existed := func() bool {
-		ctx, cancel := context.WithTimeout(ctx, time.Second*15)
-		defer cancel()
-		services, err := discovery.GetService(ctx, endpoint)
-		if err != nil {
-			LOG.Errorf("Failed to do initial services discovery on endpoint: %s, err: %+v, starting with empty service instance", endpoint, err)
-		}
-		if globalSubsetImpl.subsetFn != nil {
-			LOG.Infof("Select subset on endpoint: %s with size: %d, all node size: %d", endpoint, globalSubsetImpl.size, len(services))
-			services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
-		}
-		LOG.Infof("Initialize services discovery on endpoint: %s, services: %s", endpoint, jsonify(services))
-		callback(services)
 
 		if _, ok := s.watcher[endpoint]; ok {
+			callback(s.nodes[endpoint])
 			return true
 		}
+
 		watcher, err := discovery.Watch(ctx, endpoint)
 		if err != nil {
 			LOG.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
@@ -150,15 +138,17 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 }
 
 func (s *serviceWatcher) doCallback(endpoint string, services []*registry.ServiceInstance) {
-	cleanup := []string{}
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	if globalSubsetImpl.subsetFn != nil {
 		LOG.Infof("Select subset on endpoint: %s with size: %d, all node size: %d", endpoint, globalSubsetImpl.size, len(services))
 		services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
 	}
+	s.nodes[endpoint] = services
+
+	cleanup := []string{}
 	func() {
-		s.lock.RLock()
-		defer s.lock.RUnlock()
 		for id, callback := range s.callback[endpoint] {
 			if err := callback(services); err != nil {
 				if errors.Is(err, ErrCancelWatch) {
@@ -176,8 +166,6 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 	}
 	LOG.Infof("Cleanup callback on endpoint: %q with key: %+v", endpoint, cleanup)
 	func() {
-		s.lock.Lock()
-		defer s.lock.Unlock()
 		for _, id := range cleanup {
 			delete(s.callback[endpoint], id)
 		}
