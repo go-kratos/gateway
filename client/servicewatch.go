@@ -18,18 +18,22 @@ func uuid4() string {
 	return uuid.NewString()
 }
 
+type watcherStatus struct {
+	watcher           registry.Watcher
+	initializedChan   chan struct{}
+	selectedInstances []*registry.ServiceInstance
+}
+
 type serviceWatcher struct {
-	lock              sync.RWMutex
-	watcher           map[string]registry.Watcher
-	selectedInstances map[string][]*registry.ServiceInstance
-	callback          map[string]map[string]func([]*registry.ServiceInstance) error
+	lock          sync.RWMutex
+	watcherStatus map[string]*watcherStatus
+	callback      map[string]map[string]func([]*registry.ServiceInstance) error
 }
 
 func newServiceWatcher() *serviceWatcher {
 	return &serviceWatcher{
-		watcher:           make(map[string]registry.Watcher),
-		callback:          make(map[string]map[string]func([]*registry.ServiceInstance) error),
-		selectedInstances: make(map[string][]*registry.ServiceInstance),
+		watcherStatus: make(map[string]*watcherStatus),
+		callback:      make(map[string]map[string]func([]*registry.ServiceInstance) error),
 	}
 }
 
@@ -42,16 +46,16 @@ func (s *serviceWatcher) setSelectedCache(endpoint string, instances []*registry
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.selectedInstances[endpoint] = instances
+	s.watcherStatus[endpoint].selectedInstances = instances
 }
 
 func (s *serviceWatcher) getSelectedCache(endpoint string) ([]*registry.ServiceInstance, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	si, ok := s.selectedInstances[endpoint]
+	ws, ok := s.watcherStatus[endpoint]
 	if ok {
-		return si, true
+		return ws.selectedInstances, true
 	}
 	return nil, false
 }
@@ -61,19 +65,43 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 	defer s.lock.Unlock()
 
 	existed := func() bool {
-		if si, ok := s.selectedInstances[endpoint]; ok {
-			LOG.Infof("Using cached %d selected instances on endpoint: %s ", len(si), endpoint)
-			callback(si)
+		ws, ok := s.watcherStatus[endpoint]
+		if ok {
+			// this channel is used to notify the caller that the service watcher is initialized and ready to use
+			<-ws.initializedChan
+
+			if len(ws.selectedInstances) > 0 {
+				LOG.Infof("Using cached %d selected instances on endpoint: %s ", len(ws.selectedInstances), endpoint)
+				callback(ws.selectedInstances)
+				return true
+			}
+
 			return true
 		}
 
+		ws = &watcherStatus{
+			initializedChan: make(chan struct{}),
+		}
 		watcher, err := discovery.Watch(ctx, endpoint)
 		if err != nil {
 			LOG.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
 			return false
 		}
 		LOG.Infof("Succeeded to initialize watcher on endpoint: %s", endpoint)
-		s.watcher[endpoint] = watcher
+		ws.watcher = watcher
+		s.watcherStatus[endpoint] = ws
+
+		func() {
+			defer close(ws.initializedChan)
+			LOG.Infof("Starting to do initialize services discovery on endpoint: %s", endpoint)
+			services, err := watcher.Next()
+			if err != nil {
+				LOG.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
+				return
+			}
+			ws.selectedInstances = services
+			callback(services)
+		}()
 
 		go func() {
 			for {
