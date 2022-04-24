@@ -91,6 +91,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 					LOG.Warnf("Empty services on endpoint: %s, this most likely no available instance in discovery", endpoint)
 					continue
 				}
+				LOG.Infof("Received %d services on endpoint: %s", len(services), endpoint)
 				s.setSelectedCache(endpoint, services)
 				s.doCallback(endpoint, services)
 			}
