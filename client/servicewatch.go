@@ -80,7 +80,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 				services, err := watcher.Next()
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
-						LOG.Warnf("The watch process on: %s has been canceled", endpoint, err)
+						LOG.Warnf("The watch process on: %s has been canceled", endpoint)
 						return
 					}
 					LOG.Errorf("Failed to watch on endpoint: %s, err: %+v, the watch process will attempt again after 1 second", endpoint, err)
