@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"hash/crc32"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -16,6 +19,17 @@ var globalServiceWatcher = newServiceWatcher()
 
 func uuid4() string {
 	return uuid.NewString()
+}
+
+func instancesSetHash(instances []*registry.ServiceInstance) string {
+	sort.Slice(instances, func(i, j int) bool {
+		return instances[i].ID < instances[j].ID
+	})
+	jsBytes, err := json.Marshal(instances)
+	if err != nil {
+		return ""
+	}
+	return strconv.FormatUint(uint64(crc32.ChecksumIEEE(jsBytes)), 10)
 }
 
 type watcherStatus struct {
@@ -71,7 +85,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 			<-ws.initializedChan
 
 			if len(ws.selectedInstances) > 0 {
-				LOG.Infof("Using cached %d selected instances on endpoint: %s ", len(ws.selectedInstances), endpoint)
+				LOG.Infof("Using cached %d selected instances on endpoint: %s, hash: %s", len(ws.selectedInstances), endpoint, instancesSetHash(ws.selectedInstances))
 				callback(ws.selectedInstances)
 				return true
 			}
@@ -99,7 +113,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 				LOG.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
 				return
 			}
-			LOG.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services", endpoint, len(services))
+			LOG.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services, hash: %s", endpoint, len(services), instancesSetHash(ws.selectedInstances))
 			ws.selectedInstances = services
 			callback(services)
 		}()
@@ -120,7 +134,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 					LOG.Warnf("Empty services on endpoint: %s, this most likely no available instance in discovery", endpoint)
 					continue
 				}
-				LOG.Infof("Received %d services on endpoint: %s", len(services), endpoint)
+				LOG.Infof("Received %d services on endpoint: %s, hash: %s", len(services), endpoint, instancesSetHash(services))
 				s.setSelectedCache(endpoint, services)
 				s.doCallback(endpoint, services)
 			}
