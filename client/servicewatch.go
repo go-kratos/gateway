@@ -99,6 +99,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 				LOG.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
 				return
 			}
+			LOG.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services", endpoint, len(services))
 			ws.selectedInstances = services
 			callback(services)
 		}()
