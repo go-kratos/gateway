@@ -13,38 +13,11 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
-type options struct {
-	subsetSize int
-	subsetFn   subsetFn
-}
-
-type Option func(*options)
-
-func WithSubsetFn(in subsetFn) Option {
-	return func(o *options) {
-		o.subsetFn = in
-	}
-}
-
-func WithSubsetSize(in int) Option {
-	return func(o *options) {
-		o.subsetSize = in
-	}
-}
-
 // Factory is returns service client.
 type Factory func(*config.Endpoint) (Client, error)
 
 // NewFactory new a client factory.
-func NewFactory(r registry.Discovery, opts ...Option) Factory {
-	o := &options{
-		subsetSize: defaultSubsetSize,
-		subsetFn:   defaultSubset,
-	}
-	for _, opt := range opts {
-		opt(o)
-	}
-	setGlobalSubsetImpl(o.subsetFn, o.subsetSize)
+func NewFactory(r registry.Discovery) Factory {
 	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := p2c.New()
 		ctx, cancel := context.WithCancel(context.Background())

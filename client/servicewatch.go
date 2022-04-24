@@ -4,69 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math/rand"
-	"os"
-	"sort"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/dgryski/go-farm"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/google/uuid"
 )
 
 var ErrCancelWatch = errors.New("cancel watch")
 var globalServiceWatcher = newServiceWatcher()
-
-const defaultSubsetSize = 20
-
-type subsetFn func(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance
-
-var globalSubsetImpl = &struct {
-	subsetFn subsetFn
-	size     int
-}{
-	subsetFn: defaultSubset,
-	size:     defaultSubsetSize,
-}
-
-func genClientID() string {
-	hostname := os.Getenv("HOSTNAME")
-	if hostname != "" {
-		return hostname
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = strconv.Itoa(int(time.Now().UnixNano()))
-	}
-	return hostname
-}
-
-func defaultSubset(instances []*registry.ServiceInstance, size int) []*registry.ServiceInstance {
-	backends := instances
-	if size <= 0 {
-		return backends
-	}
-	if len(backends) <= int(size) {
-		return backends
-	}
-	clientID := genClientID()
-	sort.Slice(backends, func(i, j int) bool {
-		return backends[i].ID < backends[j].ID
-	})
-	count := len(backends) / size
-	id := farm.Fingerprint64([]byte(clientID))
-	round := int64(id / uint64(count))
-
-	s := rand.NewSource(round)
-	ra := rand.New(s)
-	ra.Shuffle(len(backends), func(i, j int) {
-		backends[i], backends[j] = backends[j], backends[i]
-	})
-	start := (id % uint64(count)) * uint64(size)
-	return backends[int(start) : int(start)+int(size)]
-}
 
 func uuid4() string {
 	return uuid.NewString()
@@ -92,16 +38,11 @@ func jsonify(in interface{}) string {
 	return string(bs)
 }
 
-func (s *serviceWatcher) pickAndCacheSelected(endpoint string, instances []*registry.ServiceInstance) []*registry.ServiceInstance {
-	if globalSubsetImpl.subsetFn != nil {
-		instances = globalSubsetImpl.subsetFn(instances, globalSubsetImpl.size)
-	}
-
+func (s *serviceWatcher) setSelectedCache(endpoint string, instances []*registry.ServiceInstance) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	s.selectedInstances[endpoint] = instances
-	return instances
 }
 
 func (s *serviceWatcher) getSelectedCache(endpoint string) ([]*registry.ServiceInstance, bool) {
@@ -150,7 +91,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 					LOG.Warnf("Empty services on endpoint: %s, this most likely no available instance in discovery", endpoint)
 					continue
 				}
-				services = s.pickAndCacheSelected(endpoint, services)
+				s.setSelectedCache(endpoint, services)
 				s.doCallback(endpoint, services)
 			}
 		}()
@@ -201,9 +142,4 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 
 func AddWatch(ctx context.Context, registry registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) bool {
 	return globalServiceWatcher.Add(ctx, registry, endpoint, callback)
-}
-
-func setGlobalSubsetImpl(fn subsetFn, size int) {
-	globalSubsetImpl.subsetFn = fn
-	globalSubsetImpl.size = size
 }
