@@ -73,16 +73,17 @@ func uuid4() string {
 }
 
 type serviceWatcher struct {
-	lock     sync.RWMutex
-	watcher  map[string]registry.Watcher
-	nodes    map[string][]*registry.ServiceInstance
-	callback map[string]map[string]func([]*registry.ServiceInstance) error
+	lock              sync.RWMutex
+	watcher           map[string]registry.Watcher
+	selectedInstances map[string][]*registry.ServiceInstance
+	callback          map[string]map[string]func([]*registry.ServiceInstance) error
 }
 
 func newServiceWatcher() *serviceWatcher {
 	return &serviceWatcher{
-		watcher:  make(map[string]registry.Watcher),
-		callback: make(map[string]map[string]func([]*registry.ServiceInstance) error),
+		watcher:           make(map[string]registry.Watcher),
+		callback:          make(map[string]map[string]func([]*registry.ServiceInstance) error),
+		selectedInstances: make(map[string][]*registry.ServiceInstance),
 	}
 }
 
@@ -91,15 +92,37 @@ func jsonify(in interface{}) string {
 	return string(bs)
 }
 
+func (s *serviceWatcher) pickAndCacheSelected(endpoint string, instances []*registry.ServiceInstance) []*registry.ServiceInstance {
+	if globalSubsetImpl.subsetFn != nil {
+		instances = globalSubsetImpl.subsetFn(instances, globalSubsetImpl.size)
+	}
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.selectedInstances[endpoint] = instances
+	return instances
+}
+
+func (s *serviceWatcher) getSelectedCache(endpoint string) ([]*registry.ServiceInstance, bool) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	si, ok := s.selectedInstances[endpoint]
+	if ok {
+		return si, true
+	}
+	return nil, false
+}
+
 func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) (watcherExisted bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	LOG.Infof("Add watcher on endpoint: %s", endpoint)
 	existed := func() bool {
-
-		if _, ok := s.watcher[endpoint]; ok {
-			callback(s.nodes[endpoint])
+		if si, ok := s.selectedInstances[endpoint]; ok {
+			LOG.Infof("Using cached %d selected instances on endpoint: %s ", len(si), endpoint)
+			callback(si)
 			return true
 		}
 
@@ -108,17 +131,26 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 			LOG.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
 			return false
 		}
+		LOG.Infof("Succeeded to initialize watcher on endpoint: %s", endpoint)
 		s.watcher[endpoint] = watcher
 
 		go func() {
 			for {
 				services, err := watcher.Next()
-				if err != nil && errors.Is(err, context.Canceled) {
-					return
-				}
-				if len(services) == 0 {
+				if err != nil {
+					if errors.Is(err, context.Canceled) {
+						LOG.Warnf("The watch process on: %s has been canceled", endpoint, err)
+						return
+					}
+					LOG.Errorf("Failed to watch on endpoint: %s, err: %+v, the watch process will attempt again after 1 second", endpoint, err)
+					time.Sleep(time.Second)
 					continue
 				}
+				if len(services) == 0 {
+					LOG.Warnf("Empty services on endpoint: %s, this most likely no available instance in discovery", endpoint)
+					continue
+				}
+				services = s.pickAndCacheSelected(endpoint, services)
 				s.doCallback(endpoint, services)
 			}
 		}()
@@ -138,17 +170,10 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 }
 
 func (s *serviceWatcher) doCallback(endpoint string, services []*registry.ServiceInstance) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	if globalSubsetImpl.subsetFn != nil {
-		LOG.Infof("Select subset on endpoint: %s with size: %d, all node size: %d", endpoint, globalSubsetImpl.size, len(services))
-		services = globalSubsetImpl.subsetFn(services, globalSubsetImpl.size)
-	}
-	s.nodes[endpoint] = services
-
 	cleanup := []string{}
 	func() {
+		s.lock.RLock()
+		defer s.lock.RUnlock()
 		for id, callback := range s.callback[endpoint] {
 			if err := callback(services); err != nil {
 				if errors.Is(err, ErrCancelWatch) {
@@ -164,8 +189,10 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 	if len(cleanup) <= 0 {
 		return
 	}
-	LOG.Infof("Cleanup callback on endpoint: %q with key: %+v", endpoint, cleanup)
+	LOG.Infof("Cleanup callback on endpoint: %q with keys: %+v", endpoint, cleanup)
 	func() {
+		s.lock.Lock()
+		defer s.lock.Unlock()
 		for _, id := range cleanup {
 			delete(s.callback[endpoint], id)
 		}
