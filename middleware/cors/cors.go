@@ -100,6 +100,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if err != nil {
 				return nil, err
 			}
+			if resp.Header == nil {
+				resp.Header = make(http.Header, len(normalHeaders))
+			}
 			for key, value := range normalHeaders {
 				resp.Header[key] = value
 			}
