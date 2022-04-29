@@ -19,8 +19,8 @@ var (
 	defaultAllowCredentials     = true
 	defaultAllowPrivateNetwork  = false
 	defaultCorsOptionStatusCode = 200
-	defaultCorsMethods          = []string{"GET", "HEAD", "POST"}
-	defaultCorsHeaders          = []string{"Accept", "Accept-Language", "Content-Language", "Origin"}
+	defaultCorsMethods          = []string{"GET", "POST", "PUT", "DELETE"}
+	defaultCorsHeaders          = []string{"Origin", "Content-Length", "Content-Type"}
 	// (WebKit/Safari v9 sends the Origin header by default in AJAX requests)
 )
 
@@ -38,8 +38,7 @@ const (
 	corsRequestPrivateNetwork     string = "Access-Control-Request-Private-Network"
 	corsOriginHeader              string = "Origin"
 	corsVaryHeader                string = "Vary"
-	corsOriginMatchAll            string = "*"
-	corsHeaderMatchAll            string = "*"
+	corsMatchAll                  string = "*"
 )
 
 func init() {
@@ -54,52 +53,7 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 		return true
 	}
 	for _, allowedOrigin := range allowedOrigins {
-		if allowedOrigin == origin || allowedOrigin == corsOriginMatchAll {
-			return true
-		}
-	}
-	return false
-}
-
-func isMethodAllowed(method string, allowedMethods []string) bool {
-	if method == "" || len(allowedMethods) == 0 {
-		return false
-	}
-	// Always allow preflight requests
-	if method == corsOptionMethod {
-		return true
-	}
-
-	for _, allowedMethod := range allowedMethods {
-		if allowedMethod == method {
-			return true
-		}
-	}
-	return false
-}
-
-func areHeadersAllowed(requestedHeaders []string, allowedHeaders []string) bool {
-	if len(requestedHeaders) == 0 {
-		return true
-	}
-LOOP:
-	for i, requestedHeader := range requestedHeaders {
-		canonicalHeader := http.CanonicalHeaderKey(strings.TrimSpace(requestedHeader))
-
-		for _, allowedHeader := range allowedHeaders {
-			if canonicalHeader == allowedHeader || allowedHeader == corsHeaderMatchAll {
-				requestedHeaders[i] = canonicalHeader
-				continue LOOP
-			}
-		}
-		return false
-	}
-	return true
-}
-
-func isMatch(needle string, haystack []string) bool {
-	for _, v := range haystack {
-		if v == needle {
+		if strings.HasSuffix(origin, allowedOrigin) {
 			return true
 		}
 	}
@@ -114,8 +68,8 @@ func newResponse(statusCode int, header http.Header) (*http.Response, error) {
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Cors{
 		AllowCredentials:    defaultAllowCredentials,
-		AllowedMethods:      defaultCorsMethods,
-		AllowedHeaders:      defaultCorsHeaders,
+		AllowMethods:        defaultCorsMethods,
+		AllowHeaders:        defaultCorsHeaders,
 		AllowPrivateNetwork: defaultAllowPrivateNetwork,
 		MaxAge:              durationpb.New(time.Minute * 10),
 	}
@@ -124,88 +78,104 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			return nil, err
 		}
 	}
-	maxAge := int(options.MaxAge.AsDuration() / time.Second)
+	preflightHeaders := generatePreflightHeaders(options)
+	normalHeaders := generateNormalHeaders(options)
 	return func(handler middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			header := make(http.Header)
-			origin := req.Header.Get(corsOriginHeader)
-			// should handle preflight requests first
+		return func(ctx context.Context, req *http.Request) (*http.Response, error) {
 			if req.Method == corsOptionMethod {
-				method := req.Header.Get(corsRequestMethodHeader)
-
-				// Always set Vary headers
-				header.Add(corsVaryHeader, corsOriginHeader)
-				header.Add(corsVaryHeader, corsRequestMethodHeader)
-				header.Add(corsVaryHeader, corsRequestHeadersHeader)
-				if !isOriginAllowed(origin, options.AllowedOrigins) {
-					return newResponse(http.StatusBadRequest, header)
-				}
-				if !isMethodAllowed(method, options.AllowedMethods) {
-					return newResponse(http.StatusBadRequest, header)
-				}
-				requestHeaders := strings.Split(req.Header.Get(corsRequestHeadersHeader), ",")
-				if !areHeadersAllowed(requestHeaders, options.AllowedHeaders) {
-					return newResponse(http.StatusBadRequest, header)
-				}
-				returnOrigin := origin
-				for _, o := range options.AllowedOrigins {
-					// A configuration of * is different than explicitly setting an allowed
-					// origin. Returning arbitrary origin headers in an access control allow
-					// origin header is unsafe and is not required by any use case.
-					if o == corsOriginMatchAll {
-						returnOrigin = "*"
-						break
-					}
-				}
-				header.Set(corsAllowOriginHeader, returnOrigin)
-				header.Set(corsAllowMethodsHeader, method)
-				if len(requestHeaders) > 0 {
-					// Spec says: Since the list of headers can be unbounded, simply returning supported headers
-					// from Access-Control-Request-Headers can be enough
-					header.Set(corsAllowHeadersHeader, strings.Join(requestHeaders, ", "))
-				}
-				if options.AllowCredentials {
-					header.Set(corsAllowCredentialsHeader, "true")
-				}
-				if maxAge > 0 {
-					header.Set(corsMaxAgeHeader, strconv.Itoa(maxAge))
+				headers := make(http.Header, len(preflightHeaders)+1)
+				origin := req.Header.Get(corsOriginHeader)
+				if !isOriginAllowed(origin, options.AllowOrigins) {
+					return newResponse(http.StatusForbidden, headers)
 				}
 				if req.Header.Get(corsRequestPrivateNetwork) == "true" && options.AllowPrivateNetwork {
-					header.Set(corsAllowPrivateNetworkHeader, "true")
+					headers.Set(corsAllowPrivateNetworkHeader, "true")
 				}
-				return newResponse(defaultCorsOptionStatusCode, header)
-			} else {
-				// Always set Vary headers
-				header.Add(corsVaryHeader, corsOriginHeader)
-				if isOriginAllowed(origin, options.AllowedOrigins) {
-					returnOrigin := origin
-					for _, o := range options.AllowedOrigins {
-						// A configuration of * is different than explicitly setting an allowed
-						// origin. Returning arbitrary origin headers in an access control allow
-						// origin header is unsafe and is not required by any use case.
-						if o == corsOriginMatchAll {
-							returnOrigin = "*"
-							break
-						}
-					}
-					header.Set(corsAllowOriginHeader, returnOrigin)
+				for key, value := range preflightHeaders {
+					headers[key] = value
 				}
-
-				if len(options.ExposedHeaders) > 0 {
-					header.Set(corsExposeHeadersHeader, strings.Join(options.ExposedHeaders, ","))
-				}
-				if options.AllowCredentials {
-					header.Set(corsAllowCredentialsHeader, "true")
-				}
-
-				// invoke next handler
-				if reply, err = handler(ctx, req); err == nil {
-					for k, v := range header {
-						reply.Header[k] = v
-					}
-				}
-				return
+				return newResponse(http.StatusOK, headers)
 			}
+			resp, err := handler(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			if resp.Header == nil {
+				resp.Header = make(http.Header, len(normalHeaders))
+			}
+			for key, value := range normalHeaders {
+				resp.Header[key] = value
+			}
+			return resp, nil
 		}
 	}, nil
+}
+
+func generateNormalHeaders(c *v1.Cors) http.Header {
+	headers := make(http.Header)
+	if c.AllowCredentials {
+		headers.Set(corsAllowCredentialsHeader, "true")
+	}
+	// backport support for early browsers
+	if len(c.AllowMethods) > 0 {
+		allowMethods := convert(normalize(c.AllowMethods), strings.ToUpper)
+		headers.Set(corsAllowMethodsHeader, strings.Join(allowMethods, ","))
+	}
+	if len(c.ExposeHeaders) > 0 {
+		exposeHeaders := convert(normalize(c.ExposeHeaders), http.CanonicalHeaderKey)
+		headers.Set(corsExposeHeadersHeader, strings.Join(exposeHeaders, ","))
+	}
+	headers.Add(corsVaryHeader, corsOriginHeader)
+	return headers
+}
+
+func generatePreflightHeaders(c *v1.Cors) http.Header {
+	headers := make(http.Header)
+	if c.AllowCredentials {
+		headers.Set(corsAllowCredentialsHeader, "true")
+	}
+	if len(c.AllowMethods) > 0 {
+		allowMethods := convert(normalize(c.AllowMethods), strings.ToUpper)
+		headers.Set(corsAllowMethodsHeader, strings.Join(allowMethods, ","))
+	}
+	if len(c.AllowHeaders) > 0 {
+		allowHeaders := convert(normalize(c.AllowHeaders), http.CanonicalHeaderKey)
+		headers.Set(corsAllowHeadersHeader, strings.Join(allowHeaders, ","))
+	}
+	if c.MaxAge != nil {
+		maxAge := int64(c.MaxAge.AsDuration() / time.Second)
+		headers.Set(corsMaxAgeHeader, strconv.FormatInt(maxAge, 10))
+	}
+	// Always set Vary headers
+	// see https://github.com/rs/cors/issues/10,
+	// https://github.com/rs/cors/commit/dbdca4d95feaa7511a46e6f1efb3b3aa505bc43f#commitcomment-12352001
+	headers.Add(corsVaryHeader, corsOriginHeader)
+	headers.Add(corsVaryHeader, corsRequestMethodHeader)
+	headers.Add(corsVaryHeader, corsRequestHeadersHeader)
+	return headers
+}
+
+func normalize(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	distinctMap := make(map[string]bool, len(values))
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		value = strings.ToLower(value)
+		if _, seen := distinctMap[value]; !seen {
+			normalized = append(normalized, value)
+			distinctMap[value] = true
+		}
+	}
+	return normalized
+}
+
+func convert(s []string, c func(string) string) []string {
+	var out []string
+	for _, i := range s {
+		out = append(out, c(i))
+	}
+	return out
 }
