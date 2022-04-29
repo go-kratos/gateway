@@ -8,16 +8,11 @@ import "google/protobuf/duration.proto";
 
 // Cors middleware config.
 message Cors {
-    // default is true
-    bool allow_credentials          = 1;
-    repeated string allowed_origins = 2;
-    // default is GET/POST
-    repeated string allowed_methods = 3;
-    // default is Origin/Content-Type/Content-Length
-    repeated string allowed_headers = 4;
-    repeated string exposed_headers = 5;
-    // default is 10 minutes
+    bool allow_credentials = 1;
+    repeated string allow_origins = 2;
+    repeated string allow_methods = 3;
+    repeated string allow_headers = 4;
+    repeated string expose_headers = 5;
     google.protobuf.Duration max_age = 6;
-    // default is false
     bool allow_private_network = 7;
 }

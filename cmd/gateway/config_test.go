@@ -96,8 +96,8 @@ func equalTo() *configv1.Gateway {
 				Name: "cors",
 				Options: asAny(&corsv1.Cors{
 					AllowCredentials: true,
-					AllowedOrigins:   []string{".google.com"},
-					AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+					AllowOrigins:     []string{".google.com"},
+					AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 				}),
 			},
 			{
