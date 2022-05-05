@@ -85,17 +85,16 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			origin := req.Header.Get(corsOriginHeader)
 			if req.Method == corsOptionMethod {
 				headers := make(http.Header, len(preflightHeaders)+2)
-				origin := req.Header.Get(corsOriginHeader)
 				if !isOriginAllowed(origin, options.AllowOrigins) {
 					return newResponse(http.StatusForbidden, headers)
 				}
-				if req.Header.Get(corsRequestPrivateNetwork) == "true" && options.AllowPrivateNetwork {
+				if options.AllowPrivateNetwork && req.Header.Get(corsRequestPrivateNetwork) == "true" {
 					headers.Set(corsAllowPrivateNetworkHeader, "true")
 				}
-				req.Header.Set(corsAllowOriginHeader, origin)
 				for key, value := range preflightHeaders {
 					headers[key] = value
 				}
+				headers.Set(corsAllowOriginHeader, origin)
 				return newResponse(http.StatusOK, headers)
 			}
 			resp, err := handler(ctx, req)
@@ -105,10 +104,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if resp.Header == nil {
 				resp.Header = make(http.Header, len(normalHeaders)+1)
 			}
-			req.Header.Set(corsAllowOriginHeader, origin)
 			for key, value := range normalHeaders {
 				resp.Header[key] = value
 			}
+			req.Header.Set(corsAllowOriginHeader, origin)
 			return resp, nil
 		}
 	}, nil
