@@ -40,7 +40,7 @@ func (r *muxRouter) Handle(pattern, method string, handler http.Handler) error {
 		next = next.Path(pattern)
 	}
 	if method != "" && method != "*" {
-		next = next.Methods(method)
+		next = next.Methods(method, http.MethodOptions)
 	}
 	return next.GetError()
 }
