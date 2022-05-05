@@ -84,7 +84,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 		return func(ctx context.Context, req *http.Request) (*http.Response, error) {
 			origin := req.Header.Get(corsOriginHeader)
 			if req.Method == corsOptionMethod {
-				headers := make(http.Header, len(preflightHeaders)+1)
+				headers := make(http.Header, len(preflightHeaders)+2)
 				origin := req.Header.Get(corsOriginHeader)
 				if !isOriginAllowed(origin, options.AllowOrigins) {
 					return newResponse(http.StatusForbidden, headers)
@@ -103,7 +103,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				return nil, err
 			}
 			if resp.Header == nil {
-				resp.Header = make(http.Header, len(normalHeaders))
+				resp.Header = make(http.Header, len(normalHeaders)+1)
 			}
 			req.Header.Set(corsAllowOriginHeader, origin)
 			for key, value := range normalHeaders {
