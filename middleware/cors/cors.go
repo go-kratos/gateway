@@ -107,7 +107,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			for key, value := range normalHeaders {
 				resp.Header[key] = value
 			}
-			req.Header.Set(corsAllowOriginHeader, origin)
+			resp.Header.Set(corsAllowOriginHeader, origin)
 			return resp, nil
 		}
 	}, nil
