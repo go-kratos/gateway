@@ -35,7 +35,7 @@ message Middleware {
 message Backend {
     // localhost
     // 127.0.0.1:8000
-    // discovery://service_name
+    // discovery:///service_name
     string target = 1;
     optional int64 weight = 2;
     HealthCheck health_check = 3;
