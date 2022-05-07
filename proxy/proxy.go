@@ -1,16 +1,17 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -118,7 +119,6 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 
 // Proxy is a gateway proxy.
 type Proxy struct {
-	readers           *sync.Pool
 	router            atomic.Value
 	clientFactory     client.Factory
 	middlewareFactory middleware.Factory
@@ -127,11 +127,6 @@ type Proxy struct {
 // New is new a gateway proxy.
 func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
 	p := &Proxy{
-		readers: &sync.Pool{
-			New: func() interface{} {
-				return &BodyReader{}
-			},
-		},
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 	}
@@ -175,21 +170,17 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
-		reader := p.readers.Get().(*BodyReader)
-		defer func() {
-			p.readers.Put(reader)
-			_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
-		}()
-		received, err := reader.ReadFrom(req.Body)
+		defer _metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
+
+		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			writeError(w, req, err, e.Protocol)
 			return
 		}
-		_metricReceivedBytes.WithLabelValues(protocol, req.Method, req.URL.Path).Add(float64(received))
-		req.Body = reader
+		_metricReceivedBytes.WithLabelValues(protocol, req.Method, req.URL.Path).Add(float64(len(body)))
 		req.GetBody = func() (io.ReadCloser, error) {
-			reader.Seek(0, io.SeekStart)
-			return reader, nil
+			reader := bytes.NewReader(body)
+			return ioutil.NopCloser(reader), nil
 		}
 
 		var resp *http.Response
@@ -203,7 +194,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			}
 			tryCtx, cancel := context.WithTimeout(ctx, retryStrategy.perTryTimeout)
 			defer cancel()
-			req.GetBody() // seek reader to start
+			reader := bytes.NewReader(body)
+			req.Body = ioutil.NopCloser(reader)
 			resp, err = handler(tryCtx, req)
 			if err != nil {
 				LOG.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
