@@ -167,6 +167,10 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		startTime := time.Now()
 		setXFFHeader(req)
 
+		for _, name := range e.RequestHeadersToRemove {
+			req.Header.Del(name)
+		}
+
 		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
@@ -217,6 +221,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		headers := w.Header()
 		for k, v := range resp.Header {
 			headers[k] = v
+		}
+		for _, name := range e.ResponseHeadersToRemove {
+			headers.Del(name)
 		}
 		w.WriteHeader(resp.StatusCode)
 		if body := resp.Body; body != nil {
