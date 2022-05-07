@@ -89,6 +89,11 @@ func (n *node) Address() string {
 	return n.address
 }
 
+// Scheme is scheme name
+func (n *node) Scheme() string {
+	return strings.ToLower(n.protocol.String())
+}
+
 // ServiceName is service name
 func (n *node) ServiceName() string {
 	return n.name
