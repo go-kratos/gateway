@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"strings"
 
 	"github.com/go-kratos/kratos/v2/selector"
 	"golang.org/x/net/http2"
@@ -83,6 +84,10 @@ type node struct {
 
 	client   *http.Client
 	protocol config.Protocol
+}
+
+func (n *node) Scheme() string {
+	return strings.ToLower(n.protocol.String())
 }
 
 func (n *node) Address() string {
