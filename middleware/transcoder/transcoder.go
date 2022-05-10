@@ -1,21 +1,21 @@
 package transcoder
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
-	"github.com/go-kratos/gateway/proxy"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
-	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-)
-
-const (
-	forceRetryStatus = http.StatusInternalServerError
 )
 
 func decodeBinHeader(v string) ([]byte, error) {
@@ -26,28 +26,17 @@ func decodeBinHeader(v string) ([]byte, error) {
 	return base64.RawStdEncoding.DecodeString(v)
 }
 
-func decodeStatusDetails(rawDetails string) error {
-	v, err := decodeBinHeader(rawDetails)
-	if err != nil {
-		return err
-	}
-	st := &spb.Status{}
-	if err = proto.Unmarshal(v, st); err != nil {
-		return err
-	}
-	return status.ErrorProto(st)
-}
-
-func decodeError(resp *http.Response) error {
-	var err error
-	if v := resp.Header.Get("grpc-status-details-bin"); v != "" {
-		err = decodeStatusDetails(v)
-	}
-	return err
+func newResponse(statusCode int, header http.Header, data []byte) (*http.Response, error) {
+	return &http.Response{
+		Header:        header,
+		StatusCode:    statusCode,
+		ContentLength: int64(len(data)),
+		Body:          ioutil.NopCloser(bytes.NewReader(data)),
+	}, nil
 }
 
 func init() {
-	middleware.Register("grpc_transcoder", Middleware)
+	middleware.Register("transcoder", Middleware)
 }
 
 // Middleware is a gRPC transcoder.
@@ -59,48 +48,63 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if endpoint.Protocol != config.Protocol_GRPC || strings.HasPrefix(contentType, "application/grpc") {
 				return handler(ctx, req)
 			}
-			body := &proxy.BodyReader{}
-			n, err := body.EncodeGRPC(req.Body)
+			b, err := io.ReadAll(req.Body)
 			if err != nil {
 				return nil, err
 			}
+			bb := make([]byte, len(b)+5)
+			binary.BigEndian.PutUint32(bb[1:], uint32(len(b)))
+			copy(bb[5:], b)
 			// content-type:
 			// - application/grpc+json
 			// - application/grpc+proto
 			req.Header.Set("Content-Type", "application/grpc+"+strings.TrimLeft(contentType, "application/"))
 			req.Header.Del("Content-Length")
-			req.ContentLength = n
-			req.Body = body
+			req.ContentLength = int64(len(bb))
+			req.Body = ioutil.NopCloser(bytes.NewReader(bb))
 			resp, err := handler(ctx, req)
 			if err != nil {
 				return nil, err
 			}
-			contentLength, err := body.ReadFrom(resp.Body)
+			data, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return nil, err
 			}
-			// skip header length of the gRPC body
-			if _, err := body.Seek(5, 0); err != nil {
-				return nil, err
-			}
-			resp.Body = body
-			resp.Header.Set("Content-Type", contentType)
 			// Convert HTTP/2 response to HTTP/1.1
 			// Trailers are sent in a data frame, so don't announce trailers as otherwise downstream proxies might get confused.
 			for trailerName, values := range resp.Trailer {
 				resp.Header[trailerName] = values
 			}
 			resp.Trailer = nil
-			// Any content length that might be set is no longer accurate because of trailers.
-			resp.Header.Del("Content-Length")
-			if contentLength >= 5 {
-				resp.ContentLength = contentLength - 5
-			}
-			if resp.Header.Get("grpc-status") != "0" {
-				if err := decodeError(resp); err != nil {
+			resp.Header.Set("Content-Type", contentType)
+			if grpcStatus := resp.Header.Get("grpc-status"); grpcStatus != "0" {
+				code, err := strconv.ParseInt(grpcStatus, 10, 64)
+				if err != nil {
 					return nil, err
 				}
+				st := &spb.Status{
+					Code:    int32(code),
+					Message: resp.Header.Get("grpc-message"),
+				}
+				if grpcDetails := resp.Header.Get("grpc-status-details-bin"); grpcDetails != "" {
+					details, err := decodeBinHeader(grpcDetails)
+					if err != nil {
+						return nil, err
+					}
+					if err = proto.Unmarshal(details, st); err != nil {
+						return nil, err
+					}
+				}
+				data, err := protojson.Marshal(st)
+				if err != nil {
+					return nil, err
+				}
+				return newResponse(200, resp.Header, data)
 			}
+			resp.Body = ioutil.NopCloser(bytes.NewReader(data[5:]))
+			resp.ContentLength = int64(len(data) - 5)
+			// Any content length that might be set is no longer accurate because of trailers.
+			resp.Header.Del("Content-Length")
 			return resp, nil
 		}
 	}, nil

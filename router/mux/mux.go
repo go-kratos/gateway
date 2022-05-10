@@ -5,9 +5,13 @@ import (
 	"strings"
 
 	"github.com/go-kratos/gateway/router"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+// LOG is logging logger.
+var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
 
 var _ = new(router.Router)
 
@@ -21,6 +25,7 @@ func NewRouter() router.Router {
 		Router: mux.NewRouter().StrictSlash(true),
 	}
 	r.Router.Handle("/metrics", promhttp.Handler())
+	r.Router.NotFoundHandler = http.HandlerFunc(notFound)
 	return r
 }
 
@@ -40,9 +45,24 @@ func (r *muxRouter) Handle(pattern, method string, handler http.Handler) error {
 		next = next.Path(pattern)
 	}
 	if method != "" && method != "*" {
-		next = next.Methods(method)
+		next = next.Methods(method, http.MethodOptions)
 	}
 	return next.GetError()
+}
+
+// notFound replies to the request with an HTTP 404 not found error.
+func notFound(w http.ResponseWriter, r *http.Request) {
+	code := http.StatusNotFound
+	message := "404 page not found"
+	http.Error(w, message, code)
+	LOG.WithContext(r.Context()).Errorw(
+		"host", r.Host,
+		"method", r.Method,
+		"path", r.URL.Path,
+		"query", r.URL.RawQuery,
+		"code", code,
+		"error", message,
+	)
 }
 
 type RouterInspect struct {

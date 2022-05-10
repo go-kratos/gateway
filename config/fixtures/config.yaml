@@ -8,9 +8,9 @@ middlewares:
     options:
       '@type': type.googleapis.com/gateway.middleware.cors.v1.Cors
       allowCredentials: true
-      allowedOrigins:
+      allowOrigins:
         - .google.com
-      allowedMethods:
+      allowMethods:
         - GET
         - POST
         - OPTIONS

@@ -24,6 +24,9 @@ message Endpoint {
     repeated Middleware middlewares = 6;
     repeated Backend backends = 7;
     Retry retry = 8;
+    string ha = 9;
+    repeated string request_headers_to_remove = 10;
+    repeated string response_headers_to_remove = 11;
 }
 
 message Middleware {
@@ -34,7 +37,7 @@ message Middleware {
 message Backend {
     // localhost
     // 127.0.0.1:8000
-    // discovery://service_name
+    // discovery:///service_name
     string target = 1;
     optional int64 weight = 2;
     HealthCheck health_check = 3;

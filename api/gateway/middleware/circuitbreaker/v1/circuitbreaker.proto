@@ -34,7 +34,7 @@ message BackupService {
 
 message SuccessRatio {
     double success = 1;
-    int64 request = 2;
-    int64 bucket = 3;
+    int32 request = 2;
+    int32 bucket = 3;
     google.protobuf.Duration window = 4;
 }
