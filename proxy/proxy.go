@@ -174,7 +174,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
-		defer _metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
+		defer func() {
+			_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
+		}()
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
