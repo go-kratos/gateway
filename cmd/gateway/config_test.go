@@ -6,7 +6,6 @@ import (
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	circuitbreakerv1 "github.com/go-kratos/gateway/api/gateway/middleware/circuitbreaker/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
-	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
 	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -93,6 +92,12 @@ func equalTo() *configv1.Gateway {
 		},
 		Middlewares: []*configv1.Middleware{
 			{
+				Name: "logging",
+			},
+			{
+				Name: "transcoder",
+			},
+			{
 				Name: "cors",
 				Options: asAny(&corsv1.Cors{
 					AllowCredentials: true,
@@ -105,13 +110,6 @@ func equalTo() *configv1.Gateway {
 				Options: asAny(&otelv1.Otel{
 					HttpEndpoint: "localhost:4318",
 				}),
-			},
-			{
-				Name:    "logging",
-				Options: asAny(&loggingv1.Logging{}),
-			},
-			{
-				Name: "grpc_transcoder",
 			},
 		},
 	}
