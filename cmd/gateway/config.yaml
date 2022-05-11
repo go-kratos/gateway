@@ -5,6 +5,8 @@ hosts:
   - localhost
   - 127.0.0.1
 middlewares:
+  - name: logging
+  - name: transcoder
   - name: cors
     options:
       '@type': type.googleapis.com/gateway.middleware.cors.v1.Cors
@@ -19,9 +21,6 @@ middlewares:
     options:
       '@type': type.googleapis.com/gateway.middleware.otel.v1.Otel
       httpEndpoint: 'localhost:4318' # default opentelemetry collector port
-  - name: logging
-    options:
-      '@type': type.googleapis.com/gateway.middleware.logging.v1.Logging
 endpoints:
   - path: /helloworld/*
     timeout: 1s

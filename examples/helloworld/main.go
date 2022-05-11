@@ -4,12 +4,12 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net"
-	"net/http"
-	"strconv"
 
-	"google.golang.org/grpc"
-	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	pb "github.com/go-kratos/examples/helloworld/helloworld"
+	"github.com/go-kratos/kratos/v2"
+	"github.com/go-kratos/kratos/v2/middleware/recovery"
+	"github.com/go-kratos/kratos/v2/transport/grpc"
+	"github.com/go-kratos/kratos/v2/transport/http"
 )
 
 var (
@@ -24,6 +24,9 @@ type server struct {
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
+	if in.Name == "error" {
+		return nil, context.DeadlineExceeded
+	}
 	return &pb.HelloReply{Message: in.GetName()}, nil
 }
 
@@ -34,29 +37,29 @@ func init() {
 
 func main() {
 	flag.Parse()
-	go httpServer()
-	grpcServer()
-}
-
-func httpServer() {
-	http.HandleFunc("/helloworld/foo", func(w http.ResponseWriter, req *http.Request) {
-		b := req.URL.Query().Get("b")
-		if b != "" {
-			n, _ := strconv.ParseInt(b, 10, 32)
-			w.Write(make([]byte, n))
-		}
-	})
-	log.Println("HTTPServer listening at:", httpAddr)
-	log.Fatal(http.ListenAndServe(httpAddr, nil))
-}
-
-func grpcServer() {
-	lis, err := net.Listen("tcp", grpcAddr)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+	s := &server{}
+	httpSrv := http.NewServer(
+		http.Address(httpAddr),
+		http.Middleware(
+			recovery.Recovery(),
+		),
+	)
+	grpcSrv := grpc.NewServer(
+		grpc.Address(grpcAddr),
+		grpc.Middleware(
+			recovery.Recovery(),
+		),
+	)
+	pb.RegisterGreeterServer(grpcSrv, s)
+	pb.RegisterGreeterHTTPServer(httpSrv, s)
+	app := kratos.New(
+		kratos.Name("Helloworld"),
+		kratos.Server(
+			httpSrv,
+			grpcSrv,
+		),
+	)
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
-	s := grpc.NewServer()
-	pb.RegisterGreeterServer(s, &server{})
-	log.Println("GRPCServer listening at:", lis.Addr())
-	log.Fatal(s.Serve(lis))
 }
