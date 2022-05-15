@@ -174,8 +174,10 @@ github.com/go-kit/kit v0.9.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2
 github.com/go-kit/kit v0.10.0/go.mod h1:xUsJbQ/Fp4kEt7AFgCuvyX4a71u8h9jB8tj/ORgOZ7o=
 github.com/go-kit/log v0.1.0/go.mod h1:zbhenjAZHb184qTLMA9ZjW7ThYL0H2mk7Q6pNt4vbaY=
 github.com/go-kratos/aegis v0.1.1/go.mod h1:jYeSQ3Gesba478zEnujOiG5QdsyF3Xk/8owFUeKcHxw=
-github.com/go-kratos/examples v0.0.0-20220423130648-4c02fe18e2c2 h1:KMD51Vaq0GglAtz9nIrgeswbrNkNINKJP3HCtv0/Ogw=
-github.com/go-kratos/examples v0.0.0-20220423130648-4c02fe18e2c2/go.mod h1:6+BQF4xD6Qm97JOGoh9P0FpBZimGx0DdxoZRNBiivPI=
+github.com/go-kratos/examples v0.0.0-20220511120957-7d0655bf86ec h1:KUr/zWf5Z5s+CR6ZuamiId1NRigWol0UXGGAebunuQw=
+github.com/go-kratos/examples v0.0.0-20220511120957-7d0655bf86ec/go.mod h1:6+BQF4xD6Qm97JOGoh9P0FpBZimGx0DdxoZRNBiivPI=
+github.com/go-kratos/examples v0.0.0-20220515055921-3ba76cf8221c h1:Glq1guPCJf9IsgYnbgR/Y7LQV+ZLFXVrVnMPNPveN94=
+github.com/go-kratos/examples v0.0.0-20220515055921-3ba76cf8221c/go.mod h1:6+BQF4xD6Qm97JOGoh9P0FpBZimGx0DdxoZRNBiivPI=
 github.com/go-kratos/gin v0.1.0/go.mod h1:KzE88+mV1QJdmiT+sU2D560ucOXnWZx+4m0OnVcSyzQ=
 github.com/go-kratos/grpc-gateway/v2 v2.0.0-20210804092615-bdc92eb5ce83/go.mod h1:qV5/s5A7wfY7GkNzptcUFRGAG4Y8H4mlXpSrOkDEIk0=
 github.com/go-kratos/kratos/contrib/config/apollo/v2 v2.0.0-20220309025117-4387085047b9/go.mod h1:PWiCyKqHgmFFtNubdOPzc4nAQSrsGwilmtsqxWvwALA=

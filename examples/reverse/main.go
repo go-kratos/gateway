@@ -1,11 +1,18 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 )
+
+var addr string
+
+func init() {
+	flag.StringVar(&addr, "addr", ":8080", "server address, eg: 127.0.0.1:8080")
+}
 
 func newProxy(targetHost string) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetHost)
@@ -27,5 +34,6 @@ func main() {
 		panic(err)
 	}
 	http.HandleFunc("/", proxyRequestHandler(proxy))
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("server listening on:", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }

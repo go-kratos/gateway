@@ -3,7 +3,7 @@ module github.com/go-kratos/gateway/examples
 go 1.17
 
 require (
-	github.com/go-kratos/examples v0.0.0-20220423130648-4c02fe18e2c2
+	github.com/go-kratos/examples v0.0.0-20220515055921-3ba76cf8221c
 	github.com/go-kratos/kratos/v2 v2.2.2
 	google.golang.org/grpc v1.46.0
 	google.golang.org/grpc/examples v0.0.0-20220509201307-462d86769609
