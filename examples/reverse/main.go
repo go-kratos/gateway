@@ -8,10 +8,14 @@ import (
 	"net/url"
 )
 
-var addr string
+var (
+	addr   string
+	target string
+)
 
 func init() {
 	flag.StringVar(&addr, "addr", ":8080", "server address, eg: 127.0.0.1:8080")
+	flag.StringVar(&target, "target", "http://127.0.0.1:8000", "proxy target, eg: http://127.0.0.1:8000")
 }
 
 func newProxy(targetHost string) (*httputil.ReverseProxy, error) {
@@ -29,7 +33,8 @@ func proxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter,
 }
 
 func main() {
-	proxy, err := newProxy("http://127.0.0.1:8000")
+	flag.Parse()
+	proxy, err := newProxy(target)
 	if err != nil {
 		panic(err)
 	}
