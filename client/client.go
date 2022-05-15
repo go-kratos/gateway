@@ -14,12 +14,6 @@ var (
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "client"))
 )
 
-// Client is a proxy client.
-type Client interface {
-	RoundTrip(*http.Request) (*http.Response, error)
-	Close() error
-}
-
 type client struct {
 	applier  *nodeApplier
 	selector selector.Selector

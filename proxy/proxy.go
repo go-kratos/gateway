@@ -275,6 +275,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	p.router.Load().(router.Router).ServeHTTP(w, req)
 }
 
+// DebugHandler implemented debug handler.
 func (p *Proxy) DebugHandler() http.Handler {
 	debugMux := gorillamux.NewRouter()
 	debugMux.Methods("GET").Path("/debug/proxy/router/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
