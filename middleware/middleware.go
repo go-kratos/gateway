@@ -6,11 +6,11 @@ import (
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
-// Middleware is handler middleware.
-type Middleware func(http.RoundTripper) http.RoundTripper
-
 // Factory is a middleware factory.
 type Factory func(*configv1.Middleware) (Middleware, error)
+
+// Middleware is handler middleware.
+type Middleware func(http.RoundTripper) http.RoundTripper
 
 // RoundTripperFunc is an adapter to allow the use of
 // ordinary functions as HTTP RoundTripper.
