@@ -134,15 +134,15 @@ func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*P
 	return p, nil
 }
 
-func (p *Proxy) buildMiddleware(ms []*config.Middleware, handler middleware.Handler) (middleware.Handler, error) {
+func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper) (http.RoundTripper, error) {
 	for i := len(ms) - 1; i >= 0; i-- {
 		m, err := p.middlewareFactory(ms[i])
 		if err != nil {
 			return nil, err
 		}
-		handler = m(handler)
+		next = m(next)
 	}
-	return handler, nil
+	return next, nil
 }
 
 func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
@@ -150,11 +150,11 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
-	handler, err := p.buildMiddleware(e.Middlewares, caller.Do)
+	tripper, err := p.buildMiddleware(e.Middlewares, caller)
 	if err != nil {
 		return nil, err
 	}
-	handler, err = p.buildMiddleware(ms, handler)
+	tripper, err = p.buildMiddleware(ms, tripper)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			defer cancel()
 			reader := bytes.NewReader(body)
 			req.Body = ioutil.NopCloser(reader)
-			resp, err = handler(tryCtx, req)
+			resp, err = tripper.RoundTrip(req.WithContext(tryCtx))
 			if err != nil {
 				LOG.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue

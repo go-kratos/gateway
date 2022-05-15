@@ -2,7 +2,6 @@ package circuitbreaker
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"math/rand"
 	"net/http"
@@ -91,7 +90,7 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	}
 }
 
-func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (middleware.Handler, error) {
+func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, error) {
 	switch action := in.Action.(type) {
 	case *v1.CircuitBreaker_BackupService:
 		LOG.Infof("Making backup service as on break handler: %+v", action)
@@ -99,7 +98,7 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (middlewa
 		if err != nil {
 			return nil, err
 		}
-		return client.Do, nil
+		return client, nil
 	case *v1.CircuitBreaker_ResponseData:
 		LOG.Infof("Making static response data as on break handler: %+v", action)
 		body := io.NopCloser(bytes.NewBuffer(action.ResponseData.Body))
@@ -111,18 +110,18 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (middlewa
 		for _, h := range action.ResponseData.Header {
 			resp.Header[h.Key] = h.Value
 		}
-		return func(ctx context.Context, req *http.Request) (*http.Response, error) {
+		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			return resp, nil
-		}, nil
+		}), nil
 	default:
 		LOG.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
-		return func(context.Context, *http.Request) (*http.Response, error) {
+		return middleware.RoundTripperFunc(func(*http.Request) (*http.Response, error) {
 			// TBD: on break response
 			return &http.Response{
 				StatusCode: http.StatusServiceUnavailable,
 				Header:     http.Header{},
 			}, nil
-		}, nil
+		}), nil
 	}
 }
 
@@ -147,28 +146,28 @@ func New(factory client.Factory) middleware.Factory {
 		if err != nil {
 			return nil, err
 		}
-		return func(handler middleware.Handler) middleware.Handler {
-			return func(ctx context.Context, req *http.Request) (*http.Response, error) {
+		return func(next http.RoundTripper) http.RoundTripper {
+			return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 				if err := breaker.Allow(); err != nil {
 					// rejected
 					// NOTE: when client reject requets locally,
 					// continue add counter let the drop ratio higher.
 					breaker.MarkFailed()
 					_metricDeniedTotal.WithLabelValues(req.Method, req.URL.Path).Inc()
-					return onBreakHandler(ctx, req)
+					return onBreakHandler.RoundTrip(req)
 				}
-				resp, err := handler(ctx, req)
+				resp, err := next.RoundTrip(req)
 				if err != nil {
 					breaker.MarkFailed()
-					return onBreakHandler(ctx, req)
+					return onBreakHandler.RoundTrip(req)
 				}
 				if !isSuccessResponse(assertCondtions, resp) {
 					breaker.MarkFailed()
-					return onBreakHandler(ctx, req)
+					return onBreakHandler.RoundTrip(req)
 				}
 				breaker.MarkSuccess()
 				return resp, nil
-			}
+			})
 		}, nil
 	})
 }
