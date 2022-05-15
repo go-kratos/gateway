@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync/atomic"
 
@@ -14,11 +15,11 @@ import (
 )
 
 // Factory is returns service client.
-type Factory func(*config.Endpoint) (Client, error)
+type Factory func(*config.Endpoint) (http.RoundTripper, error)
 
 // NewFactory new a client factory.
 func NewFactory(r registry.Discovery) Factory {
-	return func(endpoint *config.Endpoint) (Client, error) {
+	return func(endpoint *config.Endpoint) (http.RoundTripper, error) {
 		picker := p2c.New()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{

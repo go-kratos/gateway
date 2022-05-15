@@ -146,11 +146,11 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 }
 
 func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
-	caller, err := p.clientFactory(e)
+	tripper, err := p.clientFactory(e)
 	if err != nil {
 		return nil, err
 	}
-	tripper, err := p.buildMiddleware(e.Middlewares, caller)
+	tripper, err = p.buildMiddleware(e.Middlewares, tripper)
 	if err != nil {
 		return nil, err
 	}
