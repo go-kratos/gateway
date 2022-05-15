@@ -1,4 +1,4 @@
-name: Test
+name: Go
 
 on:
   push:
@@ -9,10 +9,10 @@ on:
       - main
 
 jobs:
-  Test:
+  build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        go: [ 1.16, 1.17, 1.18 ]
     name: build & test
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +22,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: ${{ matrix.go }}
 
       - name: Go Build
         run: go build -v ./...
@@ -32,7 +32,6 @@ jobs:
 
       - name: Go Test
         run: go test -v -coverprofile=coverage.out -covermode=atomic -race ./...
+
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          flags: ${{ matrix.os }}
+        run: bash <(curl -s https://codecov.io/bash)
