@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
 var (
@@ -23,7 +25,25 @@ func newProxy(targetHost string) (*httputil.ReverseProxy, error) {
 	if err != nil {
 		return nil, err
 	}
-	return httputil.NewSingleHostReverseProxy(url), nil
+	rp, err := httputil.NewSingleHostReverseProxy(url), nil
+	if err != nil {
+		return nil, err
+	}
+	rp.Transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   200 * time.Millisecond,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          1000,
+		MaxIdleConnsPerHost:   100,
+		MaxConnsPerHost:       100,
+		DisableCompression:    true,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	return rp, nil
 }
 
 func proxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
