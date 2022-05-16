@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 )
 
 var (
+	// LOG is access log
 	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
 )
 
@@ -30,10 +30,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			return nil, err
 		}
 	}
-	return func(handler middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
+	return func(next http.RoundTripper) http.RoundTripper {
+		return middleware.RoundTripperFunc(func(req *http.Request) (reply *http.Response, err error) {
 			startTime := time.Now()
-			reply, err = handler(ctx, req)
+			reply, err = next.RoundTrip(req)
 			level := log.LevelInfo
 			code := http.StatusBadGateway
 			errMsg := ""
@@ -43,6 +43,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			} else {
 				code = reply.StatusCode
 			}
+			ctx := req.Context()
 			nodes, _ := middleware.RequestBackendsFromContext(ctx)
 			LOG.WithContext(ctx).Log(level,
 				"host", req.Host,
@@ -56,6 +57,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"backend", strings.Join(nodes, ","),
 			)
 			return reply, err
-		}
+		})
 	}, nil
 }

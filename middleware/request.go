@@ -18,7 +18,7 @@ type RequestOptions struct {
 
 // NewRequestOptions new a request options with retry filter.
 func NewRequestOptions(c *config.Endpoint) *RequestOptions {
-	o := &RequestOptions{Endpoint: c}
+	o := &RequestOptions{Endpoint: c, Backends: make([]string, 0, 1)}
 	o.Filters = []selector.Filter{func(ctx context.Context, nodes []selector.Node) []selector.Node {
 		if len(o.Backends) == 0 {
 			return nodes

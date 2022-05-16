@@ -2,7 +2,6 @@ package transcoder
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"io"
@@ -41,12 +40,13 @@ func init() {
 
 // Middleware is a gRPC transcoder.
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
-	return func(handler middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, req *http.Request) (*http.Response, error) {
+	return func(next http.RoundTripper) http.RoundTripper {
+		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			ctx := req.Context()
 			contentType := req.Header.Get("Content-Type")
 			endpoint, _ := middleware.EndpointFromContext(ctx)
 			if endpoint.Protocol != config.Protocol_GRPC || strings.HasPrefix(contentType, "application/grpc") {
-				return handler(ctx, req)
+				return next.RoundTrip(req)
 			}
 			b, err := io.ReadAll(req.Body)
 			if err != nil {
@@ -62,7 +62,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			req.Header.Del("Content-Length")
 			req.ContentLength = int64(len(bb))
 			req.Body = ioutil.NopCloser(bytes.NewReader(bb))
-			resp, err := handler(ctx, req)
+			resp, err := next.RoundTrip(req)
 			if err != nil {
 				return nil, err
 			}
@@ -106,6 +106,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			// Any content length that might be set is no longer accurate because of trailers.
 			resp.Header.Del("Content-Length")
 			return resp, nil
-		}
+		})
 	}, nil
 }

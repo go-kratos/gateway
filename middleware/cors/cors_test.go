@@ -1,13 +1,13 @@
 package cors
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
+	"github.com/go-kratos/gateway/middleware"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -56,16 +56,16 @@ func TestCors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		do := m(func(ctx context.Context, req *http.Request) (*http.Response, error) {
+		do := m(middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			return newResponse(200, make(http.Header))
-		})
+		}))
 		{
 			req, err := http.NewRequest(test.Method, "/foo", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 			req.Header.Set(corsOriginHeader, test.Origin)
-			resp, err := do(context.Background(), req)
+			resp, err := do.RoundTrip(req)
 			if err != nil {
 				t.Fatal(err)
 			}

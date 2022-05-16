@@ -56,13 +56,11 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			otel.SetTextMapPropagator(propagator)
 		})
 	}
-
 	tracer := otel.Tracer(defaultTracerName)
-
-	return func(handler middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, req *http.Request) (reply *http.Response, err error) {
-			ctx, span := tracer.Start(
-				ctx,
+	return func(next http.RoundTripper) http.RoundTripper {
+		return middleware.RoundTripperFunc(func(req *http.Request) (reply *http.Response, err error) {
+			_, span := tracer.Start(
+				req.Context(),
 				fmt.Sprintf("%s %s", req.Method, req.URL.Path),
 				trace.WithSpanKind(trace.SpanKindClient),
 			)
@@ -86,9 +84,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				}
 				span.End()
 			}()
-
-			return handler(ctx, req)
-		}
+			return next.RoundTrip(req)
+		})
 	}, nil
 }
 

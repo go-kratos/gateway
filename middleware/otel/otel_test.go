@@ -2,7 +2,6 @@ package otel
 
 import (
 	"bytes"
-	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +9,7 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
+	"github.com/go-kratos/gateway/middleware"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -21,12 +21,11 @@ func TestTracer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	next := func(ctx context.Context, req *http.Request) (*http.Response, error) {
+	next := middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			Body: ioutil.NopCloser(bytes.NewBufferString("Hello Kratos")),
 		}, nil
-	}
-	ctx := context.Background()
+	})
 
 	m, err := Middleware(&config.Middleware{
 		Options: cfg,
@@ -36,7 +35,7 @@ func TestTracer(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "/api/v1/hello", bytes.NewBufferString("test"))
-	_, err = m(next)(ctx, req)
+	_, err = m(next).RoundTrip(req)
 	if err != nil {
 		t.Fatal(err)
 	}

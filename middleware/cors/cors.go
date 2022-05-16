@@ -1,7 +1,6 @@
 package cors
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -80,8 +79,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}
 	preflightHeaders := generatePreflightHeaders(options)
 	normalHeaders := generateNormalHeaders(options)
-	return func(handler middleware.Handler) middleware.Handler {
-		return func(ctx context.Context, req *http.Request) (*http.Response, error) {
+	return func(next http.RoundTripper) http.RoundTripper {
+		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			origin := req.Header.Get(corsOriginHeader)
 			if req.Method == corsOptionMethod {
 				headers := make(http.Header, len(preflightHeaders)+2)
@@ -97,7 +96,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				headers.Set(corsAllowOriginHeader, origin)
 				return newResponse(http.StatusOK, headers)
 			}
-			resp, err := handler(ctx, req)
+			resp, err := next.RoundTrip(req)
 			if err != nil {
 				return nil, err
 			}
@@ -109,7 +108,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			}
 			resp.Header.Set(corsAllowOriginHeader, origin)
 			return resp, nil
-		}
+		})
 	}, nil
 }
 
