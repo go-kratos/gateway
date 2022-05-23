@@ -1,6 +1,6 @@
 syntax = "proto3";
 package gateway.middleware.replacepath.v1;
-option go_package = "git.bilibili.co/microservices/gateway-worker/middleware/rewrite";
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/rewrite/v1";
 
 // Rewrite middleware config.
 message HeadersPolicy {
