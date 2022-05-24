@@ -1,0 +1,17 @@
+syntax = "proto3";
+package gateway.middleware.rewrite.v1;
+option go_package =  "github.com/go-kratos/gateway/api/gateway/middleware/rewrite/v1";
+
+// Rewrite middleware config.
+message HeadersPolicy {
+    map<string, string> set = 1;
+    map<string, string> add = 2;
+    repeated string remove = 3;
+}
+
+message Rewrite {
+    optional string path_rewrite = 1;
+    HeadersPolicy request_headers_rewrite = 2;
+    HeadersPolicy response_headers_rewrite = 3;
+}
+
