@@ -39,6 +39,12 @@ func TestCors(t *testing.T) {
 			StatusCode: 403,
 		},
 		{
+			Config:     buildConfig([]string{"google.com"}),
+			Origin:     "https://youtube.com",
+			Method:     "OPTIONS",
+			StatusCode: 403,
+		},
+		{
 			Config:     buildConfig([]string{".google.com"}),
 			Origin:     "https://www.youtube.com",
 			Method:     "OPTIONS",
@@ -47,6 +53,24 @@ func TestCors(t *testing.T) {
 		{
 			Config:     buildConfig([]string{".google.com"}),
 			Origin:     "https://www.google.com",
+			Method:     "OPTIONS",
+			StatusCode: 200,
+		},
+		{
+			Config:     buildConfig([]string{"google.com"}),
+			Origin:     "https://www.google.com",
+			Method:     "OPTIONS",
+			StatusCode: 403,
+		},
+		{
+			Config:     buildConfig([]string{"google.com"}),
+			Origin:     "https://google.com",
+			Method:     "OPTIONS",
+			StatusCode: 200,
+		},
+		{
+			Config:     buildConfig([]string{"google.com"}),
+			Origin:     "http://google.com",
 			Method:     "OPTIONS",
 			StatusCode: 200,
 		},
