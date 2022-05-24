@@ -26,9 +26,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	responseHeadersRewrite := options.ResponseHeadersRewrite
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			if options.HostRewrite != nil {
-				req.URL.Host = *options.HostRewrite
-			}
 			if options.PathRewrite != nil {
 				req.URL.Path = *options.PathRewrite
 			}
