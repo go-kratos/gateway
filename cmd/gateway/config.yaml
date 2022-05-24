@@ -17,6 +17,20 @@ middlewares:
         - GET
         - POST
         - OPTIONS
+  - name: rewrite
+    options:
+      '@type': type.googleapis.com/gateway.middleware.rewrite.v1.Rewrite
+      pathRewrite: '/helloworld/status'
+      requestHeadersRewrite:
+        set: {"test2":"test2", "test3":"test3"}
+        remove:
+          - "test1"
+        add: {"test4":"test4"}
+      responseHeadersRewrite:
+        set: { "restest2": "restest2", "restest3": "restest3" }
+        remove:
+          - "restest1"
+        add: { "restest4": "restest4" }
   - name: otel
     options:
       '@type': type.googleapis.com/gateway.middleware.otel.v1.Otel
