@@ -23,27 +23,27 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 		}
 	}
 	requestHeadersRewrite := options.RequestHeadersRewrite
-	respondHeadersRewrite := options.ReponseHeadersRewrite
+	responseHeadersRewrite := options.ResponseHeadersRewrite
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			if options.HostRewrite != nil {
-				req.Host = *options.HostRewrite
+				req.URL.Host = *options.HostRewrite
 			}
 			if options.PathRewrite != nil {
 				req.URL.Path = *options.PathRewrite
 			}
 			if requestHeadersRewrite != nil {
-				for key, value := range options.GetRequestHeadersRewrite().Set {
+				for key, value := range requestHeadersRewrite.Set {
 					req.Header.Set(key, value)
 				}
-				for key, value := range options.GetRequestHeadersRewrite().Add {
+				for key, value := range requestHeadersRewrite.Add {
 					if req.Header.Get(key) == "" {
 						req.Header.Add(key, value)
 					} else {
 						req.Header.Set(key, value)
 					}
 				}
-				for _, value := range options.GetRequestHeadersRewrite().Remove {
+				for _, value := range requestHeadersRewrite.Remove {
 					if req.Header.Get(value) != "" {
 						req.Header.Del(value)
 					}
@@ -53,19 +53,18 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if err != nil {
 				return nil, err
 			}
-
-			if respondHeadersRewrite != nil {
-				for key, value := range options.GetRequestHeadersRewrite().Set {
+			if responseHeadersRewrite != nil {
+				for key, value := range responseHeadersRewrite.Set {
 					resp.Header.Set(key, value)
 				}
-				for key, value := range options.GetRequestHeadersRewrite().Add {
+				for key, value := range responseHeadersRewrite.Add {
 					if resp.Header.Get(key) == "" {
-						req.Header.Add(key, value)
+						resp.Header.Add(key, value)
 					} else {
 						resp.Header.Set(key, value)
 					}
 				}
-				for _, value := range options.GetRequestHeadersRewrite().Remove {
+				for _, value := range responseHeadersRewrite.Remove {
 					if resp.Header.Get(value) != "" {
 						resp.Header.Del(value)
 					}
