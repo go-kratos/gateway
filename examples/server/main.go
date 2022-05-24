@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 
 	pb "github.com/go-kratos/examples/helloworld/helloworld"
@@ -50,6 +51,11 @@ func main() {
 			recovery.Recovery(),
 		),
 	)
+	httpSrv.HandleFunc("/helloworld/header", func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range r.Header {
+			fmt.Fprintf(w, "%s: %s\n", k, v)
+		}
+	})
 	pb.RegisterGreeterServer(grpcSrv, s)
 	pb.RegisterGreeterHTTPServer(httpSrv, s)
 	app := kratos.New(

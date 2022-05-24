@@ -51,8 +51,14 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	if len(allowedOrigins) == 0 {
 		return true
 	}
+	origin = strings.TrimPrefix(origin, "http://")
+	origin = strings.TrimPrefix(origin, "https://")
 	for _, allowedOrigin := range allowedOrigins {
-		if strings.HasSuffix(origin, allowedOrigin) {
+		if strings.HasPrefix(allowedOrigin, ".") {
+			if strings.HasSuffix(origin, allowedOrigin) {
+				return true
+			}
+		} else if allowedOrigin == origin {
 			return true
 		}
 	}
