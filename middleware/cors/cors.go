@@ -2,6 +2,7 @@ package cors
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -44,21 +45,20 @@ func init() {
 	middleware.Register("cors", Middleware)
 }
 
-func isOriginAllowed(origin string, allowedOrigins []string) bool {
-	if origin == "" {
+func isOriginAllowed(origin string, allowOriginHosts []string) bool {
+	originURL, err := url.Parse(origin)
+	if err != nil {
 		return false
 	}
-	if len(allowedOrigins) == 0 {
-		return true
-	}
-	origin = strings.TrimPrefix(origin, "http://")
-	origin = strings.TrimPrefix(origin, "https://")
-	for _, allowedOrigin := range allowedOrigins {
-		if strings.HasPrefix(allowedOrigin, ".") {
-			if strings.HasSuffix(origin, allowedOrigin) {
+	hostname := originURL.Hostname()
+	for _, host := range allowOriginHosts {
+		if host[0] != '.' {
+			if strings.ToLower(hostname) == host {
 				return true
 			}
-		} else if allowedOrigin == origin {
+			continue
+		}
+		if strings.HasSuffix(strings.ToLower(hostname), host) {
 			return true
 		}
 	}
