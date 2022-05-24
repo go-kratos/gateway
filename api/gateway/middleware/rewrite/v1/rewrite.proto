@@ -13,5 +13,5 @@ message Rewrite {
     optional string host_rewrite = 1;
     optional string path_rewrite = 2;
     HeadersPolicy request_headers_rewrite = 3;
-    HeadersPolicy reponse_headers_rewrite = 4;
+    HeadersPolicy response_headers_rewrite = 4;
 }
