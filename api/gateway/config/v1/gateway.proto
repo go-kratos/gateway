@@ -25,8 +25,6 @@ message Endpoint {
     repeated Backend backends = 7;
     Retry retry = 8;
     string ha = 9;
-    repeated string request_headers_to_remove = 10;
-    repeated string response_headers_to_remove = 11;
 }
 
 message Middleware {
