@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"net/http"
+	"os"
 
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/config"
@@ -31,6 +32,7 @@ import (
 )
 
 var (
+	ctrlName     string
 	ctrlService  string
 	discoveryDSN string
 	proxyAddr    string
@@ -47,6 +49,7 @@ func init() {
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 	flag.StringVar(&proxyAddr, "addr", ":8080", "proxy address, eg: -addr 0.0.0.0:8080")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
+	flag.StringVar(&ctrlName, "ctrl.name", os.Getenv("ADVERTISE_NAME"), "control gateway name, eg: gateway")
 	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://127.0.0.1:8000")
 	flag.StringVar(&discoveryDSN, "discovery.dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
 }
@@ -76,7 +79,7 @@ func main() {
 	var ctrlLoader *configLoader.CtrlConfigLoader
 	if ctrlService != "" {
 		LOG.Infof("setup control service to: %q", ctrlService)
-		ctrlLoader = configLoader.New(ctrlService, proxyConfig)
+		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig)
 		if err := ctrlLoader.Load(ctx); err != nil {
 			LOG.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
