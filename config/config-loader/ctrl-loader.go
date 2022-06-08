@@ -32,7 +32,7 @@ type CtrlConfigLoader struct {
 	dstPath         string
 	cancel          context.CancelFunc
 
-	hostname      string
+	advertiseName string
 	advertiseAddr string
 }
 
@@ -61,12 +61,12 @@ func prepareCtrlService(in string) []string {
 	return out
 }
 
-func New(rawCtrlService, dstPath string) *CtrlConfigLoader {
+func New(name, rawCtrlService, dstPath string) *CtrlConfigLoader {
 	cl := &CtrlConfigLoader{
 		ctrlService: prepareCtrlService(rawCtrlService),
 		dstPath:     dstPath,
 	}
-	cl.hostname = cl.getHostname()
+	cl.advertiseName = name
 	cl.advertiseAddr = cl.getAdvertiseAddr()
 	return cl
 }
@@ -122,15 +122,6 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	return nil
 }
 
-func (c *CtrlConfigLoader) getHostname() string {
-	advName := os.Getenv("ADVERTISE_NAME")
-	if advName != "" {
-		return advName
-	}
-	hn, _ := os.Hostname()
-	return hn
-}
-
 func (c *CtrlConfigLoader) getIPInterface(name string) (string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -182,18 +173,18 @@ func (c *CtrlConfigLoader) getAdvertiseAddr() string {
 	}
 	advAddr, err := c.getIPInterface(advDevice)
 	if err != nil {
-		LOG.Errorf("%q There was a problem with the IP %+v", c.hostname, err)
+		LOG.Errorf("%q There was a problem with the IP %+v", c.advertiseName, err)
 		return ""
 	}
-	LOG.Infof("%s uses IP %s\n", c.hostname, advAddr)
+	LOG.Infof("%s uses IP %s\n", c.advertiseName, advAddr)
 	return advAddr
 }
 
 func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params := url.Values{}
-	params.Set("gateway", c.hostname)
+	params.Set("gateway", c.advertiseName)
 	params.Set("ip_addr", c.advertiseAddr)
-	LOG.Infof("%s is requesting config from %s with params: %+v", c.hostname, c.ctrlService, params)
+	LOG.Infof("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params)
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
 		return nil, err
@@ -251,7 +242,7 @@ func (c *CtrlConfigLoader) DebugHandler() http.Handler {
 			CtrlServiceIdx:  c.ctrlServiceIdx,
 			NextCtrlService: c.nextCtrlService,
 			DstPath:         c.dstPath,
-			Hostname:        c.hostname,
+			Hostname:        c.advertiseName,
 			AdvertiseAddr:   c.advertiseAddr,
 		}
 		rw.Header().Set("Content-Type", "application/json")
