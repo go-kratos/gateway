@@ -78,8 +78,8 @@ func InspectMuxRouter(in interface{}) []*RouterInspect {
 	if !ok {
 		return nil
 	}
-	out := []*RouterInspect{}
-	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	var out []*RouterInspect
+	_ = r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		pathTemplate, _ := route.GetPathTemplate()
 		pathRegexp, _ := route.GetPathRegexp()
 		queriesTemplates, _ := route.GetQueriesTemplates()
