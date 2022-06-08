@@ -1,4 +1,4 @@
-package otel
+package tracing
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
+	v1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2"
 	"go.opentelemetry.io/otel"
@@ -37,12 +37,12 @@ var globaltp = &struct {
 }{}
 
 func init() {
-	middleware.Register("otel", Middleware)
+	middleware.Register("tracing", Middleware)
 }
 
 // Middleware is a opentelemetry middleware.
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
-	options := &v1.Otel{}
+	options := &v1.Tracing{}
 	if c.Options != nil {
 		if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
 			return nil, err
@@ -89,7 +89,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	}, nil
 }
 
-func newTracerProvider(ctx context.Context, options *v1.Otel) trace.TracerProvider {
+func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerProvider {
 	var (
 		timeout     = defaultTimeout
 		serviceName = defaultServiceName

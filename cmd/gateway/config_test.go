@@ -6,7 +6,7 @@ import (
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	circuitbreakerv1 "github.com/go-kratos/gateway/api/gateway/middleware/circuitbreaker/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
-	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
+	tracingv1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -92,6 +92,12 @@ func equalTo() *configv1.Gateway {
 		},
 		Middlewares: []*configv1.Middleware{
 			{
+				Name: "tracing",
+				Options: asAny(&tracingv1.Tracing{
+					HttpEndpoint: "localhost:4318",
+				}),
+			},
+			{
 				Name: "logging",
 			},
 			{
@@ -103,12 +109,6 @@ func equalTo() *configv1.Gateway {
 					AllowCredentials: true,
 					AllowOrigins:     []string{".google.com"},
 					AllowMethods:     []string{"GET", "POST", "OPTIONS"},
-				}),
-			},
-			{
-				Name: "otel",
-				Options: asAny(&otelv1.Otel{
-					HttpEndpoint: "localhost:4318",
 				}),
 			},
 		},

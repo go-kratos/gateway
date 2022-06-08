@@ -7,7 +7,7 @@ import (
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
 	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
-	otelv1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
+	tracingv1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -65,8 +65,8 @@ func equalTo() *configv1.Gateway {
 				}),
 			},
 			{
-				Name: "otel",
-				Options: asAny(&otelv1.Otel{
+				Name: "tracing",
+				Options: asAny(&tracingv1.Tracing{
 					HttpEndpoint: "localhost:4318",
 				}),
 			},
