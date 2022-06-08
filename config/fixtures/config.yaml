@@ -14,9 +14,9 @@ middlewares:
         - GET
         - POST
         - OPTIONS
-  - name: otel
+  - name: tracing 
     options:
-      '@type': type.googleapis.com/gateway.middleware.otel.v1.Otel
+      '@type': type.googleapis.com/gateway.middleware.tracing.v1.Tracing
       httpEndpoint: 'localhost:4318' # default opentelemetry collector port
   - name: logging
     options:

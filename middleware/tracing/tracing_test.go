@@ -1,4 +1,4 @@
-package otel
+package tracing
 
 import (
 	"bytes"
@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	v1 "github.com/go-kratos/gateway/api/gateway/middleware/otel/v1"
+	v1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestTracer(t *testing.T) {
-	cfg, err := anypb.New(&v1.Otel{
+	cfg, err := anypb.New(&v1.Tracing{
 		HttpEndpoint: "127.0.0.1:4318",
 	})
 	if err != nil {

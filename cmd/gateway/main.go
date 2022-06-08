@@ -21,8 +21,8 @@ import (
 	"github.com/go-kratos/gateway/middleware/circuitbreaker"
 	_ "github.com/go-kratos/gateway/middleware/cors"
 	_ "github.com/go-kratos/gateway/middleware/logging"
-	_ "github.com/go-kratos/gateway/middleware/otel"
 	_ "github.com/go-kratos/gateway/middleware/rewrite"
+	_ "github.com/go-kratos/gateway/middleware/tracing"
 	_ "github.com/go-kratos/gateway/middleware/transcoder"
 	_ "go.uber.org/automaxprocs"
 
