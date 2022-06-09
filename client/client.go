@@ -3,7 +3,6 @@ package client
 import (
 	"net/http"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
@@ -19,7 +18,7 @@ type client struct {
 	selector selector.Selector
 }
 
-func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *client {
+func newClient(applier *nodeApplier, selector selector.Selector) *client {
 	return &client{
 		applier:  applier,
 		selector: selector,
@@ -41,7 +40,7 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	addr := n.Address()
 	middleware.WithRequestBackends(ctx, addr)
 	req.URL.Host = addr
-	req.URL.Scheme = "http"
+	req.URL.Scheme = n.Scheme()
 	req.RequestURI = ""
 	resp, err = n.(*node).client.Do(req)
 	done(ctx, selector.DoneInfo{Err: err})
