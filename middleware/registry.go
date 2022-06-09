@@ -36,7 +36,7 @@ func (p *middlewareRegistry) Create(cfg *configv1.Middleware) (Middleware, error
 	if method, ok := p.getMiddleware(createFullName(cfg.Name)); ok {
 		return method(cfg)
 	}
-	return nil, fmt.Errorf("Middleware %s has not been registered", cfg.Name)
+	return nil, fmt.Errorf("middleware %s has not been registered", cfg.Name)
 }
 
 func (p *middlewareRegistry) getMiddleware(name string) (Factory, bool) {

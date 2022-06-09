@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -122,6 +123,7 @@ type Proxy struct {
 	router            atomic.Value
 	clientFactory     client.Factory
 	middlewareFactory middleware.Factory
+	recoverStackPool  sync.Pool
 }
 
 // New is new a gateway proxy.
@@ -129,6 +131,9 @@ func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*P
 	p := &Proxy{
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
+	}
+	p.recoverStackPool.New = func() interface{} {
+		return make([]byte, 64<<10)
 	}
 	p.router.Store(mux.NewRouter())
 	return p, nil
@@ -233,7 +238,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			headers[http.TrailerPrefix+k] = v
 		}
 		if resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		_metricRequestsTotol.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
 	})), nil
@@ -241,18 +246,18 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) error {
-	router := mux.NewRouter()
+	newRouter := mux.NewRouter()
 	for _, e := range c.Endpoints {
 		handler, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
 			return err
 		}
-		if err = router.Handle(e.Path, e.Method, handler); err != nil {
+		if err = newRouter.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
 		LOG.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
-	p.router.Store(router)
+	p.router.Store(newRouter)
 	return nil
 }
 
@@ -260,9 +265,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusBadGateway)
-			buf := make([]byte, 64<<10) //nolint:gomnd
+			buf := p.recoverStackPool.Get().([]byte)
 			n := runtime.Stack(buf, false)
 			LOG.Errorf("panic recovered: %s", buf[:n])
+			p.recoverStackPool.Put(buf)
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)
@@ -272,13 +278,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (p *Proxy) DebugHandler() http.Handler {
 	debugMux := gorillamux.NewRouter()
 	debugMux.Methods("GET").Path("/debug/proxy/router/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		router, ok := p.router.Load().(router.Router)
+		loadRouter, ok := p.router.Load().(router.Router)
 		if !ok {
 			return
 		}
-		inspect := mux.InspectMuxRouter(router)
+		inspect := mux.InspectMuxRouter(loadRouter)
 		rw.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(rw).Encode(inspect)
+		_ = json.NewEncoder(rw).Encode(inspect)
 	})
 	return debugMux
 }
