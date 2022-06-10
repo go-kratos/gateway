@@ -30,7 +30,7 @@ func NewFactory(r registry.Discovery) Factory {
 		if err := applier.apply(ctx, picker); err != nil {
 			return nil, err
 		}
-		return newClient(endpoint, applier, picker), nil
+		return newClient(applier, picker), nil
 	}
 }
 

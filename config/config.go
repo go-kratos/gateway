@@ -164,28 +164,28 @@ func (f *fileLoader) DebugHandler() http.Handler {
 			OnChangeHandlers: int64(len(f.onChangeHandlers)),
 		}
 		rw.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(rw).Encode(out)
+		_ = json.NewEncoder(rw).Encode(out)
 	})
 	debugMux.Methods("GET").Path("/debug/config/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(err.Error()))
+			_, _ = rw.Write([]byte(err.Error()))
 			return
 		}
 		rw.Header().Set("Content-Type", "application/json")
 		b, _ := protojson.Marshal(out)
-		rw.Write(b)
+		_, _ = rw.Write(b)
 	})
 	debugMux.Methods("GET").Path("/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(err.Error()))
+			_, _ = rw.Write([]byte(err.Error()))
 			return
 		}
 		rw.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(rw).Encode(map[string]interface{}{
+		_ = json.NewEncoder(rw).Encode(map[string]interface{}{
 			"version": out.Version,
 		})
 	})

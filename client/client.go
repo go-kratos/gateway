@@ -3,7 +3,6 @@ package client
 import (
 	"net/http"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
@@ -19,7 +18,7 @@ type client struct {
 	selector selector.Selector
 }
 
-func newClient(c *config.Endpoint, applier *nodeApplier, selector selector.Selector) *client {
+func newClient(applier *nodeApplier, selector selector.Selector) *client {
 	return &client{
 		applier:  applier,
 		selector: selector,
