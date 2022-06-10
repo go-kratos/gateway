@@ -155,7 +155,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 }
 
 func (s *serviceWatcher) doCallback(endpoint string, services []*registry.ServiceInstance) {
-	cleanup := []string{}
+	var cleanup []string
 	func() {
 		s.lock.RLock()
 		defer s.lock.RUnlock()

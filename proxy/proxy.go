@@ -186,7 +186,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		}
 
 		var resp *http.Response
-		for i := 0; i < int(retryStrategy.attempts); i++ {
+		for i := 0; i < retryStrategy.attempts; i++ {
 			if i > 0 {
 				_metricRetryTotal.WithLabelValues(protocol, req.Method, req.URL.Path).Inc()
 			}

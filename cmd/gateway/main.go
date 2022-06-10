@@ -128,7 +128,7 @@ func main() {
 		kratos.Name(bc.Name),
 		kratos.Context(ctx),
 		kratos.Server(
-			server.NewProxy(serverHandler, proxyAddr, bc),
+			server.NewProxy(serverHandler, proxyAddr),
 		),
 	)
 	if err := app.Run(); err != nil {

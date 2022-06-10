@@ -68,7 +68,7 @@ func (nopTrigger) MarkFailed()  {}
 func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	switch trigger := in.Trigger.(type) {
 	case *v1.CircuitBreaker_SuccessRatio:
-		opts := []sre.Option{}
+		var opts []sre.Option
 		if trigger.SuccessRatio.Bucket != 0 {
 			opts = append(opts, sre.WithBucket(int(trigger.SuccessRatio.Bucket)))
 		}
@@ -130,7 +130,7 @@ func isSuccessResponse(conditions []condition.Condition, resp *http.Response) bo
 }
 
 func New(factory client.Factory) middleware.Factory {
-	return middleware.Factory(func(c *config.Middleware) (middleware.Middleware, error) {
+	return func(c *config.Middleware) (middleware.Middleware, error) {
 		options := &v1.CircuitBreaker{}
 		if c.Options != nil {
 			if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
@@ -169,5 +169,5 @@ func New(factory client.Factory) middleware.Factory {
 				return resp, nil
 			})
 		}, nil
-	})
+	}
 }
