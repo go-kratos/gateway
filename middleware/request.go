@@ -14,6 +14,7 @@ type RequestOptions struct {
 	Endpoint *config.Endpoint
 	Filters  []selector.Filter
 	Backends []string
+	Metadata map[string]string
 }
 
 // NewRequestOptions new a request options with retry filter.
