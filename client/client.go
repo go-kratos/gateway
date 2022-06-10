@@ -40,7 +40,7 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	addr := n.Address()
 	middleware.WithRequestBackends(ctx, addr)
 	req.URL.Host = addr
-	req.URL.Scheme = n.Scheme()
+	req.URL.Scheme = "http"
 	req.RequestURI = ""
 	resp, err = n.(*node).client.Do(req)
 	done(ctx, selector.DoneInfo{Err: err})
