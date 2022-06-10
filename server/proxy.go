@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -53,7 +52,7 @@ type ProxyServer struct {
 }
 
 // NewProxy new a gateway server.
-func NewProxy(handler http.Handler, addr string, c *config.Gateway) *ProxyServer {
+func NewProxy(handler http.Handler, addr string) *ProxyServer {
 	return &ProxyServer{
 		Server: &http.Server{
 			Addr: addr,

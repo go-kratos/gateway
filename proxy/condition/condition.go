@@ -83,7 +83,7 @@ func (c *byHeader) Prepare() error {
 }
 
 func parseAsStringList(in string) ([]string, error) {
-	out := []string{}
+	var out []string
 	if err := json.Unmarshal([]byte(in), &out); err != nil {
 		return nil, err
 	}
