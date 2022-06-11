@@ -72,10 +72,10 @@ func checkEndpoint(endpoint string, servicePort int) error {
 		endpoint = strings.TrimPrefix(endpoint, "discovery:///")
 	}
 	v, err := net.ResolveTCPAddr("tcp", endpoint)
-	if err != nil {
+	if err != nil && endpoint != "localhost" {
 		return err
 	}
-	if localIPAddress[v.IP.String()] && servicePort == v.Port {
+	if (endpoint == "localhost" && servicePort == 80) || (endpoint != "localhost" && localIPAddress[v.IP.String()] && servicePort == v.Port) {
 		return errors.New("endpoint port must not be same as service port")
 	}
 	return nil
