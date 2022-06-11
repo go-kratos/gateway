@@ -62,14 +62,14 @@ func IsSecure(u *url.URL) bool {
 }
 
 func checkEndpoint(endpoint string, servicePort int) error {
-	if endpoint == "" {
-		return errors.New("endpoint must not be empty")
-	}
 	if strings.HasPrefix(endpoint, "direct:///") {
 		endpoint = strings.TrimPrefix(endpoint, "direct:///")
 	}
 	if strings.HasPrefix(endpoint, "discovery:///") {
 		endpoint = strings.TrimPrefix(endpoint, "discovery:///")
+	}
+	if endpoint == "" {
+		return errors.New("endpoint must not be empty")
 	}
 	v, err := net.ResolveTCPAddr("tcp", endpoint)
 	if err != nil && endpoint != "localhost" {
