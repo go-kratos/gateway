@@ -200,11 +200,11 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 				reader := bytes.NewReader(body)
 				req.Body = ioutil.NopCloser(reader)
 				resp, err = tripper.RoundTrip(req.WithContext(tryCtx))
-				if err != nil {
-					LOG.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
-					return
-				}
 			}()
+			if err != nil {
+				LOG.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
+				continue
+			}
 			if !judgeRetryRequired(retryStrategy.conditions, resp) {
 				if i > 0 {
 					_metricRetrySuccess.WithLabelValues(protocol, req.Method, req.URL.Path).Inc()
