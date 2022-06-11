@@ -68,7 +68,7 @@ func makeDiscovery() registry.Discovery {
 func main() {
 	flag.Parse()
 
-	clientFactory := client.NewFactory(makeDiscovery())
+	clientFactory := client.NewFactory(makeDiscovery(), proxyAddr)
 	p, err := proxy.New(clientFactory, middleware.Create)
 	if err != nil {
 		LOG.Fatalf("failed to new proxy: %v", err)
