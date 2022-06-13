@@ -1,0 +1,11 @@
+syntax = "proto3";
+package gateway.middleware.bbr.v1;
+option go_package =  "github.com/go-kratos/gateway/api/gateway/middleware/bbr/v1";
+
+// BBR middleware config.
+message BBR {
+    int32 window = 1;
+    int32 bucket = 2;
+    int32 cpuThreshold = 3;
+    float CPUQuota = 4;
+}

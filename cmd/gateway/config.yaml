@@ -21,6 +21,7 @@ middlewares:
         - GET
         - POST
         - OPTIONS
+  - name: bbr
 endpoints:
   - path: /helloworld/*
     timeout: 1s
