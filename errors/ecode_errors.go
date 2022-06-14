@@ -12,23 +12,6 @@ var (
 	_nopBody       = io.NopCloser(&bytes.Buffer{})
 )
 
-//type ecodeResponseBody struct {
-//	Code    int32  `json:"code"`
-//	Message string `json:"message"`
-//	Reason  string `json:"reason"`
-//}
-//
-//func newEcodeResponseBody(err errors.Error) *ecodeResponseBody {
-//	return &ecodeResponseBody{
-//		Code:    err.Code,
-//		Message: err.Message,
-//		Reason:  err.Reason,
-//	}
-//}
-//func WriteJSON(in io.Writer) error {
-//	return json.NewEncoder(in).Encode()
-//}
-
 func MakeResonse(err *errors.Error) *http.Response {
 	return &http.Response{
 		StatusCode: int(err.Code),
