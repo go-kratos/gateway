@@ -12,7 +12,7 @@ var (
 	_nopBody       = io.NopCloser(&bytes.Buffer{})
 )
 
-func MakeResonse(err *errors.Error) *http.Response {
+func MakeResponse(err *errors.Error) *http.Response {
 	return &http.Response{
 		StatusCode: int(err.Code),
 		Status:     http.StatusText(int(err.Code)),

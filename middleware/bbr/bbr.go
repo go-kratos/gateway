@@ -20,7 +20,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			done, err := limiter.Allow()
 			if err != nil {
-				return errors.MakeResonse(errors.ErrLimitExceed), errors.ErrLimitExceed
+				return errors.MakeResponse(errors.ErrLimitExceed), errors.ErrLimitExceed
 			}
 			resp, err := next.RoundTrip(req)
 			done(ratelimit.DoneInfo{Err: err})
