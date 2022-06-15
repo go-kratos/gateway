@@ -136,7 +136,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 		m, err := p.middlewareFactory(ms[i])
 		if err != nil {
 			if errors.Is(err, middleware.ErrNotFound) {
-				log.Warnf("Skip does not exist middleware: %s", ms[i].Name)
+				log.Errorf("Skip does not exist middleware: %s", ms[i].Name)
 				continue
 			}
 			return nil, err
