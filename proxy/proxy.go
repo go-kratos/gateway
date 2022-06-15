@@ -26,9 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// LOG .
-var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "proxy"))
-
 var (
 	_metricRequestsTotol = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
@@ -138,6 +135,10 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 	for i := len(ms) - 1; i >= 0; i-- {
 		m, err := p.middlewareFactory(ms[i])
 		if err != nil {
+			if errors.Is(err, middleware.ErrNotFound) {
+				log.Warnf("Skip does not exist middleware: %s", ms[i].Name)
+				continue
+			}
 			return nil, err
 		}
 		next = m(next)
@@ -200,7 +201,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			req.Body = ioutil.NopCloser(reader)
 			resp, err = tripper.RoundTrip(req.WithContext(tryCtx))
 			if err != nil {
-				LOG.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
+				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
 			}
 			if !judgeRetryRequired(retryStrategy.conditions, resp) {
@@ -224,7 +225,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		if body := resp.Body; body != nil {
 			sent, err := io.Copy(w, body)
 			if err != nil {
-				LOG.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
+				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
 			}
 			_metricSentBytes.WithLabelValues(protocol, req.Method, req.URL.Path).Add(float64(sent))
 		}
@@ -250,7 +251,7 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		if err = router.Handle(e.Path, e.Method, handler); err != nil {
 			return err
 		}
-		LOG.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
 	p.router.Store(router)
 	return nil
@@ -262,7 +263,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)
-			LOG.Errorf("panic recovered: %s", buf[:n])
+			log.Errorf("panic recovered: %s", buf[:n])
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)
