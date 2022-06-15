@@ -31,8 +31,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			}
 			resp, err := next.RoundTrip(req)
 			done(ratelimit.DoneInfo{Err: err})
-			return resp, nil
+			return resp, err
 		})
-
 	}, nil
 }
