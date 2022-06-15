@@ -1,13 +1,16 @@
 package middleware
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
 var globalRegistry = NewRegistry()
+
+// ErrNotFound is middleware not found.
+var ErrNotFound = errors.New("Middleware has not been registered")
 
 // Registry is the interface for callers to get registered middleware.
 type Registry interface {
@@ -36,7 +39,7 @@ func (p *middlewareRegistry) Create(cfg *configv1.Middleware) (Middleware, error
 	if method, ok := p.getMiddleware(createFullName(cfg.Name)); ok {
 		return method(cfg)
 	}
-	return nil, fmt.Errorf("Middleware %s has not been registered", cfg.Name)
+	return nil, ErrNotFound
 }
 
 func (p *middlewareRegistry) getMiddleware(name string) (Factory, bool) {
