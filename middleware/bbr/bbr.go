@@ -2,7 +2,6 @@ package bbr
 
 import (
 	"bytes"
-
 	"io"
 	"net/http"
 
