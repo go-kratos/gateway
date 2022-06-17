@@ -27,7 +27,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					Status:     http.StatusText(http.StatusTooManyRequests),
 					StatusCode: http.StatusTooManyRequests,
 					Body:       _nopBody,
-				}, err
+				}, nil
 			}
 			resp, err := next.RoundTrip(req)
 			done(ratelimit.DoneInfo{Err: err})
