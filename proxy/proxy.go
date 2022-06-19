@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	_metricRequestsTotol = prometheus.NewCounterVec(prometheus.CounterOpts{
+	_metricRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_code_total",
@@ -67,7 +67,7 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(_metricRequestsTotol)
+	prometheus.MustRegister(_metricRequestsTotal)
 	prometheus.MustRegister(_metricRequestsDuration)
 	prometheus.MustRegister(_metricRetryTotal)
 	prometheus.MustRegister(_metricRetrySuccess)
@@ -102,7 +102,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	default:
 		statusCode = 502
 	}
-	_metricRequestsTotol.WithLabelValues(protocol.String(), r.Method, r.URL.Path, strconv.Itoa(statusCode)).Inc()
+	_metricRequestsTotal.WithLabelValues(protocol.String(), r.Method, r.URL.Path, strconv.Itoa(statusCode)).Inc()
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
@@ -236,7 +236,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		if resp.Body != nil {
 			resp.Body.Close()
 		}
-		_metricRequestsTotol.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
+		_metricRequestsTotal.WithLabelValues(protocol, req.Method, req.URL.Path, "200").Inc()
 	})), nil
 }
 
