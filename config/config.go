@@ -18,10 +18,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "config"))
-)
-
 type OnChange func() error
 
 type ConfigLoader interface {
@@ -56,7 +52,7 @@ func (f *fileLoader) initialize() error {
 		return err
 	}
 	f.confSHA256 = sha256hex
-	LOG.Infof("the initial config file sha256: %s", sha256hex)
+	log.Infof("the initial config file sha256: %s", sha256hex)
 
 	watchCtx, cancel := context.WithCancel(context.Background())
 	f.watchCancel = cancel
@@ -78,7 +74,7 @@ func (f *fileLoader) configSHA256() (string, error) {
 }
 
 func (f *fileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
-	LOG.Infof("loading config file: %s", f.confPath)
+	log.Infof("loading config file: %s", f.confPath)
 
 	configData, err := ioutil.ReadFile(f.confPath)
 	if err != nil {
@@ -97,21 +93,21 @@ func (f *fileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 }
 
 func (f *fileLoader) Watch(fn OnChange) {
-	LOG.Info("add config file change event handler")
+	log.Info("add config file change event handler")
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.onChangeHandlers = append(f.onChangeHandlers, fn)
 }
 
 func (f *fileLoader) executeLoader() error {
-	LOG.Info("execute config loader")
+	log.Info("execute config loader")
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 
 	var chainedError error
 	for _, fn := range f.onChangeHandlers {
 		if err := fn(); err != nil {
-			LOG.Errorf("execute config loader error on handler: %+v: %+v", fn, err)
+			log.Errorf("execute config loader error on handler: %+v: %+v", fn, err)
 			chainedError = errors.New(err.Error())
 		}
 	}
@@ -119,7 +115,7 @@ func (f *fileLoader) executeLoader() error {
 }
 
 func (f *fileLoader) watchproc(ctx context.Context) {
-	LOG.Info("start watch config file")
+	log.Info("start watch config file")
 	for {
 		select {
 		case <-ctx.Done():
@@ -129,13 +125,13 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 		func() {
 			sha256hex, err := f.configSHA256()
 			if err != nil {
-				LOG.Errorf("watch config file error: %+v", err)
+				log.Errorf("watch config file error: %+v", err)
 				return
 			}
 			if sha256hex != f.confSHA256 {
-				LOG.Infof("config file changed, reload config, last sha256: %s, new sha256: %s", f.confSHA256, sha256hex)
+				log.Infof("config file changed, reload config, last sha256: %s, new sha256: %s", f.confSHA256, sha256hex)
 				if err := f.executeLoader(); err != nil {
-					LOG.Errorf("execute config loader error with new sha256: %s: %+v, config digest will not be changed until all loaders are succeeded", sha256hex, err)
+					log.Errorf("execute config loader error with new sha256: %s: %+v, config digest will not be changed until all loaders are succeeded", sha256hex, err)
 					return
 				}
 				f.confSHA256 = sha256hex

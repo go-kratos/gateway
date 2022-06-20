@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/google/uuid"
 )
@@ -85,7 +86,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 			<-ws.initializedChan
 
 			if len(ws.selectedInstances) > 0 {
-				LOG.Infof("Using cached %d selected instances on endpoint: %s, hash: %s", len(ws.selectedInstances), endpoint, instancesSetHash(ws.selectedInstances))
+				log.Infof("Using cached %d selected instances on endpoint: %s, hash: %s", len(ws.selectedInstances), endpoint, instancesSetHash(ws.selectedInstances))
 				callback(ws.selectedInstances)
 				return true
 			}
@@ -98,22 +99,22 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 		}
 		watcher, err := discovery.Watch(ctx, endpoint)
 		if err != nil {
-			LOG.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
+			log.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
 			return false
 		}
-		LOG.Infof("Succeeded to initialize watcher on endpoint: %s", endpoint)
+		log.Infof("Succeeded to initialize watcher on endpoint: %s", endpoint)
 		ws.watcher = watcher
 		s.watcherStatus[endpoint] = ws
 
 		func() {
 			defer close(ws.initializedChan)
-			LOG.Infof("Starting to do initialize services discovery on endpoint: %s", endpoint)
+			log.Infof("Starting to do initialize services discovery on endpoint: %s", endpoint)
 			services, err := watcher.Next()
 			if err != nil {
-				LOG.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
+				log.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
 				return
 			}
-			LOG.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services, hash: %s", endpoint, len(services), instancesSetHash(ws.selectedInstances))
+			log.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services, hash: %s", endpoint, len(services), instancesSetHash(ws.selectedInstances))
 			ws.selectedInstances = services
 			callback(services)
 		}()
@@ -123,18 +124,18 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 				services, err := watcher.Next()
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
-						LOG.Warnf("The watch process on: %s has been canceled", endpoint)
+						log.Warnf("The watch process on: %s has been canceled", endpoint)
 						return
 					}
-					LOG.Errorf("Failed to watch on endpoint: %s, err: %+v, the watch process will attempt again after 1 second", endpoint, err)
+					log.Errorf("Failed to watch on endpoint: %s, err: %+v, the watch process will attempt again after 1 second", endpoint, err)
 					time.Sleep(time.Second)
 					continue
 				}
 				if len(services) == 0 {
-					LOG.Warnf("Empty services on endpoint: %s, this most likely no available instance in discovery", endpoint)
+					log.Warnf("Empty services on endpoint: %s, this most likely no available instance in discovery", endpoint)
 					continue
 				}
-				LOG.Infof("Received %d services on endpoint: %s, hash: %s", len(services), endpoint, instancesSetHash(services))
+				log.Infof("Received %d services on endpoint: %s, hash: %s", len(services), endpoint, instancesSetHash(services))
 				s.setSelectedCache(endpoint, services)
 				s.doCallback(endpoint, services)
 			}
@@ -143,7 +144,7 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 		return false
 	}()
 
-	LOG.Infof("Add callback on endpoint: %s", endpoint)
+	log.Infof("Add callback on endpoint: %s", endpoint)
 	if callback != nil {
 		if _, ok := s.callback[endpoint]; !ok {
 			s.callback[endpoint] = make(map[string]func([]*registry.ServiceInstance) error)
@@ -163,10 +164,10 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 			if err := callback(services); err != nil {
 				if errors.Is(err, ErrCancelWatch) {
 					cleanup = append(cleanup, id)
-					LOG.Warnf("callback on endpoint: %s, id: %s is canceled, will delete later", endpoint, id)
+					log.Warnf("callback on endpoint: %s, id: %s is canceled, will delete later", endpoint, id)
 					continue
 				}
-				LOG.Errorf("Failed to call callback on endpoint: %q: %+v", endpoint, err)
+				log.Errorf("Failed to call callback on endpoint: %q: %+v", endpoint, err)
 			}
 		}
 	}()
@@ -174,7 +175,7 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 	if len(cleanup) <= 0 {
 		return
 	}
-	LOG.Infof("Cleanup callback on endpoint: %q with keys: %+v", endpoint, cleanup)
+	log.Infof("Cleanup callback on endpoint: %q with keys: %+v", endpoint, cleanup)
 	func() {
 		s.lock.Lock()
 		defer s.lock.Unlock()

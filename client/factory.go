@@ -9,6 +9,7 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/p2c"
@@ -67,7 +68,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					scheme := strings.ToLower(na.endpoint.Protocol.String())
 					addr, err := parseEndpoint(ser.Endpoints, scheme, false)
 					if err != nil || addr == "" {
-						LOG.Errorf("failed to parse endpoint: %v", err)
+						log.Errorf("failed to parse endpoint: %v", err)
 						return nil
 					}
 					node := newNode(addr, na.endpoint.Protocol, weighted, ser.Metadata)
@@ -77,7 +78,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 				return nil
 			})
 			if existed {
-				LOG.Infof("watch target %+v already existed", target)
+				log.Infof("watch target %+v already existed", target)
 			}
 		default:
 			return fmt.Errorf("unknown scheme: %s", target.Scheme)

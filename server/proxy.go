@@ -13,9 +13,6 @@ import (
 )
 
 var (
-	// LOG .
-	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "server"))
-
 	readHeaderTimeout = time.Second * 10
 	readTimeout       = time.Second * 15
 	writeTimeout      = time.Second * 15
@@ -70,12 +67,12 @@ func NewProxy(handler http.Handler, addr string) *ProxyServer {
 
 // Start the server.
 func (s *ProxyServer) Start(ctx context.Context) error {
-	LOG.Infof("proxy listening on %s", s.Addr)
+	log.Infof("proxy listening on %s", s.Addr)
 	return s.ListenAndServe()
 }
 
 // Stop the server.
 func (s *ProxyServer) Stop(ctx context.Context) error {
-	LOG.Info("proxy stopping")
+	log.Info("proxy stopping")
 	return s.Shutdown(ctx)
 }

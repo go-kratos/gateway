@@ -10,9 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// LOG is logging logger.
-var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
-
 var _ = new(router.Router)
 
 type muxRouter struct {
@@ -55,7 +52,7 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusNotFound
 	message := "404 page not found"
 	http.Error(w, message, code)
-	LOG.WithContext(r.Context()).Errorw(
+	log.Context(r.Context()).Errorw(
 		"host", r.Host,
 		"method", r.Method,
 		"path", r.URL.Path,
