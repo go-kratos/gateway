@@ -14,8 +14,6 @@ const (
 	_debugPrefix = "/debug"
 )
 
-var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "debug"))
-
 type Debuggable interface {
 	DebugHandler() http.Handler
 }
@@ -52,11 +50,11 @@ func (d *DebugService) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (d *DebugService) Register(name string, component interface{}) {
 	debuggable, ok := component.(Debuggable)
 	if !ok {
-		LOG.Warnf("component %s is not debuggable", name)
+		log.Warnf("component %s is not debuggable", name)
 		return
 	}
 	path := path.Join(_debugPrefix, name)
-	LOG.Infof("register debug: %s", path)
+	log.Infof("register debug: %s", path)
 	d.mux.PathPrefix(path).Handler(debuggable.DebugHandler())
 }
 

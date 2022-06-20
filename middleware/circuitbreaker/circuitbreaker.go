@@ -26,7 +26,6 @@ func Init(clientFactory client.Factory) {
 }
 
 var (
-	LOG                = log.NewHelper(log.With(log.GetLogger(), "source", "accesslog"))
 	_metricDeniedTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
@@ -85,7 +84,7 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	case *v1.CircuitBreaker_Ratio:
 		return newRatioTrigger(trigger)
 	default:
-		LOG.Warnf("Unrecoginzed circuit breaker trigger: %+v", trigger)
+		log.Warnf("Unrecoginzed circuit breaker trigger: %+v", trigger)
 		return nopTrigger{}
 	}
 }
@@ -93,14 +92,14 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, error) {
 	switch action := in.Action.(type) {
 	case *v1.CircuitBreaker_BackupService:
-		LOG.Infof("Making backup service as on break handler: %+v", action)
+		log.Infof("Making backup service as on break handler: %+v", action)
 		client, err := factory(action.BackupService.Endpoint)
 		if err != nil {
 			return nil, err
 		}
 		return client, nil
 	case *v1.CircuitBreaker_ResponseData:
-		LOG.Infof("Making static response data as on break handler: %+v", action)
+		log.Infof("Making static response data as on break handler: %+v", action)
 		body := io.NopCloser(bytes.NewBuffer(action.ResponseData.Body))
 		resp := &http.Response{
 			StatusCode: int(action.ResponseData.StatusCode),
@@ -114,7 +113,7 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.Rou
 			return resp, nil
 		}), nil
 	default:
-		LOG.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
+		log.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
 		return middleware.RoundTripperFunc(func(*http.Request) (*http.Response, error) {
 			// TBD: on break response
 			return &http.Response{

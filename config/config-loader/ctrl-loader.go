@@ -21,10 +21,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "config-loader"))
-)
-
 type CtrlConfigLoader struct {
 	ctrlService     []string
 	ctrlServiceIdx  int
@@ -47,13 +43,13 @@ func prepareCtrlService(in string) []string {
 	for _, part := range parts {
 		u, err := url.Parse(part)
 		if err != nil {
-			LOG.Warnf("Failed to parse control service url %s: %s, will skip this one", part, err)
+			log.Warnf("Failed to parse control service url %s: %s, will skip this one", part, err)
 			continue
 		}
 		out = append(out, u.String())
 	}
 	if len(out) == 0 {
-		LOG.Warnf("No control service url found, control service will not be available")
+		log.Warnf("No control service url found, control service will not be available")
 	}
 	rand.Shuffle(len(out), func(i, j int) {
 		out[i], out[j] = out[j], out[i]
@@ -173,10 +169,10 @@ func (c *CtrlConfigLoader) getAdvertiseAddr() string {
 	}
 	advAddr, err := c.getIPInterface(advDevice)
 	if err != nil {
-		LOG.Errorf("%q There was a problem with the IP %+v", c.advertiseName, err)
+		log.Errorf("%q There was a problem with the IP %+v", c.advertiseName, err)
 		return ""
 	}
-	LOG.Infof("%s uses IP %s\n", c.advertiseName, advAddr)
+	log.Infof("%s uses IP %s\n", c.advertiseName, advAddr)
 	return advAddr
 }
 
@@ -184,7 +180,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params := url.Values{}
 	params.Set("gateway", c.advertiseName)
 	params.Set("ip_addr", c.advertiseAddr)
-	LOG.Infof("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params)
+	log.Infof("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params)
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
 		return nil, err

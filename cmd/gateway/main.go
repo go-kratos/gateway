@@ -41,11 +41,6 @@ var (
 	withDebug    bool
 )
 
-var (
-	// LOG .
-	LOG = log.NewHelper(log.With(log.GetLogger(), "source", "main"))
-)
-
 func init() {
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 	flag.StringVar(&proxyAddr, "addr", ":8080", "proxy address, eg: -addr 0.0.0.0:8080")
@@ -72,45 +67,45 @@ func main() {
 	clientFactory := client.NewFactory(makeDiscovery())
 	p, err := proxy.New(clientFactory, middleware.Create)
 	if err != nil {
-		LOG.Fatalf("failed to new proxy: %v", err)
+		log.Fatalf("failed to new proxy: %v", err)
 	}
 	circuitbreaker.Init(clientFactory)
 
 	ctx := context.Background()
 	var ctrlLoader *configLoader.CtrlConfigLoader
 	if ctrlService != "" {
-		LOG.Infof("setup control service to: %q", ctrlService)
+		log.Infof("setup control service to: %q", ctrlService)
 		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig)
 		if err := ctrlLoader.Load(ctx); err != nil {
-			LOG.Errorf("failed to do initial load from control service: %v, using local config instead", err)
+			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
 		go ctrlLoader.Run(ctx)
 	}
 
 	confLoader, err := config.NewFileLoader(proxyConfig)
 	if err != nil {
-		LOG.Fatalf("failed to create config file loader: %v", err)
+		log.Fatalf("failed to create config file loader: %v", err)
 	}
 	defer confLoader.Close()
 	bc, err := confLoader.Load(context.Background())
 	if err != nil {
-		LOG.Fatalf("failed to load config: %v", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
 	if err := p.Update(bc); err != nil {
-		LOG.Fatalf("failed to update service config: %v", err)
+		log.Fatalf("failed to update service config: %v", err)
 	}
 	reloader := func() error {
 		bc, err := confLoader.Load(context.Background())
 		if err != nil {
-			LOG.Errorf("failed to load config: %v", err)
+			log.Errorf("failed to load config: %v", err)
 			return err
 		}
 		if err := p.Update(bc); err != nil {
-			LOG.Errorf("failed to update service config: %v", err)
+			log.Errorf("failed to update service config: %v", err)
 			return err
 		}
-		LOG.Infof("config reloaded")
+		log.Infof("config reloaded")
 		return nil
 	}
 	confLoader.Watch(reloader)
@@ -133,6 +128,6 @@ func main() {
 		),
 	)
 	if err := app.Run(); err != nil {
-		LOG.Errorf("failed to run servers: %v", err)
+		log.Errorf("failed to run servers: %v", err)
 	}
 }
