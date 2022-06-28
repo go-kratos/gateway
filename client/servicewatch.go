@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"hash/crc32"
+	"net/http"
 	"sort"
 	"strconv"
 	"sync"
@@ -16,7 +17,7 @@ import (
 )
 
 var ErrCancelWatch = errors.New("cancel watch")
-var globalServiceWatcher = newServiceWatcher()
+var GlobalServiceWatcher = newServiceWatcher()
 
 func uuid4() string {
 	return uuid.NewString()
@@ -185,6 +186,18 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 	}()
 }
 
+func (s *serviceWatcher) DebugHandler() http.Handler {
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/debug/client/nodes", func(w http.ResponseWriter, r *http.Request) {
+		service := r.URL.Query().Get("service")
+		nodes, _ := s.getSelectedCache(service)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(nodes)
+	})
+	return debugMux
+
+}
+
 func AddWatch(ctx context.Context, registry registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) bool {
-	return globalServiceWatcher.Add(ctx, registry, endpoint, callback)
+	return GlobalServiceWatcher.Add(ctx, registry, endpoint, callback)
 }

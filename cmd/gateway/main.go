@@ -115,6 +115,7 @@ func main() {
 		debugService := debug.New()
 		debugService.Register("proxy", p)
 		debugService.Register("config", confLoader)
+		debugService.Register("client", client.GlobalServiceWatcher)
 		if ctrlLoader != nil {
 			debugService.Register("ctrl", ctrlLoader)
 		}
