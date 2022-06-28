@@ -244,6 +244,10 @@ func (c *CtrlConfigLoader) DebugHandler() http.Handler {
 		json.NewEncoder(rw).Encode(out)
 	})
 	debugMux.HandleFunc("/debug/ctrl/load", func(rw http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			rw.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		if err := c.Load(context.Background()); err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(err.Error()))
