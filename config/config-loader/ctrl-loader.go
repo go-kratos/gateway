@@ -245,7 +245,7 @@ func (c *CtrlConfigLoader) DebugHandler() http.Handler {
 	})
 	debugMux.HandleFunc("/debug/ctrl/load", func(rw http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			rw.WriteHeader(http.StatusBadRequest)
+			rw.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		if err := c.Load(context.Background()); err != nil {
