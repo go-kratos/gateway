@@ -112,14 +112,12 @@ func main() {
 
 	var serverHandler http.Handler = p
 	if withDebug {
-		debugService := debug.New()
-		debugService.Register("proxy", p)
-		debugService.Register("config", confLoader)
-		debugService.Register("client", client.GlobalServiceWatcher)
+		debug.Register("proxy", p)
+		debug.Register("config", confLoader)
 		if ctrlLoader != nil {
-			debugService.Register("ctrl", ctrlLoader)
+			debug.Register("ctrl", ctrlLoader)
 		}
-		serverHandler = debug.MashupWithDebugHandler(debugService, p)
+		serverHandler = debug.MashupWithDebugHandler(p)
 	}
 	app := kratos.New(
 		kratos.Name(bc.Name),

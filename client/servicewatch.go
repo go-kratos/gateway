@@ -11,13 +11,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kratos/gateway/proxy/debug"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/google/uuid"
 )
 
 var ErrCancelWatch = errors.New("cancel watch")
-var GlobalServiceWatcher = newServiceWatcher()
+var globalServiceWatcher = newServiceWatcher()
+
+func init() {
+	debug.Register("watcher", globalServiceWatcher)
+}
 
 func uuid4() string {
 	return uuid.NewString()
@@ -188,7 +193,7 @@ func (s *serviceWatcher) doCallback(endpoint string, services []*registry.Servic
 
 func (s *serviceWatcher) DebugHandler() http.Handler {
 	debugMux := http.NewServeMux()
-	debugMux.HandleFunc("/debug/client/nodes", func(w http.ResponseWriter, r *http.Request) {
+	debugMux.HandleFunc("/debug/watcher/nodes", func(w http.ResponseWriter, r *http.Request) {
 		service := r.URL.Query().Get("service")
 		nodes, _ := s.getSelectedCache(service)
 		w.Header().Set("Content-Type", "application/json")
@@ -199,5 +204,5 @@ func (s *serviceWatcher) DebugHandler() http.Handler {
 }
 
 func AddWatch(ctx context.Context, registry registry.Discovery, endpoint string, callback func([]*registry.ServiceInstance) error) bool {
-	return GlobalServiceWatcher.Add(ctx, registry, endpoint, callback)
+	return globalServiceWatcher.Add(ctx, registry, endpoint, callback)
 }
