@@ -13,7 +13,6 @@ import (
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
-	gorillamux "github.com/gorilla/mux"
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/yaml"
 )
@@ -26,7 +25,7 @@ type ConfigLoader interface {
 	Close()
 }
 
-type fileLoader struct {
+type FileLoader struct {
 	confPath         string
 	confSHA256       string
 	watchCancel      context.CancelFunc
@@ -36,8 +35,8 @@ type fileLoader struct {
 
 var _jsonOptions = &protojson.UnmarshalOptions{DiscardUnknown: true}
 
-func NewFileLoader(confPath string) (ConfigLoader, error) {
-	fl := &fileLoader{
+func NewFileLoader(confPath string) (*FileLoader, error) {
+	fl := &FileLoader{
 		confPath: confPath,
 	}
 	if err := fl.initialize(); err != nil {
@@ -46,7 +45,7 @@ func NewFileLoader(confPath string) (ConfigLoader, error) {
 	return fl, nil
 }
 
-func (f *fileLoader) initialize() error {
+func (f *FileLoader) initialize() error {
 	sha256hex, err := f.configSHA256()
 	if err != nil {
 		return err
@@ -65,7 +64,7 @@ func sha256sum(in []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (f *fileLoader) configSHA256() (string, error) {
+func (f *FileLoader) configSHA256() (string, error) {
 	configData, err := ioutil.ReadFile(f.confPath)
 	if err != nil {
 		return "", err
@@ -73,7 +72,7 @@ func (f *fileLoader) configSHA256() (string, error) {
 	return sha256sum(configData), nil
 }
 
-func (f *fileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
+func (f *FileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 	log.Infof("loading config file: %s", f.confPath)
 
 	configData, err := ioutil.ReadFile(f.confPath)
@@ -92,14 +91,14 @@ func (f *fileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 	return out, nil
 }
 
-func (f *fileLoader) Watch(fn OnChange) {
+func (f *FileLoader) Watch(fn OnChange) {
 	log.Info("add config file change event handler")
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.onChangeHandlers = append(f.onChangeHandlers, fn)
 }
 
-func (f *fileLoader) executeLoader() error {
+func (f *FileLoader) executeLoader() error {
 	log.Info("execute config loader")
 	f.lock.RLock()
 	defer f.lock.RUnlock()
@@ -114,7 +113,7 @@ func (f *fileLoader) executeLoader() error {
 	return chainedError
 }
 
-func (f *fileLoader) watchproc(ctx context.Context) {
+func (f *FileLoader) watchproc(ctx context.Context) {
 	log.Info("start watch config file")
 	for {
 		select {
@@ -141,7 +140,7 @@ func (f *fileLoader) watchproc(ctx context.Context) {
 	}
 }
 
-func (f *fileLoader) Close() {
+func (f *FileLoader) Close() {
 	f.watchCancel()
 }
 
@@ -151,9 +150,9 @@ type InspectFileLoader struct {
 	OnChangeHandlers int64  `json:"onChangeHandlers"`
 }
 
-func (f *fileLoader) DebugHandler() http.Handler {
-	debugMux := gorillamux.NewRouter()
-	debugMux.Methods("GET").Path("/debug/config/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+func (f *FileLoader) DebugHandler() http.Handler {
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/debug/config/inspect", func(rw http.ResponseWriter, r *http.Request) {
 		out := &InspectFileLoader{
 			ConfPath:         f.confPath,
 			ConfSHA256:       f.confSHA256,
@@ -162,7 +161,7 @@ func (f *fileLoader) DebugHandler() http.Handler {
 		rw.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(rw).Encode(out)
 	})
-	debugMux.Methods("GET").Path("/debug/config/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.HandleFunc("/debug/config/load", func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -173,7 +172,7 @@ func (f *fileLoader) DebugHandler() http.Handler {
 		b, _ := protojson.Marshal(out)
 		_, _ = rw.Write(b)
 	})
-	debugMux.Methods("GET").Path("/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.HandleFunc("/debug/config/version", func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)

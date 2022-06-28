@@ -87,7 +87,7 @@ func asAny(in proto.Message) *anypb.Any {
 }
 
 func TestFileLoader(t *testing.T) {
-	fl := &fileLoader{
+	fl := &FileLoader{
 		confPath: "./fixtures/config.yaml",
 	}
 	cfg, err := fl.Load(context.TODO())

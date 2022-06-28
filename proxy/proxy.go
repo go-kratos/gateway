@@ -22,7 +22,6 @@ import (
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
-	gorillamux "github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -271,8 +270,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // DebugHandler implemented debug handler.
 func (p *Proxy) DebugHandler() http.Handler {
-	debugMux := gorillamux.NewRouter()
-	debugMux.Methods("GET").Path("/debug/proxy/router/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/debug/proxy/router/inspect", func(rw http.ResponseWriter, r *http.Request) {
 		router, ok := p.router.Load().(router.Router)
 		if !ok {
 			return
