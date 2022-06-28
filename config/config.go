@@ -13,7 +13,6 @@ import (
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/kratos/v2/log"
-	gorillamux "github.com/gorilla/mux"
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/yaml"
 )
@@ -152,8 +151,8 @@ type InspectFileLoader struct {
 }
 
 func (f *FileLoader) DebugHandler() http.Handler {
-	debugMux := gorillamux.NewRouter()
-	debugMux.Methods("GET").Path("/debug/config/inspect").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/debug/config/inspect", func(rw http.ResponseWriter, r *http.Request) {
 		out := &InspectFileLoader{
 			ConfPath:         f.confPath,
 			ConfSHA256:       f.confSHA256,
@@ -162,7 +161,7 @@ func (f *FileLoader) DebugHandler() http.Handler {
 		rw.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(rw).Encode(out)
 	})
-	debugMux.Methods("GET").Path("/debug/config/load").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.HandleFunc("/debug/config/load", func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -173,7 +172,7 @@ func (f *FileLoader) DebugHandler() http.Handler {
 		b, _ := protojson.Marshal(out)
 		_, _ = rw.Write(b)
 	})
-	debugMux.Methods("GET").Path("/debug/config/version").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+	debugMux.HandleFunc("/debug/config/version", func(rw http.ResponseWriter, r *http.Request) {
 		out, err := f.Load(context.Background())
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
