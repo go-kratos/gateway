@@ -5,6 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/client"
+	"github.com/go-kratos/gateway/middleware"
+	"github.com/go-kratos/gateway/nanotime"
+	"github.com/go-kratos/gateway/router"
+	"github.com/go-kratos/gateway/router/mux"
+	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/transport/http/status"
+	"github.com/prometheus/client_golang/prometheus"
 	"io"
 	"io/ioutil"
 	"net"
@@ -13,16 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"time"
-
-	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/client"
-	"github.com/go-kratos/gateway/middleware"
-	"github.com/go-kratos/gateway/router"
-	"github.com/go-kratos/gateway/router/mux"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/transport/http/status"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -164,14 +163,14 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	}
 	protocol := e.Protocol.String()
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		startTime := time.Now()
+		startTime := nanotime.RuntimeNanotime()
 		setXFFHeader(req)
 
 		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
 		defer func() {
-			_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(time.Since(startTime).Seconds())
+			_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path).Observe(nanotime.SinceSeconds(startTime))
 		}()
 
 		body, err := io.ReadAll(req.Body)

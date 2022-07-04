@@ -1,13 +1,12 @@
 package logging
 
 import (
-	"net/http"
-	"strings"
-	"time"
-
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
+	"github.com/go-kratos/gateway/nanotime"
 	"github.com/go-kratos/kratos/v2/log"
+	"net/http"
+	"strings"
 )
 
 func init() {
@@ -18,7 +17,7 @@ func init() {
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (reply *http.Response, err error) {
-			startTime := time.Now()
+			startTime := nanotime.RuntimeNanotime()
 			reply, err = next.RoundTrip(req)
 			level := log.LevelInfo
 			code := http.StatusBadGateway
@@ -40,7 +39,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"query", req.URL.RawQuery,
 				"code", code,
 				"error", errMsg,
-				"latency", time.Since(startTime).Seconds(),
+				"latency", nanotime.SinceSeconds(startTime),
 				"backend", strings.Join(nodes, ","),
 			)
 			return reply, err
