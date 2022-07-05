@@ -16,13 +16,13 @@ type muxRouter struct {
 }
 
 // NewRouter new a mux router.
-func NewRouter(notFoundHandler http.Handler) router.Router {
+func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Router {
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(true),
 	}
 	r.Router.Handle("/metrics", promhttp.Handler())
 	r.Router.NotFoundHandler = notFoundHandler
-	r.Router.MethodNotAllowedHandler = notFoundHandler
+	r.Router.MethodNotAllowedHandler = methodNotAllowedHandler
 	return r
 }
 
