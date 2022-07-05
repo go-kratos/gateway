@@ -130,6 +130,22 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, r.URL.Path, strconv.Itoa(code)).Inc()
 }
 
+func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+	code := http.StatusMethodNotAllowed
+	message := http.StatusText(code)
+	http.Error(w, message, code)
+	log.Context(r.Context()).Errorw(
+		"source", "accesslog",
+		"host", r.Host,
+		"method", r.Method,
+		"path", r.URL.Path,
+		"query", r.URL.RawQuery,
+		"code", code,
+		"error", message,
+	)
+	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, r.URL.Path, strconv.Itoa(code)).Inc()
+}
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
@@ -143,7 +159,7 @@ func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*P
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 	}
-	p.router.Store(mux.NewRouter(http.HandlerFunc(notFoundHandler)))
+	p.router.Store(mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler)))
 	return p, nil
 }
 
@@ -258,7 +274,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) error {
-	router := mux.NewRouter(http.HandlerFunc(notFoundHandler))
+	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
 		handler, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
