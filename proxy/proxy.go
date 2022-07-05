@@ -113,6 +113,23 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	w.WriteHeader(statusCode)
 }
 
+// notFoundHandler replies to the request with an HTTP 404 not found error.
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	code := http.StatusNotFound
+	message := "404 page not found"
+	http.Error(w, message, code)
+	log.Context(r.Context()).Errorw(
+		"source", "accesslog",
+		"host", r.Host,
+		"method", r.Method,
+		"path", r.URL.Path,
+		"query", r.URL.RawQuery,
+		"code", code,
+		"error", message,
+	)
+	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, r.URL.Path, strconv.Itoa(code)).Inc()
+}
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
@@ -126,7 +143,7 @@ func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*P
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 	}
-	p.router.Store(mux.NewRouter())
+	p.router.Store(mux.NewRouter(http.HandlerFunc(notFoundHandler)))
 	return p, nil
 }
 
@@ -241,7 +258,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) error {
-	router := mux.NewRouter()
+	router := mux.NewRouter(http.HandlerFunc(notFoundHandler))
 	for _, e := range c.Endpoints {
 		handler, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
