@@ -30,7 +30,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				code = reply.StatusCode
 			}
 			ctx := req.Context()
-			nodes, _ := middleware.RequestBackendsFromContext(ctx)
+			// nodes, _ := middleware.RequestBackendsFromContext(ctx)
+			reqOpt, _ := middleware.FromRequestContext(ctx)
 			log.Context(ctx).Log(level,
 				"source", "accesslog",
 				"host", req.Host,
@@ -41,7 +42,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"code", code,
 				"error", errMsg,
 				"latency", time.Since(startTime).Seconds(),
-				"backend", strings.Join(nodes, ","),
+				"backend", strings.Join(reqOpt.Backends, ","),
+				"backend_code", reqOpt.UpstreamStatusCode,
+				"backend_latency", reqOpt.UpstreamResponseTime,
 			)
 			return reply, err
 		})
