@@ -11,10 +11,12 @@ type contextKey struct{}
 
 // RequestOptions is a request option.
 type RequestOptions struct {
-	Endpoint *config.Endpoint
-	Filters  []selector.Filter
-	Backends []string
-	Metadata map[string]string
+	Endpoint             *config.Endpoint
+	Filters              []selector.Filter
+	Backends             []string
+	Metadata             map[string]string
+	UpstreamStatusCode   []int
+	UpstreamResponseTime []float64
 }
 
 // NewRequestOptions new a request options with retry filter.
