@@ -91,7 +91,7 @@ func setXFFHeader(req *http.Request) {
 	}
 }
 
-func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol) {
+func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol, service, basePath string) {
 	var statusCode int
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -101,7 +101,6 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	default:
 		statusCode = 502
 	}
-	service, basePath := getMetadata(r)
 	_metricRequestsTotal.WithLabelValues(protocol.String(), r.Method, r.URL.Path, strconv.Itoa(statusCode), service, basePath).Inc()
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
@@ -129,7 +128,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 		"code", code,
 		"error", message,
 	)
-	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "not found", strconv.Itoa(code)).Inc()
+	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "", strconv.Itoa(code), "", "").Inc()
 }
 
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
@@ -146,8 +145,7 @@ func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 		"code", code,
 		"error", message,
 	)
-	service, basePath := getMetadata(r)
-	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, r.URL.Path, strconv.Itoa(code), service, basePath).Inc()
+	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, r.URL.Path, strconv.Itoa(code), "", "").Inc()
 }
 
 // Proxy is a gateway proxy.
@@ -200,7 +198,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	protocol := e.Protocol.String()
-	service, basePath := e.Metadata["service"], e.Metadata["basePath"]
+	service := e.Metadata["service"]
+	basePath := e.Metadata["basePath"]
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
@@ -214,7 +213,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			writeError(w, req, err, e.Protocol)
+			writeError(w, req, err, e.Protocol, service, basePath)
 			return
 		}
 		_metricReceivedBytes.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Add(float64(len(body)))
@@ -250,7 +249,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			// continue the retry loop
 		}
 		if err != nil {
-			writeError(w, req, err, e.Protocol)
+			writeError(w, req, err, e.Protocol, service, basePath)
 			return
 		}
 
@@ -319,12 +318,4 @@ func (p *Proxy) DebugHandler() http.Handler {
 		json.NewEncoder(rw).Encode(inspect)
 	})
 	return debugMux
-}
-
-func getMetadata(req *http.Request) (service, basePath string) {
-	ctx := req.Context()
-	rc, _ := middleware.FromRequestContext(ctx)
-	service = rc.Endpoint.Metadata["service"]
-	basePath = rc.Endpoint.Metadata["basePath"]
-	return
 }
