@@ -128,7 +128,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 		"code", code,
 		"error", message,
 	)
-	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "", strconv.Itoa(code), "", "").Inc()
+	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/404", strconv.Itoa(code), "", "").Inc()
 }
 
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
