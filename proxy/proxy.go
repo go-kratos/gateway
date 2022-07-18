@@ -129,8 +129,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 		"code", code,
 		"error", message,
 	)
-	service, basePath := getMetadata(r)
-	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "not found", strconv.Itoa(code), service, basePath).Inc()
+	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "not found", strconv.Itoa(code)).Inc()
 }
 
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
@@ -201,6 +200,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		return nil, err
 	}
 	protocol := e.Protocol.String()
+	service, basePath := e.Metadata["service"], e.Metadata["basePath"]
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
@@ -209,7 +209,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
 		defer func() {
-			service, basePath := getMetadata(req)
 			_metricRequestsDuration.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Observe(time.Since(startTime).Seconds())
 		}()
 
@@ -218,7 +217,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			writeError(w, req, err, e.Protocol)
 			return
 		}
-		service, basePath := getMetadata(req)
 		_metricReceivedBytes.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Add(float64(len(body)))
 		req.GetBody = func() (io.ReadCloser, error) {
 			reader := bytes.NewReader(body)
@@ -266,7 +264,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			if err != nil {
 				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
 			}
-			service, basePath := getMetadata(req)
 			_metricSentBytes.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Add(float64(sent))
 		}
 		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
