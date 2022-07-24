@@ -113,6 +113,28 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	w.WriteHeader(statusCode)
 }
 
+func stripPrefix(e *config.Endpoint, req *http.Request) {
+	path := req.RequestURI
+	if e.GetStripPrefix() > 0 {
+		var newPath string
+		parts := splitIgnoreBlank(path, "/")
+		newParts := make([]string, 0)
+		for i := range parts {
+			if int64(i) < e.GetStripPrefix() {
+				continue
+			}
+			part := parts[i]
+			newParts = append(newParts, part)
+		}
+		newPath = "/" + strings.Join(newParts, "/")
+		if strings.HasSuffix(path, "/") {
+			newPath = newPath + "/"
+		}
+		req.RequestURI = newPath
+		req.URL.Path = newPath
+	}
+}
+
 // notFoundHandler replies to the request with an HTTP 404 not found error.
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusNotFound
@@ -202,6 +224,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	basePath := e.Metadata["basePath"]
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
+		// StripPrefix
+		stripPrefix(e, req)
 		setXFFHeader(req)
 
 		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
@@ -274,6 +298,18 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		}
 		_metricRequestsTotal.WithLabelValues(protocol, req.Method, req.URL.Path, "200", service, basePath).Inc()
 	})), nil
+}
+
+func splitIgnoreBlank(path, s string) []string {
+	parts := strings.Split(path, "/")
+	newParts := make([]string, 0)
+	for i := range parts {
+		part := parts[i]
+		if len(part) > 0 {
+			newParts = append(newParts, part)
+		}
+	}
+	return newParts
 }
 
 // Update updates service endpoint.

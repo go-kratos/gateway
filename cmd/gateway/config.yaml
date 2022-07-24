@@ -23,6 +23,7 @@ middlewares:
         - OPTIONS
 endpoints:
   - path: /helloworld/*
+    stripPrefix:
     timeout: 1s
     protocol: HTTP
     backends:
