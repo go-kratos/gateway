@@ -300,8 +300,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	})), nil
 }
 
-func splitIgnoreBlank(path, s string) []string {
-	parts := strings.Split(path, "/")
+func splitIgnoreBlank(path, delimiter string) []string {
+	parts := strings.Split(path, delimiter)
 	newParts := make([]string, 0)
 	for i := range parts {
 		part := parts[i]
