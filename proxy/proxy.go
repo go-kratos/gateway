@@ -114,19 +114,17 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 }
 
 func stripPrefix(e *config.Endpoint, req *http.Request) {
-	path := req.RequestURI
+	path := req.URL.Path
 	if e.GetStripPrefix() > 0 {
 		var newPath string
 		parts := splitIgnoreBlank(path, "/")
-		newParts := make([]string, 0)
 		for i := range parts {
 			if int64(i) < e.GetStripPrefix() {
 				continue
 			}
 			part := parts[i]
-			newParts = append(newParts, part)
+			newPath += "/" + part
 		}
-		newPath = "/" + strings.Join(newParts, "/")
 		if strings.HasSuffix(path, "/") {
 			newPath = newPath + "/"
 		}
