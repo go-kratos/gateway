@@ -187,6 +187,31 @@ func TestStripPrefix(t *testing.T) {
 			url:         "/a/b/c/d",
 			want:        "",
 		},
+		{
+			stripPrefix: 2,
+			url:         "/a//b/c/d",
+			want:        "/c/d",
+		},
+		{
+			stripPrefix: 2,
+			url:         "/a//b//c/d",
+			want:        "/c/d",
+		},
+		{
+			stripPrefix: 2,
+			url:         "/a//b/c//d",
+			want:        "/c/d",
+		},
+		{
+			stripPrefix: 2,
+			url:         "/a//b/c//d?a=b&=c",
+			want:        "/c/d?a=b&=c",
+		},
+		{
+			stripPrefix: 3,
+			url:         "/a//b/c//d?a=b&=c",
+			want:        "/d?a=b&=c",
+		},
 	}
 
 	for _, tt := range tests {
