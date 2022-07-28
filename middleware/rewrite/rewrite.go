@@ -2,6 +2,7 @@ package rewrite
 
 import (
 	"net/http"
+	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/rewrite/v1"
@@ -28,6 +29,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			if options.PathRewrite != nil {
 				req.URL.Path = *options.PathRewrite
+			} else if options.GetStripPrefix() > 0 {
+				req.URL.Path = stripPrefixReqPath(options.GetStripPrefix(), req.URL.Path)
 			}
 			if requestHeadersRewrite != nil {
 				for key, value := range requestHeadersRewrite.Set {
@@ -70,4 +73,35 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			return resp, nil
 		})
 	}, nil
+}
+
+func stripPrefixReqPath(stripPrefix int64, path string) string {
+	if stripPrefix > 0 {
+		var newPath string
+		parts := splitIgnoreEmpty(path, "/")
+		for i := range parts {
+			if int64(i) < stripPrefix {
+				continue
+			}
+			part := parts[i]
+			newPath += "/" + part
+		}
+		if strings.HasSuffix(path, "/") {
+			newPath = newPath + "/"
+		}
+		return newPath
+	}
+	return path
+}
+
+func splitIgnoreEmpty(path, delimiter string) []string {
+	parts := strings.Split(path, delimiter)
+	newParts := make([]string, 0)
+	for i := range parts {
+		part := parts[i]
+		if len(part) > 0 {
+			newParts = append(newParts, part)
+		}
+	}
+	return newParts
 }
