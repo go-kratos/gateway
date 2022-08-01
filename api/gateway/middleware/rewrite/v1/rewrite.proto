@@ -13,5 +13,6 @@ message Rewrite {
     optional string path_rewrite = 1;
     HeadersPolicy request_headers_rewrite = 2;
     HeadersPolicy response_headers_rewrite = 3;
+    optional string stripPrefix = 4;
 }
 

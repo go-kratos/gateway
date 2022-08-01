@@ -2,6 +2,7 @@ package rewrite
 
 import (
 	"net/http"
+	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	v1 "github.com/go-kratos/gateway/api/gateway/middleware/rewrite/v1"
@@ -28,6 +29,8 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			if options.PathRewrite != nil {
 				req.URL.Path = *options.PathRewrite
+			} else if options.StripPrefix != nil {
+				req.URL.Path = strings.TrimPrefix(req.URL.Path, options.GetStripPrefix())
 			}
 			if requestHeadersRewrite != nil {
 				for key, value := range requestHeadersRewrite.Set {
