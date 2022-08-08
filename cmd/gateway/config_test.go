@@ -6,6 +6,7 @@ import (
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	circuitbreakerv1 "github.com/go-kratos/gateway/api/gateway/middleware/circuitbreaker/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
+	rewritev1 "github.com/go-kratos/gateway/api/gateway/middleware/rewrite/v1"
 	tracingv1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -64,6 +65,10 @@ func equalTo() *configv1.Gateway {
 								},
 							},
 						}),
+					},
+					{
+						Name:    "rewrite",
+						Options: asAny(&rewritev1.Rewrite{}),
 					},
 				},
 			},

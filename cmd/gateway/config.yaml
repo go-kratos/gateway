@@ -27,6 +27,7 @@ endpoints:
     protocol: HTTP
     backends:
       - target: '127.0.0.1:8000'
+#      - target: 'discovery:///bbs'
     middlewares:
       - name: circuitbreaker
         options:
@@ -35,6 +36,10 @@ endpoints:
           backupService: {"endpoint":{"backends":[{"target":"127.0.0.1:8001"}]}}
           assertCondtions:
           - {"by_status_code":"200"}
+      - name: rewrite
+        options:
+          '@type': type.googleapis.com/gateway.middleware.rewrite.v1.Rewrite
+#          stripPrefix: /bbs
   - path: /helloworld.Greeter/*
     method: POST
     timeout: 1s
