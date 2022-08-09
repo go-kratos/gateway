@@ -28,7 +28,11 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			if options.PathRewrite != nil {
-				req.URL.Path = *options.PathRewrite
+				if options.PathRewriteTo != nil {
+					req.URL.Path = strings.Replace(req.URL.Path, *options.PathRewrite, *options.PathRewriteTo, 1)
+				} else {
+					req.URL.Path = *options.PathRewrite
+				}
 			}
 			if options.StripPrefix != nil {
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, options.GetStripPrefix())
