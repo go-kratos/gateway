@@ -5,10 +5,12 @@ go 1.15
 require (
 	github.com/go-kratos/aegis v0.1.2
 	github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20220318065833-e66a2905ab70
-	github.com/go-kratos/kratos/v2 v2.3.1
+	github.com/go-kratos/kratos/contrib/registry/nacos/v2 v2.0.0-20220809040010-c407afc81d44
+	github.com/go-kratos/kratos/v2 v2.4.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/consul/api v1.12.0
+	github.com/nacos-group/nacos-sdk-go v1.1.2
 	github.com/prometheus/client_golang v1.12.1
 	go.opentelemetry.io/otel v1.7.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.4.1

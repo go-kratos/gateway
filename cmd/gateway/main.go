@@ -18,6 +18,7 @@ import (
 	_ "net/http/pprof"
 
 	_ "github.com/go-kratos/gateway/discovery/consul"
+	_ "github.com/go-kratos/gateway/discovery/nacos"
 	_ "github.com/go-kratos/gateway/middleware/bbr"
 	"github.com/go-kratos/gateway/middleware/circuitbreaker"
 	_ "github.com/go-kratos/gateway/middleware/cors"
