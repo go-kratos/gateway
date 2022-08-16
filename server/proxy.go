@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"math"
 	"net/http"
 	"os"
@@ -68,7 +69,11 @@ func NewProxy(handler http.Handler, addr string) *ProxyServer {
 // Start the server.
 func (s *ProxyServer) Start(ctx context.Context) error {
 	log.Infof("proxy listening on %s", s.Addr)
-	return s.ListenAndServe()
+	err := s.ListenAndServe()
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }
 
 // Stop the server.
