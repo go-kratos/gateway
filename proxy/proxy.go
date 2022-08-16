@@ -235,7 +235,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			defer cancel()
 			reader := bytes.NewReader(body)
 			req.Body = ioutil.NopCloser(reader)
-			resp, err = tripper.RoundTrip(req.WithContext(tryCtx))
+			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
 				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
