@@ -69,7 +69,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 					addr, err := parseEndpoint(ser.Endpoints, scheme, false)
 					if err != nil || addr == "" {
 						log.Errorf("failed to parse endpoint: %v", err)
-						return nil
+						continue
 					}
 					node := newNode(addr, na.endpoint.Protocol, weighted, ser.Metadata)
 					nodes = append(nodes, node)
