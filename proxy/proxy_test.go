@@ -64,11 +64,11 @@ func TestProxy(t *testing.T) {
 			"testKey": []string{"testValue"},
 		},
 	}
-	shouldRetry := "should-retry"
+	retryable := false
 	clientFactory := func(*config.Endpoint) (http.RoundTripper, error) {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			if req.Header.Get(shouldRetry) == "true" {
-				req.Header.Del(shouldRetry)
+			if retryable {
+				retryable = false
 				return &http.Response{StatusCode: http.StatusInternalServerError}, nil
 			}
 			res.Body = req.Body
@@ -109,8 +109,8 @@ func TestProxy(t *testing.T) {
 	}
 	{
 		b := []byte("retryable")
+		retryable = true
 		r := httptest.NewRequest("POST", "/retryable", bytes.NewBuffer(b))
-		r.Header.Set(shouldRetry, "true")
 		w := newResponseWriter()
 		p.ServeHTTP(w, r)
 		if w.statusCode != res.StatusCode {
