@@ -14,13 +14,10 @@ middlewares:
         - GET
         - POST
         - OPTIONS
-  - name: tracing 
+  - name: tracing
     options:
       '@type': type.googleapis.com/gateway.middleware.tracing.v1.Tracing
       httpEndpoint: 'localhost:4318' # default opentelemetry collector port
-  - name: logging
-    options:
-      '@type': type.googleapis.com/gateway.middleware.logging.v1.Logging
 endpoints:
   - path: /helloworld/*
     protocol: HTTP

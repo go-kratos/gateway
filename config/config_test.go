@@ -6,7 +6,6 @@ import (
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	corsv1 "github.com/go-kratos/gateway/api/gateway/middleware/cors/v1"
-	loggingv1 "github.com/go-kratos/gateway/api/gateway/middleware/logging/v1"
 	tracingv1 "github.com/go-kratos/gateway/api/gateway/middleware/tracing/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -69,10 +68,6 @@ func equalTo() *configv1.Gateway {
 				Options: asAny(&tracingv1.Tracing{
 					HttpEndpoint: "localhost:4318",
 				}),
-			},
-			{
-				Name:    "logging",
-				Options: asAny(&loggingv1.Logging{}),
 			},
 		},
 	}
