@@ -2,6 +2,7 @@ package mux
 
 import (
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/go-kratos/gateway/router"
@@ -27,6 +28,7 @@ func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Rou
 }
 
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	req.URL.Path = path.Clean(req.URL.Path)
 	r.Router.ServeHTTP(w, req)
 }
 
