@@ -27,8 +27,25 @@ func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Rou
 	return r
 }
 
+func cleanPath(p string) string {
+	if p == "" {
+		return "/"
+	}
+	if p[0] != '/' {
+		p = "/" + p
+	}
+	np := path.Clean(p)
+	// path.Clean removes trailing slash except for root;
+	// put the trailing slash back if necessary.
+	if p[len(p)-1] == '/' && np != "/" {
+		np += "/"
+	}
+
+	return np
+}
+
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	req.URL.Path = path.Clean(req.URL.Path)
+	req.URL.Path = cleanPath(req.URL.Path)
 	r.Router.ServeHTTP(w, req)
 }
 
