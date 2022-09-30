@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync/atomic"
 
@@ -13,7 +14,18 @@ import (
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/selector/p2c"
+	"github.com/go-kratos/kratos/v2/selector/wrr"
 )
+
+func getBalancer() selector.Selector {
+	balancer := os.Getenv("BALANCER")
+	switch balancer {
+	case "wrr":
+		return wrr.New()
+	default:
+		return p2c.New()
+	}
+}
 
 // Factory is returns service client.
 type Factory func(*config.Endpoint) (http.RoundTripper, error)
@@ -21,7 +33,7 @@ type Factory func(*config.Endpoint) (http.RoundTripper, error)
 // NewFactory new a client factory.
 func NewFactory(r registry.Discovery) Factory {
 	return func(endpoint *config.Endpoint) (http.RoundTripper, error) {
-		picker := p2c.New()
+		picker := getBalancer()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
 			cancel:   cancel,
