@@ -48,6 +48,6 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 		return nil, err
 	}
 	reqOpt.UpstreamStatusCode = append(reqOpt.UpstreamStatusCode, resp.StatusCode)
-	done(ctx, selector.DoneInfo{ReplyMD: resp.Trailer})
+	reqOpt.DoneFunc = done
 	return resp, nil
 }

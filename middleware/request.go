@@ -17,6 +17,7 @@ type RequestOptions struct {
 	Metadata             map[string]string
 	UpstreamStatusCode   []int
 	UpstreamResponseTime []float64
+	DoneFunc             selector.DoneFunc
 }
 
 // NewRequestOptions new a request options with retry filter.
@@ -25,6 +26,7 @@ func NewRequestOptions(c *config.Endpoint) *RequestOptions {
 		Endpoint: c,
 		Backends: make([]string, 0, 1),
 		Metadata: make(map[string]string),
+		DoneFunc: func(ctx context.Context, di selector.DoneInfo) {},
 	}
 	o.Filters = []selector.NodeFilter{func(ctx context.Context, nodes []selector.Node) []selector.Node {
 		if len(o.Backends) == 0 {
