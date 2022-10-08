@@ -42,11 +42,12 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	startAt := time.Now()
 	resp, err = n.(*node).client.Do(req)
 	reqOpt.UpstreamResponseTime = append(reqOpt.UpstreamResponseTime, time.Since(startAt).Seconds())
-	done(ctx, selector.DoneInfo{Err: err})
 	if err != nil {
+		done(ctx, selector.DoneInfo{Err: err})
 		reqOpt.UpstreamStatusCode = append(reqOpt.UpstreamStatusCode, 0)
 		return nil, err
 	}
 	reqOpt.UpstreamStatusCode = append(reqOpt.UpstreamStatusCode, resp.StatusCode)
+	done(ctx, selector.DoneInfo{ReplyMeta: resp.Trailer})
 	return resp, nil
 }
