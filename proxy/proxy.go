@@ -21,6 +21,7 @@ import (
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -204,7 +205,8 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		startTime := time.Now()
 		setXFFHeader(req)
 
-		ctx := middleware.NewRequestContext(req.Context(), middleware.NewRequestOptions(e))
+		reqOpts := middleware.NewRequestOptions(e)
+		ctx := middleware.NewRequestContext(req.Context(), reqOpts)
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
 		defer func() {
@@ -258,20 +260,28 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			headers[k] = v
 		}
 		w.WriteHeader(resp.StatusCode)
-		if body := resp.Body; body != nil {
-			sent, err := io.Copy(w, body)
+
+		doCopyBody := func() bool {
+			if resp.Body == nil {
+				return true
+			}
+			defer resp.Body.Close()
+			sent, err := io.Copy(w, resp.Body)
 			if err != nil {
-				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %+v\n", e.Protocol, e.Method, e.Path, err)
+				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
+				_metricSentBytes.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Add(float64(sent))
+				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err)
+				return false
 			}
 			_metricSentBytes.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Add(float64(sent))
+			reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: resp.Trailer})
+			// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
+			for k, v := range resp.Trailer {
+				headers[http.TrailerPrefix+k] = v
+			}
+			return true
 		}
-		// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
-		for k, v := range resp.Trailer {
-			headers[http.TrailerPrefix+k] = v
-		}
-		if resp.Body != nil {
-			resp.Body.Close()
-		}
+		doCopyBody()
 		_metricRequestsTotal.WithLabelValues(protocol, req.Method, req.URL.Path, "200", service, basePath).Inc()
 	})), nil
 }

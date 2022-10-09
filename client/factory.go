@@ -18,10 +18,27 @@ import (
 // Factory is returns service client.
 type Factory func(*config.Endpoint) (http.RoundTripper, error)
 
+type Option func(*options)
+type options struct {
+	pickerBuilder selector.Builder
+}
+
+func WithPickerBuilder(in selector.Builder) Option {
+	return func(o *options) {
+		o.pickerBuilder = in
+	}
+}
+
 // NewFactory new a client factory.
-func NewFactory(r registry.Discovery) Factory {
+func NewFactory(r registry.Discovery, opts ...Option) Factory {
+	o := &options{
+		pickerBuilder: p2c.NewBuilder(),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
 	return func(endpoint *config.Endpoint) (http.RoundTripper, error) {
-		picker := p2c.New()
+		picker := o.pickerBuilder.Build()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
 			cancel:   cancel,
