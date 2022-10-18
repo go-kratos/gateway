@@ -282,7 +282,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			return true
 		}
 		doCopyBody()
-		_metricRequestsTotal.WithLabelValues(protocol, req.Method, req.URL.Path, "200", service, basePath).Inc()
+		_metricRequestsTotal.WithLabelValues(protocol, req.Method, req.URL.Path, strconv.Itoa(resp.StatusCode), service, basePath).Inc()
 	})), nil
 }
 
