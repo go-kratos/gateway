@@ -59,7 +59,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	tracer := otel.Tracer(defaultTracerName)
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (reply *http.Response, err error) {
-			_, span := tracer.Start(
+			ctx, span := tracer.Start(
 				req.Context(),
 				fmt.Sprintf("%s %s", req.Method, req.URL.Path),
 				trace.WithSpanKind(trace.SpanKindClient),
@@ -84,7 +84,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				}
 				span.End()
 			}()
-			return next.RoundTrip(req)
+			return next.RoundTrip(req.WithContext(ctx))
 		})
 	}, nil
 }
