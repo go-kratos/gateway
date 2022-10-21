@@ -14,5 +14,6 @@ message Rewrite {
     HeadersPolicy request_headers_rewrite = 2;
     HeadersPolicy response_headers_rewrite = 3;
     optional string strip_prefix = 4;
+    optional string host_rewrite = 5;
 }
 
