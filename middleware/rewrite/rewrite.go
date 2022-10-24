@@ -30,6 +30,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if options.PathRewrite != nil {
 				req.URL.Path = *options.PathRewrite
 			}
+			if options.HostRewrite != nil {
+				req.Host = *options.HostRewrite
+			}
 			if options.StripPrefix != nil {
 				req.URL.Path = strings.TrimPrefix(req.URL.Path, options.GetStripPrefix())
 			}
