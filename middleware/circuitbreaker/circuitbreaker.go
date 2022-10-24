@@ -157,11 +157,11 @@ func New(factory client.Factory) middleware.Factory {
 				resp, err := next.RoundTrip(req)
 				if err != nil {
 					breaker.MarkFailed()
-					return onBreakHandler.RoundTrip(req)
+					return nil, err
 				}
 				if !isSuccessResponse(assertCondtions, resp) {
 					breaker.MarkFailed()
-					return onBreakHandler.RoundTrip(req)
+					return resp, nil
 				}
 				breaker.MarkSuccess()
 				return resp, nil
