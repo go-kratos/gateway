@@ -45,6 +45,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"backend", strings.Join(reqOpt.Backends, ","),
 				"backend_code", reqOpt.UpstreamStatusCode,
 				"backend_latency", reqOpt.UpstreamResponseTime,
+				"last_attempt", reqOpt.LastAttempt,
 			)
 			return reply, err
 		})
