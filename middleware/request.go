@@ -18,6 +18,7 @@ type RequestOptions struct {
 	UpstreamStatusCode   []int
 	UpstreamResponseTime []float64
 	DoneFunc             selector.DoneFunc
+	LastAttempt          bool
 }
 
 // NewRequestOptions new a request options with retry filter.
