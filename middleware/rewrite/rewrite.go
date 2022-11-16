@@ -2,6 +2,7 @@ package rewrite
 
 import (
 	"net/http"
+	"path"
 	"strings"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -14,6 +15,17 @@ import (
 
 func init() {
 	middleware.Register("rewrite", Middleware)
+}
+
+func stripPrefix(origin string, prefix string) string {
+	out := strings.TrimPrefix(origin, prefix)
+	if out == "" {
+		return "/"
+	}
+	if out[0] != '/' {
+		return path.Join("/", out)
+	}
+	return out
 }
 
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
@@ -34,7 +46,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				req.Host = *options.HostRewrite
 			}
 			if options.StripPrefix != nil {
-				req.URL.Path = strings.TrimPrefix(req.URL.Path, options.GetStripPrefix())
+				req.URL.Path = stripPrefix(req.URL.Path, options.GetStripPrefix())
 			}
 			if requestHeadersRewrite != nil {
 				for key, value := range requestHeadersRewrite.Set {
@@ -45,7 +57,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				}
 				for _, value := range requestHeadersRewrite.Remove {
 					req.Header.Del(value)
-					
+
 				}
 			}
 			resp, err := next.RoundTrip(req)
@@ -61,7 +73,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				}
 				for _, value := range responseHeadersRewrite.Remove {
 					resp.Header.Del(value)
-					
+
 				}
 			}
 			return resp, nil
