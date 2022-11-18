@@ -2,13 +2,28 @@ package mux
 
 import (
 	"net/http"
+	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/go-kratos/gateway/router"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var EnableStrictSlash = parseBool(os.Getenv("ENABLE_STRICT_SLASH"), false)
+
+func parseBool(in string, defV bool) bool {
+	if in == "" {
+		return defV
+	}
+	v, err := strconv.ParseBool(in)
+	if err != nil {
+		return defV
+	}
+	return v
+}
 
 var _ = new(router.Router)
 
@@ -19,7 +34,7 @@ type muxRouter struct {
 // NewRouter new a mux router.
 func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Router {
 	r := &muxRouter{
-		Router: mux.NewRouter().StrictSlash(true),
+		Router: mux.NewRouter().StrictSlash(EnableStrictSlash),
 	}
 	r.Router.Handle("/metrics", promhttp.Handler())
 	r.Router.NotFoundHandler = notFoundHandler
