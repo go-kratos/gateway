@@ -64,6 +64,12 @@ var (
 		Name:      "requests_retry_success",
 		Help:      "Total request retry successes",
 	}, []string{"protocol", "method", "path", "service", "basePath"})
+	_metricRetryState = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "go",
+		Subsystem: "gateway",
+		Name:      "requests_retry_state",
+		Help:      "Total request retries",
+	}, []string{"protocol", "method", "path", "service", "basePath", "success"})
 )
 
 func init() {
@@ -181,6 +187,27 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 	return next, nil
 }
 
+func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int)) {
+	protocol := e.Protocol.String()
+	service := e.Metadata["service"]
+	basePath := e.Metadata["basePath"]
+	method := e.Method
+	path := e.Path
+	success := func(i int) {
+		if i <= 0 {
+			return
+		}
+		_metricRetryState.WithLabelValues(protocol, method, path, service, basePath, "true").Inc()
+	}
+	failed := func(i int) {
+		if i <= 0 {
+			return
+		}
+		_metricRetryState.WithLabelValues(protocol, method, path, service, basePath, "false").Inc()
+	}
+	return success, failed
+}
+
 func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
 	tripper, err := p.clientFactory(e)
 	if err != nil {
@@ -201,6 +228,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	protocol := e.Protocol.String()
 	service := e.Metadata["service"]
 	basePath := e.Metadata["basePath"]
+	markSuccess, markFailed := splitRetryMetricsHandler(e)
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
@@ -229,11 +257,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			if (i + 1) >= retryStrategy.attempts {
 				reqOpts.LastAttempt = true
 			}
-			if i > 0 {
-				_metricRetryTotal.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Inc()
-			}
 			// canceled or deadline exceeded
 			if err = ctx.Err(); err != nil {
+				markFailed(i)
 				break
 			}
 			tryCtx, cancel := context.WithTimeout(ctx, retryStrategy.perTryTimeout)
@@ -242,15 +268,15 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			req.Body = ioutil.NopCloser(reader)
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
+				markFailed(i)
 				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
 			}
 			if !judgeRetryRequired(retryStrategy.conditions, resp) {
-				if i > 0 {
-					_metricRetrySuccess.WithLabelValues(protocol, req.Method, req.URL.Path, service, basePath).Inc()
-				}
+				markSuccess(i)
 				break
 			}
+			markFailed(i)
 			// continue the retry loop
 		}
 		if err != nil {
