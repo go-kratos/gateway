@@ -52,18 +52,6 @@ var (
 		Name:      "requests_rx_bytes",
 		Help:      "Total received connection bytes",
 	}, []string{"protocol", "method", "path", "service", "basePath"})
-	_metricRetryTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_retry_total",
-		Help:      "Total request retries",
-	}, []string{"protocol", "method", "path", "service", "basePath"})
-	_metricRetrySuccess = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_retry_success",
-		Help:      "Total request retry successes",
-	}, []string{"protocol", "method", "path", "service", "basePath"})
 	_metricRetryState = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
@@ -75,8 +63,7 @@ var (
 func init() {
 	prometheus.MustRegister(_metricRequestsTotal)
 	prometheus.MustRegister(_metricRequestsDuration)
-	prometheus.MustRegister(_metricRetryTotal)
-	prometheus.MustRegister(_metricRetrySuccess)
+	prometheus.MustRegister(_metricRetryState)
 	prometheus.MustRegister(_metricSentBytes)
 	prometheus.MustRegister(_metricReceivedBytes)
 }
