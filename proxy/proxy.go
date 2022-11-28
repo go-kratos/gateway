@@ -174,7 +174,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 	return next, nil
 }
 
-func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int)) {
+func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) {
 	protocol := e.Protocol.String()
 	service := e.Metadata["service"]
 	basePath := e.Metadata["basePath"]
@@ -186,8 +186,11 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int)) {
 		}
 		_metricRetryState.WithLabelValues(protocol, method, path, service, basePath, "true").Inc()
 	}
-	failed := func(i int) {
+	failed := func(i int, err error) {
 		if i <= 0 {
+			return
+		}
+		if errors.Is(err, context.Canceled) {
 			return
 		}
 		_metricRetryState.WithLabelValues(protocol, method, path, service, basePath, "false").Inc()
@@ -246,7 +249,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			}
 			// canceled or deadline exceeded
 			if err = ctx.Err(); err != nil {
-				markFailed(i)
+				markFailed(i, err)
 				break
 			}
 			tryCtx, cancel := context.WithTimeout(ctx, retryStrategy.perTryTimeout)
@@ -255,7 +258,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			req.Body = ioutil.NopCloser(reader)
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
-				markFailed(i)
+				markFailed(i, err)
 				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
 			}
@@ -263,7 +266,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 				markSuccess(i)
 				break
 			}
-			markFailed(i)
+			markFailed(i, errors.New("assertion failed"))
 			// continue the retry loop
 		}
 		if err != nil {
