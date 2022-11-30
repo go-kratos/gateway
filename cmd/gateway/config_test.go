@@ -20,14 +20,15 @@ func equalTo() *configv1.Gateway {
 	return &configv1.Gateway{
 		Name:    "helloworld",
 		Version: "v1",
-		Hosts: []string{
-			"localhost",
-			"127.0.0.1",
-		},
+		// Hosts: []string{
+		// 	"localhost",
+		// 	"127.0.0.1",
+		// },
 		Endpoints: []*configv1.Endpoint{
 			{
 				Path:     "/helloworld/*",
 				Protocol: configv1.Protocol_HTTP,
+				Host:     "localhost",
 				Timeout:  &durationpb.Duration{Seconds: 1},
 				Backends: []*configv1.Backend{
 					{

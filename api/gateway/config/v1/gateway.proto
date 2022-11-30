@@ -10,7 +10,7 @@ import "google/protobuf/duration.proto";
 message Gateway {
     string name = 1;
     string version = 2;
-    repeated string hosts = 3;
+    repeated string hosts = 3 [deprecated = true];
     repeated Endpoint endpoints = 4;
     repeated Middleware middlewares = 5;
 }
@@ -25,6 +25,7 @@ message Endpoint {
     repeated Backend backends = 7;
     Retry retry = 8;
     map<string, string> metadata = 9;
+    string host = 10;
 }
 
 message Middleware {

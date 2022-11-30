@@ -313,7 +313,7 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		if err != nil {
 			return err
 		}
-		if err = router.Handle(e.Path, e.Method, handler); err != nil {
+		if err = router.Handle(e.Path, e.Method, e.Host, handler); err != nil {
 			return err
 		}
 		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
