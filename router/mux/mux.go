@@ -64,8 +64,11 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.Router.ServeHTTP(w, req)
 }
 
-func (r *muxRouter) Handle(pattern, method string, handler http.Handler) error {
+func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler) error {
 	next := r.Router.NewRoute().Handler(handler)
+	if host != "" {
+		next = next.Host(host)
+	}
 	if strings.HasSuffix(pattern, "*") {
 		// /api/echo/*
 		next = next.PathPrefix(strings.TrimRight(pattern, "*"))

@@ -1,9 +1,6 @@
 # This is a gateway config.
 name: helloworld
 version: v1
-hosts:
-  - localhost
-  - 127.0.0.1
 middlewares:
   - name: tracing
     options:
@@ -25,6 +22,7 @@ endpoints:
   - path: /helloworld/*
     timeout: 1s
     protocol: HTTP
+    host: localhost
     backends:
       - target: '127.0.0.1:8000'
 #      - target: 'discovery:///bbs'
