@@ -263,6 +263,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 				continue
 			}
 			if !judgeRetryRequired(retryStrategy.conditions, resp) {
+				reqOpts.LastAttempt = true
 				markSuccess(i)
 				break
 			}
