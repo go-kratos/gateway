@@ -85,7 +85,7 @@ func setXFFHeader(req *http.Request) {
 	}
 }
 
-func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol, service, basePath string, endpoint *config.Endpoint) {
+func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol, service, basePath string, pathPattern string) {
 	var statusCode int
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -95,7 +95,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	default:
 		statusCode = 502
 	}
-	_metricRequestsTotal.WithLabelValues(protocol.String(), r.Method, endpoint.Path, strconv.Itoa(statusCode), service, basePath).Inc()
+	_metricRequestsTotal.WithLabelValues(protocol.String(), r.Method, pathPattern, strconv.Itoa(statusCode), service, basePath).Inc()
 	if protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
@@ -233,7 +233,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			writeError(w, req, err, e.Protocol, service, basePath, e)
+			writeError(w, req, err, e.Protocol, service, basePath, e.Path)
 			return
 		}
 		_metricReceivedBytes.WithLabelValues(protocol, req.Method, e.Path, service, basePath).Add(float64(len(body)))
@@ -271,7 +271,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			// continue the retry loop
 		}
 		if err != nil {
-			writeError(w, req, err, e.Protocol, service, basePath, e)
+			writeError(w, req, err, e.Protocol, service, basePath, e.Path)
 			return
 		}
 
