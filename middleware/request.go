@@ -131,7 +131,11 @@ func WithSelectorFitler(ctx context.Context, fn selector.NodeFilter) context.Con
 func MetricsLabelsFromContext(ctx context.Context) (MetricsLabels, bool) {
 	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
 	if ok {
-		return &metricsLabels{endpoint: o.Endpoint}, true
+		return NewMetricsLabels(o.Endpoint), true
 	}
 	return nil, false
+}
+
+func NewMetricsLabels(ep *config.Endpoint) MetricsLabels {
+	return &metricsLabels{endpoint: ep}
 }
