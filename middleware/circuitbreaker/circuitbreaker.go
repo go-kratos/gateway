@@ -31,7 +31,7 @@ var (
 		Subsystem: "gateway",
 		Name:      "requests_circuit_breaker_denied_total",
 		Help:      "The total number of denied requests",
-	}, []string{"method", "path"})
+	}, []string{"protocol", "method", "path", "service", "basePath"})
 )
 
 type ratioTrigger struct {
@@ -127,6 +127,14 @@ func isSuccessResponse(conditions []condition.Condition, resp *http.Response) bo
 	return condition.JudgeConditons(conditions, resp, true)
 }
 
+func deniedRequestIncr(req *http.Request) {
+	labels, ok := middleware.MetricsLabelsFromContext(req.Context())
+	if ok {
+		_metricDeniedTotal.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath()).Inc()
+		return
+	}
+}
+
 func New(factory client.Factory) middleware.Factory {
 	return func(c *config.Middleware) (middleware.Middleware, error) {
 		options := &v1.CircuitBreaker{}
@@ -151,7 +159,7 @@ func New(factory client.Factory) middleware.Factory {
 					// NOTE: when client reject requets locally,
 					// continue add counter let the drop ratio higher.
 					breaker.MarkFailed()
-					_metricDeniedTotal.WithLabelValues(req.Method, req.URL.Path).Inc()
+					deniedRequestIncr(req)
 					return onBreakHandler.RoundTrip(req)
 				}
 				resp, err := next.RoundTrip(req)

@@ -85,7 +85,7 @@ func setXFFHeader(req *http.Request) {
 	}
 }
 
-func writeError(w http.ResponseWriter, r *http.Request, err error, protocol config.Protocol, service, basePath string, pathPattern string) {
+func writeError(w http.ResponseWriter, r *http.Request, err error, labels middleware.MetricsLabels) {
 	var statusCode int
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -95,8 +95,8 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, protocol conf
 	default:
 		statusCode = 502
 	}
-	_metricRequestsTotal.WithLabelValues(protocol.String(), r.Method, pathPattern, strconv.Itoa(statusCode), service, basePath).Inc()
-	if protocol == config.Protocol_GRPC {
+	requestsTotalIncr(labels, statusCode)
+	if labels.Protocol() == config.Protocol_GRPC.String() {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
 		w.Header().Set("Content-Type", "application/grpc")
@@ -175,16 +175,12 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 }
 
 func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) {
-	protocol := e.Protocol.String()
-	service := e.Metadata["service"]
-	basePath := e.Metadata["basePath"]
-	method := e.Method
-	path := e.Path
+	labels := middleware.NewMetricsLabels(e)
 	success := func(i int) {
 		if i <= 0 {
 			return
 		}
-		_metricRetryState.WithLabelValues(protocol, method, path, service, basePath, "true").Inc()
+		retryStateIncr(labels, true)
 	}
 	failed := func(i int, err error) {
 		if i <= 0 {
@@ -193,7 +189,7 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) 
 		if errors.Is(err, context.Canceled) {
 			return
 		}
-		_metricRetryState.WithLabelValues(protocol, method, path, service, basePath, "false").Inc()
+		retryStateIncr(labels, false)
 	}
 	return success, failed
 }
@@ -215,9 +211,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 	if err != nil {
 		return nil, err
 	}
-	protocol := e.Protocol.String()
-	service := e.Metadata["service"]
-	basePath := e.Metadata["basePath"]
+	labels := middleware.NewMetricsLabels(e)
 	markSuccess, markFailed := splitRetryMetricsHandler(e)
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
@@ -228,15 +222,15 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
 		defer cancel()
 		defer func() {
-			_metricRequestsDuration.WithLabelValues(protocol, req.Method, e.Path, service, basePath).Observe(time.Since(startTime).Seconds())
+			requestsDurationObserve(labels, time.Since(startTime).Seconds())
 		}()
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			writeError(w, req, err, e.Protocol, service, basePath, e.Path)
+			writeError(w, req, err, labels)
 			return
 		}
-		_metricReceivedBytes.WithLabelValues(protocol, req.Method, e.Path, service, basePath).Add(float64(len(body)))
+		receivedBytesAdd(labels, int64(len(body)))
 		req.GetBody = func() (io.ReadCloser, error) {
 			reader := bytes.NewReader(body)
 			return ioutil.NopCloser(reader), nil
@@ -271,7 +265,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			// continue the retry loop
 		}
 		if err != nil {
-			writeError(w, req, err, e.Protocol, service, basePath, e.Path)
+			writeError(w, req, err, labels)
 			return
 		}
 
@@ -289,11 +283,11 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			sent, err := io.Copy(w, resp.Body)
 			if err != nil {
 				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
-				_metricSentBytes.WithLabelValues(protocol, req.Method, e.Path, service, basePath).Add(float64(sent))
+				sentBytesAdd(labels, sent)
 				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err)
 				return false
 			}
-			_metricSentBytes.WithLabelValues(protocol, req.Method, e.Path, service, basePath).Add(float64(sent))
+			sentBytesAdd(labels, sent)
 			reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: resp.Trailer})
 			// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 			for k, v := range resp.Trailer {
@@ -302,8 +296,32 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			return true
 		}
 		doCopyBody()
-		_metricRequestsTotal.WithLabelValues(protocol, req.Method, e.Path, strconv.Itoa(resp.StatusCode), service, basePath).Inc()
+		requestsTotalIncr(labels, resp.StatusCode)
 	})), nil
+}
+
+func receivedBytesAdd(labels middleware.MetricsLabels, received int64) {
+	_metricReceivedBytes.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath()).Add(float64(received))
+}
+
+func sentBytesAdd(labels middleware.MetricsLabels, sent int64) {
+	_metricSentBytes.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath()).Add(float64(sent))
+}
+
+func requestsTotalIncr(labels middleware.MetricsLabels, statusCode int) {
+	_metricRequestsTotal.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), strconv.Itoa(statusCode), labels.Service(), labels.BasePath()).Inc()
+}
+
+func requestsDurationObserve(labels middleware.MetricsLabels, seconds float64) {
+	_metricRequestsDuration.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath()).Observe(seconds)
+}
+
+func retryStateIncr(labels middleware.MetricsLabels, success bool) {
+	if success {
+		_metricRetryState.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath(), "true").Inc()
+		return
+	}
+	_metricRetryState.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath(), "false").Inc()
 }
 
 // Update updates service endpoint.

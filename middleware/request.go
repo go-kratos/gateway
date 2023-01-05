@@ -21,6 +21,24 @@ type RequestOptions struct {
 	LastAttempt          bool
 }
 
+type MetricsLabels interface {
+	Protocol() string
+	Method() string
+	Path() string
+	Service() string
+	BasePath() string
+}
+
+type metricsLabels struct {
+	endpoint *config.Endpoint
+}
+
+func (m *metricsLabels) Protocol() string { return m.endpoint.Protocol.String() }
+func (m *metricsLabels) Method() string   { return m.endpoint.Method }
+func (m *metricsLabels) Path() string     { return m.endpoint.Path }
+func (m *metricsLabels) Service() string  { return m.endpoint.Metadata["service"] }
+func (m *metricsLabels) BasePath() string { return m.endpoint.Metadata["basePath"] }
+
 // NewRequestOptions new a request options with retry filter.
 func NewRequestOptions(c *config.Endpoint) *RequestOptions {
 	o := &RequestOptions{
@@ -108,4 +126,16 @@ func WithSelectorFitler(ctx context.Context, fn selector.NodeFilter) context.Con
 		o.Filters = append(o.Filters, fn)
 	}
 	return ctx
+}
+
+func MetricsLabelsFromContext(ctx context.Context) (MetricsLabels, bool) {
+	o, ok := ctx.Value(contextKey{}).(*RequestOptions)
+	if ok {
+		return NewMetricsLabels(o.Endpoint), true
+	}
+	return nil, false
+}
+
+func NewMetricsLabels(ep *config.Endpoint) MetricsLabels {
+	return &metricsLabels{endpoint: ep}
 }
