@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -30,20 +31,41 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
+	"github.com/go-kratos/kratos/v2/transport"
 )
 
 var (
 	ctrlName     string
 	ctrlService  string
 	discoveryDSN string
-	proxyAddr    string
+	proxyAddrs   = newSliceVar(":8080")
 	proxyConfig  string
 	withDebug    bool
 )
 
+type sliceVar struct {
+	val        []string
+	defaultVal []string
+}
+
+func newSliceVar(defaultVal ...string) sliceVar {
+	return sliceVar{defaultVal: defaultVal}
+}
+func (s *sliceVar) Get() []string {
+	if len(s.val) <= 0 {
+		return s.defaultVal
+	}
+	return s.val
+}
+func (s *sliceVar) Set(val string) error {
+	s.val = append(s.val, val)
+	return nil
+}
+func (s *sliceVar) String() string { return fmt.Sprintf("%+v", *s) }
+
 func init() {
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
-	flag.StringVar(&proxyAddr, "addr", ":8080", "proxy address, eg: -addr 0.0.0.0:8080")
+	flag.Var(&proxyAddrs, "addr", "proxy address, eg: -addr 0.0.0.0:8080")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
 	flag.StringVar(&ctrlName, "ctrl.name", os.Getenv("ADVERTISE_NAME"), "control gateway name, eg: gateway")
 	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://127.0.0.1:8000")
@@ -119,11 +141,15 @@ func main() {
 		}
 		serverHandler = debug.MashupWithDebugHandler(p)
 	}
+	servers := make([]transport.Server, 0, len(proxyAddrs.Get()))
+	for _, addr := range proxyAddrs.Get() {
+		servers = append(servers, server.NewProxy(serverHandler, addr))
+	}
 	app := kratos.New(
 		kratos.Name(bc.Name),
 		kratos.Context(ctx),
 		kratos.Server(
-			server.NewProxy(serverHandler, proxyAddr),
+			servers...,
 		),
 	)
 	if err := app.Run(); err != nil {
