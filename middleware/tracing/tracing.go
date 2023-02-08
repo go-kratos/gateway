@@ -110,9 +110,16 @@ func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerPro
 		sampler = sdktrace.TraceIDRatioBased(float64(*options.SampleRatio))
 	}
 
-	client := otlptracehttp.NewClient(
+	otlpoptions := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint(options.HttpEndpoint),
 		otlptracehttp.WithTimeout(timeout),
+	}
+	if !*options.Insecure {
+		otlpoptions = append(otlpoptions, otlptracehttp.WithInsecure())
+	}
+
+	client := otlptracehttp.NewClient(
+		otlpoptions...,
 	)
 
 	exporter, err := otlptrace.New(ctx, client)
