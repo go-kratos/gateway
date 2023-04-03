@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -348,6 +350,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)
 			log.Errorf("panic recovered: %s", buf[:n])
+			fmt.Fprintf(os.Stderr, "panic recovered: %s\n", buf[:n])
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)
