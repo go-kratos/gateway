@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -347,7 +348,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)
-			log.Errorf("panic recovered: %s", buf[:n])
+			fmt.Println("panic recovered:", buf[:n])
 		}
 	}()
 	p.router.Load().(router.Router).ServeHTTP(w, req)
