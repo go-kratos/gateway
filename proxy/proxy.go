@@ -349,6 +349,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)
+			log.Errorf("panic recovered: %s", buf[:n])
 			fmt.Fprintf(os.Stderr, "panic recovered: %s\n", buf[:n])
 		}
 	}()
