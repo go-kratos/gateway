@@ -1,6 +1,8 @@
 package cors
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -67,7 +69,11 @@ func isOriginAllowed(origin string, allowOriginHosts []string) bool {
 }
 
 func newResponse(statusCode int, header http.Header) (*http.Response, error) {
-	return &http.Response{StatusCode: statusCode, Header: header}, nil
+	return &http.Response{
+		StatusCode: statusCode,
+		Header:     header,
+		Body:       io.NopCloser(&bytes.Buffer{}),
+	}, nil
 }
 
 // Middleware automatically sets the allow response header.
