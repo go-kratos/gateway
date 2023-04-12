@@ -23,6 +23,7 @@ import (
 func Init(clientFactory client.Factory) {
 	breakerFactory := New(clientFactory)
 	middleware.Register("circuitbreaker", breakerFactory)
+	prometheus.MustRegister(_metricDeniedTotal)
 }
 
 var (
@@ -118,6 +119,7 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.Rou
 			return &http.Response{
 				StatusCode: http.StatusServiceUnavailable,
 				Header:     http.Header{},
+				Body:       io.NopCloser(&bytes.Buffer{}),
 			}, nil
 		}), nil
 	}
