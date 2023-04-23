@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -9,9 +10,11 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/http2"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/middleware"
 )
 
 var _ selector.Node = &node{}
@@ -26,27 +29,50 @@ func init() {
 			panic(err)
 		}
 	}
+	prometheus.MustRegister(_metricClientRedirect)
+}
+
+var _metricClientRedirect = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Namespace: "go",
+	Subsystem: "gateway",
+	Name:      "client_redirect_total",
+	Help:      "The total number of client redirect",
+}, []string{"protocol", "method", "path", "service", "basePath"})
+
+func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
+	labels, ok := middleware.MetricsLabelsFromContext(req.Context())
+	if ok {
+		_metricClientRedirect.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath()).Inc()
+	}
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	return nil
 }
 
 func defaultClient() *http.Client {
-	return &http.Client{Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   _dialTimeout,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		MaxIdleConns:          10000,
-		MaxIdleConnsPerHost:   1000,
-		MaxConnsPerHost:       1000,
-		DisableCompression:    true,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}}
+	return &http.Client{
+		CheckRedirect: defaultCheckRedirect,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   _dialTimeout,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:          10000,
+			MaxIdleConnsPerHost:   1000,
+			MaxConnsPerHost:       1000,
+			DisableCompression:    true,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
 }
 
 func defaultH2Client() *http.Client {
 	return &http.Client{
+		CheckRedirect: defaultCheckRedirect,
 		Transport: &http2.Transport{
 			// So http2.Transport doesn't complain the URL scheme isn't 'https'
 			AllowHTTP:          true,
