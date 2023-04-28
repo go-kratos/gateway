@@ -31,7 +31,7 @@ func TestCors(t *testing.T) {
 		{
 			Config:     &config.Middleware{},
 			Method:     "POST",
-			StatusCode: 200,
+			StatusCode: 403,
 		},
 		{
 			Config:     &config.Middleware{},
@@ -91,6 +91,18 @@ func TestCors(t *testing.T) {
 			Origin:     "http://google.com",
 			Method:     "OPTIONS",
 			StatusCode: 200,
+		},
+		{
+			Config:     buildConfig([]string{"google.com"}),
+			Origin:     "http://google.com",
+			Method:     "GET",
+			StatusCode: 200,
+		},
+		{
+			Config:     buildConfig([]string{"*.youtube.com"}),
+			Origin:     "http://google.com",
+			Method:     "GET",
+			StatusCode: 403,
 		},
 	}
 	for no, test := range tests {

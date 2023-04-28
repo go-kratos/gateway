@@ -18,11 +18,10 @@ import (
 )
 
 var (
-	defaultAllowCredentials     = true
-	defaultAllowPrivateNetwork  = false
-	defaultCorsOptionStatusCode = 200
-	defaultCorsMethods          = []string{"GET", "POST", "PUT", "DELETE"}
-	defaultCorsHeaders          = []string{"Origin", "Content-Length", "Content-Type"}
+	defaultAllowCredentials    = true
+	defaultAllowPrivateNetwork = false
+	defaultCorsMethods         = []string{"GET", "POST", "PUT", "DELETE"}
+	defaultCorsHeaders         = []string{"Origin", "Content-Length", "Content-Type"}
 	// (WebKit/Safari v9 sends the Origin header by default in AJAX requests)
 )
 
@@ -95,11 +94,11 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			origin := req.Header.Get(corsOriginHeader)
+			if !isOriginAllowed(origin, options.AllowOrigins) {
+				return newResponse(http.StatusForbidden, http.Header{})
+			}
 			if req.Method == corsOptionMethod {
 				headers := make(http.Header, len(preflightHeaders)+2)
-				if !isOriginAllowed(origin, options.AllowOrigins) {
-					return newResponse(http.StatusForbidden, headers)
-				}
 				if options.AllowPrivateNetwork && req.Header.Get(corsRequestPrivateNetwork) == "true" {
 					headers.Set(corsAllowPrivateNetworkHeader, "true")
 				}
