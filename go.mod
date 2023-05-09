@@ -3,7 +3,7 @@ module github.com/go-kratos/gateway
 go 1.15
 
 require (
-	github.com/go-kratos/aegis v0.1.2
+	github.com/go-kratos/aegis v0.2.0
 	github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20220318065833-e66a2905ab70
 	github.com/go-kratos/kratos/v2 v2.5.0
 	github.com/google/uuid v1.3.0
