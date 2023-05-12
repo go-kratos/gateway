@@ -94,6 +94,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			origin := req.Header.Get(corsOriginHeader)
+			if origin == "" {
+				// not a cors request
+				return next.RoundTrip(req)
+			}
 			if !isOriginAllowed(origin, options.AllowOrigins) {
 				return newResponse(http.StatusForbidden, http.Header{})
 			}

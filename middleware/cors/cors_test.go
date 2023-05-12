@@ -31,12 +31,12 @@ func TestCors(t *testing.T) {
 		{
 			Config:     &config.Middleware{},
 			Method:     "POST",
-			StatusCode: 403,
+			StatusCode: 200,
 		},
 		{
 			Config:     &config.Middleware{},
 			Method:     "OPTIONS",
-			StatusCode: 403,
+			StatusCode: 200,
 		},
 		{
 			Config:     buildConfig([]string{"google.com"}),
@@ -127,6 +127,9 @@ func TestCors(t *testing.T) {
 				t.Fatalf("%d want %d but got %d", no, test.StatusCode, resp.StatusCode)
 			}
 			if resp.StatusCode != 200 {
+				continue
+			}
+			if test.Origin == "" {
 				continue
 			}
 			if test.Method == "OPTIONS" {
