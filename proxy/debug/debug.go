@@ -16,12 +16,18 @@ const (
 
 var globalService = &debugService{
 	handlers: map[string]http.HandlerFunc{
-		"/debug/ping":          func(rw http.ResponseWriter, r *http.Request) {},
-		"/debug/pprof/":        pprof.Index,
-		"/debug/pprof/cmdline": pprof.Cmdline,
-		"/debug/pprof/profile": pprof.Profile,
-		"/debug/pprof/symbol":  pprof.Symbol,
-		"/debug/pprof/trace":   pprof.Trace,
+		"/debug/ping":               func(rw http.ResponseWriter, r *http.Request) {},
+		"/debug/pprof/":             pprof.Index,
+		"/debug/pprof/cmdline":      pprof.Cmdline,
+		"/debug/pprof/profile":      pprof.Profile,
+		"/debug/pprof/symbol":       pprof.Symbol,
+		"/debug/pprof/trace":        pprof.Trace,
+		"/debug/pprof/allocs":       pprof.Handler("allocs").ServeHTTP,
+		"/debug/pprof/block":        pprof.Handler("block").ServeHTTP,
+		"/debug/pprof/goroutine":    pprof.Handler("goroutine").ServeHTTP,
+		"/debug/pprof/heap":         pprof.Handler("heap").ServeHTTP,
+		"/debug/pprof/mutex":        pprof.Handler("mutex").ServeHTTP,
+		"/debug/pprof/threadcreate": pprof.Handler("threadcreate").ServeHTTP,
 	},
 	mux: mux.NewRouter(),
 }
