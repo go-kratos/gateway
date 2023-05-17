@@ -21,6 +21,7 @@ var _ selector.Node = &node{}
 var _globalClient = defaultClient()
 var _globalH2Client = defaultH2Client()
 var _dialTimeout = 200 * time.Millisecond
+var followRedirect = false
 
 func init() {
 	var err error
@@ -28,6 +29,9 @@ func init() {
 		if _dialTimeout, err = time.ParseDuration(v); err != nil {
 			panic(err)
 		}
+	}
+	if val := os.Getenv("PROXY_FOLLOW_REDIRECT"); val != "" {
+		followRedirect = true
 	}
 	prometheus.MustRegister(_metricClientRedirect)
 }
@@ -44,10 +48,13 @@ func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
 	if ok {
 		_metricClientRedirect.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath()).Inc()
 	}
-	if len(via) >= 10 {
-		return errors.New("stopped after 10 redirects")
+	if followRedirect {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
 	}
-	return nil
+	return http.ErrUseLastResponse
 }
 
 func defaultClient() *http.Client {
