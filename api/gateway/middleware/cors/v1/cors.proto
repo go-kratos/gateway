@@ -15,4 +15,5 @@ message Cors {
     repeated string expose_headers = 5;
     google.protobuf.Duration max_age = 6;
     bool allow_private_network = 7;
+    bool allow_all_headers = 8;
 }
