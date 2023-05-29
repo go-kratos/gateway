@@ -13,6 +13,7 @@ import (
 )
 
 var EnableStrictSlash = parseBool(os.Getenv("ENABLE_STRICT_SLASH"), false)
+var EnableRouteCaseInsensitive = parseBool(os.Getenv("ENABLE_ROUTE_CASE_INSENSITIVE"), false)
 
 func parseBool(in string, defV bool) bool {
 	if in == "" {
@@ -61,7 +62,14 @@ func cleanPath(p string) string {
 
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req.URL.Path = cleanPath(req.URL.Path)
+	if EnableRouteCaseInsensitive {
+		req.URL.Path = wrapAsCaseInsensitive(req.URL.Path)
+	}
 	r.Router.ServeHTTP(w, req)
+}
+
+func wrapAsCaseInsensitive(pattern string) string {
+	return strings.ToLower(pattern)
 }
 
 func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler) error {
