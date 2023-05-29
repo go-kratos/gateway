@@ -109,6 +109,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				for key, value := range preflightHeaders {
 					headers[key] = value
 				}
+				if options.AllowAllHeaders {
+					headers.Set(corsAllowHeadersHeader, req.Header.Get(corsRequestHeadersHeader))
+				}
 				headers.Set(corsAllowOriginHeader, origin)
 				return newResponse(http.StatusOK, headers)
 			}
