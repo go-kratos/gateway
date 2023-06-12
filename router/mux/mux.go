@@ -6,6 +6,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-kratos/gateway/router"
 	"github.com/gorilla/mux"
@@ -28,6 +29,7 @@ func parseBool(in string, defV bool) bool {
 var _ = new(router.Router)
 
 type muxRouter struct {
+	wg sync.WaitGroup
 	*mux.Router
 }
 
@@ -60,6 +62,8 @@ func cleanPath(p string) string {
 }
 
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.wg.Add(1)
+	defer r.wg.Done()
 	req.URL.Path = cleanPath(req.URL.Path)
 	r.Router.ServeHTTP(w, req)
 }
@@ -114,4 +118,13 @@ func InspectMuxRouter(in interface{}) []*RouterInspect {
 		return nil
 	})
 	return out
+}
+
+func FreeRouter(in interface{}) {
+	m, ok := in.(*muxRouter)
+	if !ok {
+		return
+	}
+	m.wg.Wait()
+	m.Router = nil
 }

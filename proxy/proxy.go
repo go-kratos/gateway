@@ -339,7 +339,10 @@ func (p *Proxy) Update(c *config.Gateway) error {
 		}
 		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
-	p.router.Store(router)
+	prev := p.router.Swap(router)
+	if prev != nil {
+		go mux.FreeRouter(prev)
+	}
 	return nil
 }
 
