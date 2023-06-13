@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -72,4 +74,31 @@ func parseRetryConditon(endpoint *config.Endpoint) ([]condition.Condition, error
 
 func judgeRetryRequired(conditions []condition.Condition, resp *http.Response) bool {
 	return condition.JudgeConditons(conditions, resp, false)
+}
+
+var DeriveTimeoutMSHeader = "timeout"
+
+func SetDeriveTimeoutMSHeader(in string) {
+	DeriveTimeoutMSHeader = in
+}
+
+func setupTimeoutContext(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc) {
+	parseMetadataTimeout := func() time.Duration {
+		raw := req.Header.Get(DeriveTimeoutMSHeader)
+		if raw == "" {
+			return 0
+		}
+		timeoutMs, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return 0
+		}
+		return time.Millisecond * time.Duration(timeoutMs)
+	}
+	mdTimeout := parseMetadataTimeout()
+	if mdTimeout > 0 {
+		if timeout > 0 && mdTimeout < timeout {
+			timeout = mdTimeout
+		}
+	}
+	return context.WithTimeout(ctx, timeout)
 }

@@ -248,7 +248,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 				markFailed(i, err)
 				break
 			}
-			tryCtx, cancel := context.WithTimeout(ctx, retryStrategy.perTryTimeout)
+			tryCtx, cancel := setupTimeoutContext(ctx, req, retryStrategy.perTryTimeout)
 			defer cancel()
 			reader := bytes.NewReader(body)
 			req.Body = ioutil.NopCloser(reader)
