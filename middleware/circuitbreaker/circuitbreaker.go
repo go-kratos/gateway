@@ -3,9 +3,9 @@ package circuitbreaker
 import (
 	"bytes"
 	"io"
-	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/go-kratos/aegis/circuitbreaker"
 	"github.com/go-kratos/aegis/circuitbreaker/sre"
@@ -16,6 +16,7 @@ import (
 	"github.com/go-kratos/gateway/proxy/condition"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/exp/rand"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -44,7 +45,7 @@ type ratioTrigger struct {
 func newRatioTrigger(in *v1.CircuitBreaker_Ratio) *ratioTrigger {
 	return &ratioTrigger{
 		CircuitBreaker_Ratio: in,
-		rand:                 rand.New(rand.NewSource(rand.Int63())),
+		rand:                 rand.New(rand.NewSource(uint64(time.Now().UnixNano()))),
 	}
 }
 
