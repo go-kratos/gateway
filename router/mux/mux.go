@@ -2,6 +2,7 @@ package mux
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -32,8 +33,8 @@ var _ = new(router.Router)
 
 type muxRouter struct {
 	*mux.Router
-	wg         *sync.WaitGroup
-	allCloseFn []func() error
+	wg        *sync.WaitGroup
+	allCloser []io.Closer
 }
 
 // NewRouter new a mux router.
@@ -72,7 +73,7 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.Router.ServeHTTP(w, req)
 }
 
-func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, closeFn func() error) error {
+func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, closer io.Closer) error {
 	next := r.Router.NewRoute().Handler(handler)
 	if host != "" {
 		next = next.Host(host)
@@ -92,7 +93,7 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if err := next.GetError(); err != nil {
 		return err
 	}
-	r.allCloseFn = append(r.allCloseFn, closeFn)
+	r.allCloser = append(r.allCloser, closer)
 	return nil
 }
 
@@ -100,8 +101,8 @@ func (r *muxRouter) SyncClose(ctx context.Context) error {
 	if timeout := waitTimeout(ctx, r.wg); timeout {
 		log.Warnf("Time out to wait all requests complete, processing force close")
 	}
-	for _, closeFn := range r.allCloseFn {
-		if err := closeFn(); err != nil {
+	for _, closer := range r.allCloser {
+		if err := closer.Close(); err != nil {
 			log.Errorf("Failed to execute close function: %+v", err)
 			continue
 		}

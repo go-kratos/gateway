@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync/atomic"
 
@@ -16,8 +15,7 @@ import (
 )
 
 // Factory is returns service client.
-type Factory func(*config.Endpoint) (http.RoundTripper, ClientClose, error)
-type ClientClose func() error
+type Factory func(*config.Endpoint) (Client, error)
 
 type Option func(*options)
 type options struct {
@@ -38,7 +36,7 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	for _, opt := range opts {
 		opt(o)
 	}
-	return func(endpoint *config.Endpoint) (http.RoundTripper, ClientClose, error) {
+	return func(endpoint *config.Endpoint) (Client, error) {
 		picker := o.pickerBuilder.Build()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
@@ -47,10 +45,10 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 			registry: r,
 		}
 		if err := applier.apply(ctx, picker); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		client := newClient(applier, picker)
-		return client, client.Close, nil
+		return client, nil
 	}
 }
 

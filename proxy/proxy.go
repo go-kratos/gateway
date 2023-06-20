@@ -196,11 +196,13 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) 
 	return success, failed
 }
 
-func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, client.ClientClose, error) {
-	tripper, clientClose, err := p.clientFactory(e)
+func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, io.Closer, error) {
+	client, err := p.clientFactory(e)
 	if err != nil {
 		return nil, nil, err
 	}
+	tripper := http.RoundTripper(client)
+	closer := io.Closer(client)
 	tripper, err = p.buildMiddleware(e.Middlewares, tripper)
 	if err != nil {
 		return nil, nil, err
@@ -299,7 +301,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		}
 		doCopyBody()
 		requestsTotalIncr(labels, resp.StatusCode)
-	})), clientClose, nil
+	})), closer, nil
 }
 
 func receivedBytesAdd(labels middleware.MetricsLabels, received int64) {
@@ -330,11 +332,11 @@ func retryStateIncr(labels middleware.MetricsLabels, success bool) {
 func (p *Proxy) Update(c *config.Gateway) error {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
-		handler, clientClose, err := p.buildEndpoint(e, c.Middlewares)
+		handler, closer, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
 			return err
 		}
-		if err = router.Handle(e.Path, e.Method, e.Host, handler, clientClose); err != nil {
+		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
 			return err
 		}
 		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)

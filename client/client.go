@@ -1,6 +1,7 @@
 package client
 
 import (
+	"io"
 	"net/http"
 	"time"
 
@@ -11,6 +12,11 @@ import (
 type client struct {
 	applier  *nodeApplier
 	selector selector.Selector
+}
+
+type Client interface {
+	http.RoundTripper
+	io.Closer
 }
 
 func newClient(applier *nodeApplier, selector selector.Selector) *client {

@@ -91,15 +91,15 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	}
 }
 
-func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, client.ClientClose, error) {
+func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, io.Closer, error) {
 	switch action := in.Action.(type) {
 	case *v1.CircuitBreaker_BackupService:
 		log.Infof("Making backup service as on break handler: %+v", action)
-		client, close, err := factory(action.BackupService.Endpoint)
+		client, err := factory(action.BackupService.Endpoint)
 		if err != nil {
 			return nil, nil, err
 		}
-		return client, close, nil
+		return client, client, nil
 	case *v1.CircuitBreaker_ResponseData:
 		log.Infof("Making static response data as on break handler: %+v", action)
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
@@ -112,7 +112,7 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.Rou
 			}
 			resp.Body = io.NopCloser(bytes.NewReader(action.ResponseData.Body))
 			return resp, nil
-		}), func() error { return nil }, nil
+		}), io.NopCloser(nil), nil
 	default:
 		log.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
 		return middleware.RoundTripperFunc(func(*http.Request) (*http.Response, error) {
@@ -122,7 +122,7 @@ func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.Rou
 				Header:     http.Header{},
 				Body:       io.NopCloser(&bytes.Buffer{}),
 			}, nil
-		}), func() error { return nil }, nil
+		}), io.NopCloser(nil), nil
 	}
 }
 

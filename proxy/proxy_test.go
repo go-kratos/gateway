@@ -35,6 +35,16 @@ func newResponseWriter() *responseWriter {
 	return &responseWriter{header: make(http.Header)}
 }
 
+type RoundTripperCloserFunc func(*http.Request) (*http.Response, error)
+
+func (f RoundTripperCloserFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func (f RoundTripperCloserFunc) Close() error {
+	return nil
+}
+
 func TestProxy(t *testing.T) {
 	c := &config.Gateway{
 		Name: "Test",
@@ -66,15 +76,16 @@ func TestProxy(t *testing.T) {
 		},
 	}
 	retryable := false
-	clientFactory := func(*config.Endpoint) (http.RoundTripper, client.ClientClose, error) {
-		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	clientFactory := func(*config.Endpoint) (client.Client, error) {
+		dummyClient := RoundTripperCloserFunc(func(req *http.Request) (*http.Response, error) {
 			if retryable {
 				retryable = false
 				return &http.Response{StatusCode: http.StatusInternalServerError}, nil
 			}
 			res.Body = req.Body
 			return res, nil
-		}), func() error { return nil }, nil
+		})
+		return dummyClient, nil
 	}
 	middlewareFactory := func(c *config.Middleware) (middleware.Middleware, error) {
 		return logging.Middleware(c)
