@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/middleware/logging"
 )
@@ -65,7 +66,7 @@ func TestProxy(t *testing.T) {
 		},
 	}
 	retryable := false
-	clientFactory := func(*config.Endpoint) (http.RoundTripper, error) {
+	clientFactory := func(*config.Endpoint) (http.RoundTripper, client.ClientClose, error) {
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			if retryable {
 				retryable = false
@@ -73,7 +74,7 @@ func TestProxy(t *testing.T) {
 			}
 			res.Body = req.Body
 			return res, nil
-		}), nil
+		}), func() error { return nil }, nil
 	}
 	middlewareFactory := func(c *config.Middleware) (middleware.Middleware, error) {
 		return logging.Middleware(c)

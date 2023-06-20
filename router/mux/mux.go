@@ -1,13 +1,16 @@
 package mux
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-kratos/gateway/router"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -29,12 +32,15 @@ var _ = new(router.Router)
 
 type muxRouter struct {
 	*mux.Router
+	wg         *sync.WaitGroup
+	allCloseFn []func() error
 }
 
 // NewRouter new a mux router.
 func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Router {
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(EnableStrictSlash),
+		wg:     &sync.WaitGroup{},
 	}
 	r.Router.Handle("/metrics", promhttp.Handler())
 	r.Router.NotFoundHandler = notFoundHandler
@@ -60,11 +66,13 @@ func cleanPath(p string) string {
 }
 
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.wg.Add(1)
+	defer r.wg.Done()
 	req.URL.Path = cleanPath(req.URL.Path)
 	r.Router.ServeHTTP(w, req)
 }
 
-func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler) error {
+func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, closeFn func() error) error {
 	next := r.Router.NewRoute().Handler(handler)
 	if host != "" {
 		next = next.Host(host)
@@ -81,7 +89,38 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler) e
 	if method != "" && method != "*" {
 		next = next.Methods(method, http.MethodOptions)
 	}
-	return next.GetError()
+	if err := next.GetError(); err != nil {
+		return err
+	}
+	r.allCloseFn = append(r.allCloseFn, closeFn)
+	return nil
+}
+
+func (r *muxRouter) SyncClose(ctx context.Context) error {
+	if timeout := waitTimeout(ctx, r.wg); timeout {
+		log.Warnf("Time out to wait all requests complete, processing force close")
+	}
+	for _, closeFn := range r.allCloseFn {
+		if err := closeFn(); err != nil {
+			log.Errorf("Failed to execute close function: %+v", err)
+			continue
+		}
+	}
+	return nil
+}
+
+func waitTimeout(ctx context.Context, wg *sync.WaitGroup) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-ctx.Done():
+		return true // timed out
+	}
 }
 
 type RouterInspect struct {

@@ -16,7 +16,8 @@ import (
 )
 
 // Factory is returns service client.
-type Factory func(*config.Endpoint) (http.RoundTripper, error)
+type Factory func(*config.Endpoint) (http.RoundTripper, ClientClose, error)
+type ClientClose func() error
 
 type Option func(*options)
 type options struct {
@@ -37,7 +38,7 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	for _, opt := range opts {
 		opt(o)
 	}
-	return func(endpoint *config.Endpoint) (http.RoundTripper, error) {
+	return func(endpoint *config.Endpoint) (http.RoundTripper, ClientClose, error) {
 		picker := o.pickerBuilder.Build()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
@@ -46,9 +47,10 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 			registry: r,
 		}
 		if err := applier.apply(ctx, picker); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return newClient(applier, picker), nil
+		client := newClient(applier, picker)
+		return client, client.Close, nil
 	}
 }
 
@@ -105,6 +107,7 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 }
 
 func (na *nodeApplier) Cancel() {
+	log.Infof("Closing node applier for endpoint: %+v", na.endpoint)
 	atomic.StoreInt64(&na.canceled, 1)
 	na.cancel()
 }

@@ -196,22 +196,22 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) 
 	return success, failed
 }
 
-func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, error) {
-	tripper, err := p.clientFactory(e)
+func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, client.ClientClose, error) {
+	tripper, clientClose, err := p.clientFactory(e)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	tripper, err = p.buildMiddleware(e.Middlewares, tripper)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	tripper, err = p.buildMiddleware(ms, tripper)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	retryStrategy, err := prepareRetryStrategy(e)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	labels := middleware.NewMetricsLabels(e)
 	markSuccess, markFailed := splitRetryMetricsHandler(e)
@@ -299,7 +299,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		}
 		doCopyBody()
 		requestsTotalIncr(labels, resp.StatusCode)
-	})), nil
+	})), clientClose, nil
 }
 
 func receivedBytesAdd(labels middleware.MetricsLabels, received int64) {
@@ -330,17 +330,33 @@ func retryStateIncr(labels middleware.MetricsLabels, success bool) {
 func (p *Proxy) Update(c *config.Gateway) error {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
-		handler, err := p.buildEndpoint(e, c.Middlewares)
+		handler, clientClose, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
 			return err
 		}
-		if err = router.Handle(e.Path, e.Method, e.Host, handler); err != nil {
+		if err = router.Handle(e.Path, e.Method, e.Host, handler, clientClose); err != nil {
 			return err
 		}
 		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
-	p.router.Store(router)
+	old := p.router.Swap(router)
+	tryCloseRouter(old)
 	return nil
+}
+
+func tryCloseRouter(in interface{}) {
+	if in == nil {
+		return
+	}
+	r, ok := in.(router.Router)
+	if !ok {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+		r.SyncClose(ctx)
+	}()
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
