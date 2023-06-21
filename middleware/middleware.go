@@ -40,3 +40,17 @@ func wrapFactory(in Factory) FactoryV2 {
 
 func (f Middleware) Process(in http.RoundTripper) http.RoundTripper { return f(in) }
 func (f Middleware) Close() error                                   { return nil }
+
+type withCloser struct {
+	process Middleware
+	close   func() error
+}
+
+func (w *withCloser) Process(in http.RoundTripper) http.RoundTripper { return w.process(in) }
+func (w *withCloser) Close() error                                   { return w.close() }
+func NewWithCloser(process Middleware, close func() error) MiddlewareV2 {
+	return &withCloser{
+		process: process,
+		close:   close,
+	}
+}
