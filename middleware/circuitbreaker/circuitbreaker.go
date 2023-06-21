@@ -23,7 +23,7 @@ import (
 
 func Init(clientFactory client.Factory) {
 	breakerFactory := New(clientFactory)
-	middleware.Register("circuitbreaker", breakerFactory)
+	middleware.RegisterV2("circuitbreaker", breakerFactory)
 	prometheus.MustRegister(_metricDeniedTotal)
 }
 

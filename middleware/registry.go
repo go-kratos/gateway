@@ -65,6 +65,11 @@ func Register(name string, factory Factory) {
 	globalRegistry.Register(name, factory)
 }
 
+// RegisterV2 registers one v2 middleware.
+func RegisterV2(name string, factory FactoryV2) {
+	globalRegistry.RegisterV2(name, factory)
+}
+
 // Create instantiates a middleware based on `cfg`.
 func Create(cfg *configv1.Middleware) (MiddlewareV2, error) {
 	return globalRegistry.Create(cfg)
