@@ -43,14 +43,14 @@ func (f Middleware) Close() error                                   { return nil
 
 type withCloser struct {
 	process Middleware
-	close   func() error
+	closer  io.Closer
 }
 
 func (w *withCloser) Process(in http.RoundTripper) http.RoundTripper { return w.process(in) }
-func (w *withCloser) Close() error                                   { return w.close() }
-func NewWithCloser(process Middleware, close func() error) MiddlewareV2 {
+func (w *withCloser) Close() error                                   { return w.closer.Close() }
+func NewWithCloser(process Middleware, closer io.Closer) MiddlewareV2 {
 	return &withCloser{
 		process: process,
-		close:   close,
+		closer:  closer,
 	}
 }

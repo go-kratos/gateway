@@ -178,6 +178,6 @@ func New(factory client.Factory) middleware.FactoryV2 {
 				breaker.MarkSuccess()
 				return resp, nil
 			})
-		}, func() error { return nil }), nil
+		}, io.NopCloser(nil)), nil
 	}
 }
