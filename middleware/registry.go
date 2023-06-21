@@ -15,34 +15,39 @@ var ErrNotFound = errors.New("Middleware has not been registered")
 // Registry is the interface for callers to get registered middleware.
 type Registry interface {
 	Register(name string, factory Factory)
-	Create(cfg *configv1.Middleware) (Middleware, error)
+	RegisterV2(name string, factory FactoryV2)
+	Create(cfg *configv1.Middleware) (MiddlewareV2, error)
 }
 
 type middlewareRegistry struct {
-	middleware map[string]Factory
+	middleware map[string]FactoryV2
 }
 
 // NewRegistry returns a new middleware registry.
 func NewRegistry() Registry {
 	return &middlewareRegistry{
-		middleware: map[string]Factory{},
+		middleware: map[string]FactoryV2{},
 	}
 }
 
 // Register registers one middleware.
 func (p *middlewareRegistry) Register(name string, factory Factory) {
+	p.middleware[createFullName(name)] = wrapFactory(factory)
+}
+
+func (p *middlewareRegistry) RegisterV2(name string, factory FactoryV2) {
 	p.middleware[createFullName(name)] = factory
 }
 
 // Create instantiates a middleware based on `cfg`.
-func (p *middlewareRegistry) Create(cfg *configv1.Middleware) (Middleware, error) {
+func (p *middlewareRegistry) Create(cfg *configv1.Middleware) (MiddlewareV2, error) {
 	if method, ok := p.getMiddleware(createFullName(cfg.Name)); ok {
 		return method(cfg)
 	}
 	return nil, ErrNotFound
 }
 
-func (p *middlewareRegistry) getMiddleware(name string) (Factory, bool) {
+func (p *middlewareRegistry) getMiddleware(name string) (FactoryV2, bool) {
 	nameLower := strings.ToLower(name)
 	middlewareFn, ok := p.middleware[nameLower]
 	if ok {
@@ -61,6 +66,6 @@ func Register(name string, factory Factory) {
 }
 
 // Create instantiates a middleware based on `cfg`.
-func Create(cfg *configv1.Middleware) (Middleware, error) {
+func Create(cfg *configv1.Middleware) (MiddlewareV2, error) {
 	return globalRegistry.Create(cfg)
 }
