@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -72,4 +73,8 @@ func parseRetryConditon(endpoint *config.Endpoint) ([]condition.Condition, error
 
 func judgeRetryRequired(conditions []condition.Condition, resp *http.Response) bool {
 	return condition.JudgeConditons(conditions, resp, false)
+}
+
+func defaultAttemptTimeoutContext(ctx context.Context, _ *http.Request, timeout time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, timeout)
 }
