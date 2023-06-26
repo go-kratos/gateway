@@ -158,12 +158,12 @@ func (i *interceptors) SetPrepareAttemptTimeoutContext(f func(ctx context.Contex
 type Proxy struct {
 	router            atomic.Value
 	clientFactory     client.Factory
-	middlewareFactory middleware.Factory
 	Interceptors      interceptors
+	middlewareFactory middleware.FactoryV2
 }
 
 // New is new a gateway proxy.
-func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
+func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2) (*Proxy, error) {
 	p := &Proxy{
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
@@ -185,7 +185,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 			}
 			return nil, err
 		}
-		next = m(next)
+		next = m.Process(next)
 	}
 	return next, nil
 }

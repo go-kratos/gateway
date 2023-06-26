@@ -23,7 +23,7 @@ import (
 
 func Init(clientFactory client.Factory) {
 	breakerFactory := New(clientFactory)
-	middleware.Register("circuitbreaker", breakerFactory)
+	middleware.RegisterV2("circuitbreaker", breakerFactory)
 	prometheus.MustRegister(_metricDeniedTotal)
 }
 
@@ -138,8 +138,8 @@ func deniedRequestIncr(req *http.Request) {
 	}
 }
 
-func New(factory client.Factory) middleware.Factory {
-	return func(c *config.Middleware) (middleware.Middleware, error) {
+func New(factory client.Factory) middleware.FactoryV2 {
+	return func(c *config.Middleware) (middleware.MiddlewareV2, error) {
 		options := &v1.CircuitBreaker{}
 		if c.Options != nil {
 			if err := anypb.UnmarshalTo(c.Options, options, proto.UnmarshalOptions{Merge: true}); err != nil {
@@ -155,7 +155,8 @@ func New(factory client.Factory) middleware.Factory {
 		if err != nil {
 			return nil, err
 		}
-		return func(next http.RoundTripper) http.RoundTripper {
+
+		return middleware.NewWithCloser(func(next http.RoundTripper) http.RoundTripper {
 			return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 				if err := breaker.Allow(); err != nil {
 					// rejected
@@ -177,6 +178,6 @@ func New(factory client.Factory) middleware.Factory {
 				breaker.MarkSuccess()
 				return resp, nil
 			})
-		}, nil
+		}, io.NopCloser(nil)), nil
 	}
 }
