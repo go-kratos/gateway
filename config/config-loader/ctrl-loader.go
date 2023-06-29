@@ -67,6 +67,7 @@ func New(name, rawCtrlService, dstPath string) *CtrlConfigLoader {
 		ctrlService: prepareCtrlService(rawCtrlService),
 		dstPath:     dstPath,
 	}
+	cl.ctrlServiceIdx = rand.Intn(len(cl.ctrlService))
 	cl.advertiseName = name
 	cl.advertiseAddr = cl.getAdvertiseAddr()
 	return cl
