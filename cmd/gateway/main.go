@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/config"
@@ -32,6 +33,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport"
+	"golang.org/x/exp/rand"
 )
 
 var (
@@ -64,6 +66,8 @@ func (s *sliceVar) Set(val string) error {
 func (s *sliceVar) String() string { return fmt.Sprintf("%+v", *s) }
 
 func init() {
+	rand.Seed(uint64(time.Now().Nanosecond()))
+
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 	flag.Var(&proxyAddrs, "addr", "proxy address, eg: -addr 0.0.0.0:8080")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
