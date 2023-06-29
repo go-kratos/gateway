@@ -101,7 +101,7 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	cfgBytes, err := c.load(ctx)
 	if err != nil {
 		if err == errNotModified {
-			log.Infof("Skip loading config, %q-%q config is up to date", c.advertiseName, c.advertiseAddr)
+			log.Infof("Skip loading config, %q-%q config is up to date: %q", c.advertiseName, c.advertiseAddr, c.lastVersion.String())
 			return nil
 		}
 		return err
