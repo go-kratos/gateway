@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -343,15 +345,26 @@ func retryStateIncr(labels middleware.MetricsLabels, success bool) {
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) error {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
+	eg := &errgroup.Group{}
+	lock := sync.Mutex{}
 	for _, e := range c.Endpoints {
-		handler, err := p.buildEndpoint(e, c.Middlewares)
-		if err != nil {
-			return err
-		}
-		if err = router.Handle(e.Path, e.Method, e.Host, handler); err != nil {
-			return err
-		}
-		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+		e := e
+		eg.Go(func() error {
+			handler, err := p.buildEndpoint(e, c.Middlewares)
+			if err != nil {
+				return err
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			if err = router.Handle(e.Path, e.Method, e.Host, handler); err != nil {
+				return err
+			}
+			log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return err
 	}
 	p.router.Store(router)
 	return nil
