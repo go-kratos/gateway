@@ -93,9 +93,6 @@ func (c *CtrlConfigLoader) urlfor(upath string, params url.Values) (string, erro
 
 func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	defer func() {
-		if err == errNotModified {
-			return
-		}
 		if err != nil {
 			c.nextCtrlService = true
 		}
@@ -103,6 +100,10 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 
 	cfgBytes, err := c.load(ctx)
 	if err != nil {
+		if err == errNotModified {
+			log.Infof("Skip loading config, %q-%q config is up to date", c.advertiseName, c.advertiseAddr)
+			return nil
+		}
 		return err
 	}
 
@@ -223,10 +224,6 @@ func (c *CtrlConfigLoader) Run(ctx context.Context) {
 	c.cancel = cancel
 	for {
 		if err := c.Load(ctx); err != nil {
-			if err == errNotModified {
-				log.Infof("Skip loading config, %q-%q config is up to date", c.advertiseName, c.advertiseAddr)
-				continue
-			}
 			log.Warnf("Failed to load config, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
 			continue
 		}
