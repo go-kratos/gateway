@@ -23,18 +23,18 @@ type RequestOptions struct {
 }
 
 type RequestValues interface {
-	Get(key string) (interface{}, bool)
-	Set(key string, val interface{})
+	Get(key any) (any, bool)
+	Set(key, val any)
 }
 
-type requestValues map[string]interface{}
+type requestValues map[any]any
 
-func (v requestValues) Get(key string) (interface{}, bool) {
+func (v requestValues) Get(key any) (any, bool) {
 	val, ok := v[key]
 	return val, ok
 }
 
-func (v requestValues) Set(key string, val interface{}) {
+func (v requestValues) Set(key, val any) {
 	v[key] = val
 }
 
