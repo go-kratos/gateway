@@ -12,7 +12,7 @@ jobs:
   build:
     strategy:
       matrix:
-        go: [ "1.17", "1.18", "1.19", "1.20" ]
+        go: [ "1.18", "1.19", "1.20" ]
     name: build & test
     runs-on: ubuntu-latest
     steps:
