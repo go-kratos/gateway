@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -249,7 +248,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 		receivedBytesAdd(labels, int64(len(body)))
 		req.GetBody = func() (io.ReadCloser, error) {
 			reader := bytes.NewReader(body)
-			return ioutil.NopCloser(reader), nil
+			return io.NopCloser(reader), nil
 		}
 
 		var resp *http.Response
@@ -265,7 +264,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 			tryCtx, cancel := p.Interceptors.prepareAttemptTimeoutContext(ctx, req, retryStrategy.perTryTimeout)
 			defer cancel()
 			reader := bytes.NewReader(body)
-			req.Body = ioutil.NopCloser(reader)
+			req.Body = io.NopCloser(reader)
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
 				markFailed(i, err)

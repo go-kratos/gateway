@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -118,7 +118,7 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	}
 
 	tmpPath := fmt.Sprintf("%s.%s.tmp", c.dstPath, uuid.New().String())
-	if err := ioutil.WriteFile(tmpPath, yamlBytes, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, yamlBytes, 0644); err != nil {
 		return err
 	}
 	if err := os.Rename(tmpPath, c.dstPath); err != nil {
@@ -212,7 +212,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("invalid status code: %d", resp.StatusCode)
 	}
-	out, err := ioutil.ReadAll(resp.Body)
+	out, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

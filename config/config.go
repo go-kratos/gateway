@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 	"net/http"
 	"sync"
 	"time"
@@ -65,7 +65,7 @@ func sha256sum(in []byte) string {
 }
 
 func (f *FileLoader) configSHA256() (string, error) {
-	configData, err := ioutil.ReadFile(f.confPath)
+	configData, err := os.ReadFile(f.confPath)
 	if err != nil {
 		return "", err
 	}
@@ -75,7 +75,7 @@ func (f *FileLoader) configSHA256() (string, error) {
 func (f *FileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 	log.Infof("loading config file: %s", f.confPath)
 
-	configData, err := ioutil.ReadFile(f.confPath)
+	configData, err := os.ReadFile(f.confPath)
 	if err != nil {
 		return nil, err
 	}

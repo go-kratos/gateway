@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,7 +29,7 @@ func newResponse(statusCode int, header http.Header, data []byte) (*http.Respons
 		Header:        header,
 		StatusCode:    statusCode,
 		ContentLength: int64(len(data)),
-		Body:          ioutil.NopCloser(bytes.NewReader(data)),
+		Body:          io.NopCloser(bytes.NewReader(data)),
 	}, nil
 }
 
@@ -61,7 +60,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			req.Header.Set("Content-Type", "application/grpc+"+strings.TrimLeft(contentType, "application/"))
 			req.Header.Del("Content-Length")
 			req.ContentLength = int64(len(bb))
-			req.Body = ioutil.NopCloser(bytes.NewReader(bb))
+			req.Body = io.NopCloser(bytes.NewReader(bb))
 			resp, err := next.RoundTrip(req)
 			if err != nil {
 				return nil, err
@@ -101,7 +100,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				}
 				return newResponse(200, resp.Header, data)
 			}
-			resp.Body = ioutil.NopCloser(bytes.NewReader(data[5:]))
+			resp.Body = io.NopCloser(bytes.NewReader(data[5:]))
 			resp.ContentLength = int64(len(data) - 5)
 			// Any content length that might be set is no longer accurate because of trailers.
 			resp.Header.Del("Content-Length")
