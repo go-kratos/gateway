@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -80,15 +81,54 @@ func (f *FileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 		return nil, err
 	}
 
-	jsonData, err := yaml.YAMLToJSON(configData)
-	if err != nil {
-		return nil, err
+	jsonData := configData
+	if filepath.Ext(f.confPath) == ".yaml" {
+		jsonData, err = yaml.YAMLToJSON(configData)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	out := &configv1.Gateway{}
 	if err := _jsonOptions.Unmarshal(jsonData, out); err != nil {
 		return nil, err
 	}
+
+	if len(out.Templates) > 0 {
+		errLoad := f.LoadTemplates(out, context.Background())
+		if errLoad != nil {
+			return out, errLoad
+		}
+	}
 	return out, nil
+}
+
+func (f *FileLoader) LoadTemplates(bc *configv1.Gateway, _ context.Context) error {
+	for _, e := range bc.Templates {
+		log.Infof("loading template file: %s", e)
+
+		configData, err := ioutil.ReadFile(e)
+		if err != nil {
+			return err
+		}
+
+		jsonData := configData
+		if filepath.Ext(e) == ".yaml" {
+			jsonData, err = yaml.YAMLToJSON(configData)
+			if err != nil {
+				return err
+			}
+		}
+
+		out := &configv1.Template{}
+		if err := _jsonOptions.Unmarshal(jsonData, out); err != nil {
+			return err
+		}
+
+		bc.Endpoints = append(bc.Endpoints, out.GetEndpoints()...)
+		log.Infof("loaded template: %s", out.Name)
+	}
+	return nil
 }
 
 func (f *FileLoader) Watch(fn OnChange) {

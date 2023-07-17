@@ -4,51 +4,58 @@ version: v1
 middlewares:
   - name: tracing
     options:
-      '@type': type.googleapis.com/gateway.middleware.tracing.v1.Tracing
-      httpEndpoint: 'localhost:4318' # default opentelemetry collector port
+      "@type": type.googleapis.com/gateway.middleware.tracing.v1.Tracing
+      httpEndpoint: "localhost:4318" # default opentelemetry collector port
   - name: logging
   - name: transcoder
   - name: cors
     options:
-      '@type': type.googleapis.com/gateway.middleware.cors.v1.Cors
+      "@type": type.googleapis.com/gateway.middleware.cors.v1.Cors
       allowCredentials: true
       allowOrigins:
         - .google.com
       allowMethods:
         - GET
         - POST
+        - PUT
+        - PATCH
         - OPTIONS
+templates:
+  - template_test.yaml
 endpoints:
   - path: /helloworld/*
     timeout: 1s
     protocol: HTTP
     host: localhost
     backends:
-      - target: '127.0.0.1:8000'
-#      - target: 'discovery:///bbs'
+      - target: "127.0.0.1:8000"
+    #      - target: 'discovery:///bbs'
     middlewares:
       - name: circuitbreaker
         options:
-          '@type': type.googleapis.com/gateway.middleware.circuitbreaker.v1.CircuitBreaker
-          successRatio: {"success":0.6, "request":"1", "bucket":"10", "window":"3s"}
-          backupService: {"endpoint":{"backends":[{"target":"127.0.0.1:8001"}]}}
+          "@type": type.googleapis.com/gateway.middleware.circuitbreaker.v1.CircuitBreaker
+          successRatio:
+            { "success": 0.6, "request": "1", "bucket": "10", "window": "3s" }
+          backupService:
+            { "endpoint": { "backends": [{ "target": "127.0.0.1:8001" }] } }
           assertCondtions:
-          - {"by_status_code":"200"}
+            - { "by_status_code": "200" }
       - name: rewrite
         options:
-          '@type': type.googleapis.com/gateway.middleware.rewrite.v1.Rewrite
-#          stripPrefix: /bbs
+          "@type": type.googleapis.com/gateway.middleware.rewrite.v1.Rewrite
+  #          stripPrefix: /bbs
+
   - path: /helloworld.Greeter/*
     method: POST
     timeout: 1s
     protocol: GRPC
     backends:
-      - target: '127.0.0.1:9000'
+      - target: "127.0.0.1:9000"
     retry:
       attempts: 3
       perTryTimeout: 0.1s
       conditions:
-        - byStatusCode: '502-504'
+        - byStatusCode: "502-504"
         - byHeader:
-            name: 'Grpc-Status'
-            value: '14'
+            name: "Grpc-Status"
+            value: "14"

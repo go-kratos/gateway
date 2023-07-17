@@ -1,0 +1,7 @@
+name: template_test
+endpoints:
+  - path: /api/reason
+    timeout: 1s
+    protocol: HTTP
+    backends:
+      - target: "127.0.0.1:8010"
