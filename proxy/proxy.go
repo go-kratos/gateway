@@ -210,13 +210,15 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) 
 	return success, failed
 }
 
-func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http.Handler, io.Closer, error) {
+func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ http.Handler, _ io.Closer, retError error) {
 	client, err := p.clientFactory(e)
 	if err != nil {
 		return nil, nil, err
 	}
 	tripper := http.RoundTripper(client)
 	closer := io.Closer(client)
+	defer closeOnError(closer, &retError)
+
 	tripper, err = p.buildMiddleware(e.Middlewares, tripper)
 	if err != nil {
 		return nil, nil, err
@@ -342,14 +344,22 @@ func retryStateIncr(labels middleware.MetricsLabels, success bool) {
 	_metricRetryState.WithLabelValues(labels.Protocol(), labels.Method(), labels.Path(), labels.Service(), labels.BasePath(), "false").Inc()
 }
 
+func closeOnError(closer io.Closer, err *error) {
+	if *err == nil {
+		return
+	}
+	closer.Close()
+}
+
 // Update updates service endpoint.
-func (p *Proxy) Update(c *config.Gateway) error {
+func (p *Proxy) Update(c *config.Gateway) (retError error) {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
 		handler, closer, err := p.buildEndpoint(e, c.Middlewares)
 		if err != nil {
 			return err
 		}
+		defer closeOnError(closer, &retError)
 		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
 			return err
 		}
