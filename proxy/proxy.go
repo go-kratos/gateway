@@ -144,18 +144,32 @@ func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/405", strconv.Itoa(code), "", "").Inc()
 }
 
+type interceptors struct {
+	prepareAttemptTimeoutContext func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)
+}
+
+func (i *interceptors) SetPrepareAttemptTimeoutContext(f func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)) {
+	if f != nil {
+		i.prepareAttemptTimeoutContext = f
+	}
+}
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
 	clientFactory     client.Factory
-	middlewareFactory middleware.Factory
+	Interceptors      interceptors
+	middlewareFactory middleware.FactoryV2
 }
 
 // New is new a gateway proxy.
-func New(clientFactory client.Factory, middlewareFactory middleware.Factory) (*Proxy, error) {
+func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2) (*Proxy, error) {
 	p := &Proxy{
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
+		Interceptors: interceptors{
+			prepareAttemptTimeoutContext: defaultAttemptTimeoutContext,
+		},
 	}
 	p.router.Store(mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler)))
 	return p, nil
@@ -171,7 +185,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 			}
 			return nil, err
 		}
-		next = m(next)
+		next = m.Process(next)
 	}
 	return next, nil
 }
@@ -250,7 +264,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (http
 				markFailed(i, err)
 				break
 			}
-			tryCtx, cancel := context.WithTimeout(ctx, retryStrategy.perTryTimeout)
+			tryCtx, cancel := p.Interceptors.prepareAttemptTimeoutContext(ctx, req, retryStrategy.perTryTimeout)
 			defer cancel()
 			reader := bytes.NewReader(body)
 			req.Body = ioutil.NopCloser(reader)

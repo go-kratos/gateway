@@ -87,7 +87,7 @@ func TestProxy(t *testing.T) {
 		})
 		return dummyClient, nil
 	}
-	middlewareFactory := func(c *config.Middleware) (middleware.Middleware, error) {
+	middlewareFactory := func(c *config.Middleware) (middleware.MiddlewareV2, error) {
 		return logging.Middleware(c)
 	}
 	p, err := New(clientFactory, middlewareFactory)

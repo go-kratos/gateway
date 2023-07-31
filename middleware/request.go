@@ -19,6 +19,23 @@ type RequestOptions struct {
 	UpstreamResponseTime []float64
 	DoneFunc             selector.DoneFunc
 	LastAttempt          bool
+	Values               RequestValues
+}
+
+type RequestValues interface {
+	Get(key any) (any, bool)
+	Set(key, val any)
+}
+
+type requestValues map[any]any
+
+func (v requestValues) Get(key any) (any, bool) {
+	val, ok := v[key]
+	return val, ok
+}
+
+func (v requestValues) Set(key, val any) {
+	v[key] = val
 }
 
 type MetricsLabels interface {
@@ -46,6 +63,7 @@ func NewRequestOptions(c *config.Endpoint) *RequestOptions {
 		Backends: make([]string, 0, 1),
 		Metadata: make(map[string]string),
 		DoneFunc: func(ctx context.Context, di selector.DoneInfo) {},
+		Values:   make(requestValues, 5),
 	}
 	o.Filters = []selector.NodeFilter{func(ctx context.Context, nodes []selector.Node) []selector.Node {
 		if len(o.Backends) == 0 {

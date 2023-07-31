@@ -11,14 +11,18 @@ import (
 	"net/url"
 	"os"
 	"path"
+
 	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
+	"go.uber.org/atomic"
 	"golang.org/x/exp/rand"
 	"sigs.k8s.io/yaml"
 )
+
+var errNotModified = errors.New("config not modified")
 
 type CtrlConfigLoader struct {
 	ctrlService     []string
@@ -29,6 +33,8 @@ type CtrlConfigLoader struct {
 
 	advertiseName string
 	advertiseAddr string
+
+	lastVersion atomic.String
 }
 
 type LoadResponse struct {
@@ -94,6 +100,10 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 
 	cfgBytes, err := c.load(ctx)
 	if err != nil {
+		if err == errNotModified {
+			log.Infof("Skip loading config, %q-%q config is up to date: %q", c.advertiseName, c.advertiseAddr, c.lastVersion.String())
+			return nil
+		}
 		return err
 	}
 
@@ -114,6 +124,7 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	if err := os.Rename(tmpPath, c.dstPath); err != nil {
 		return err
 	}
+	c.lastVersion.Store(resp.Version)
 	return nil
 }
 
@@ -179,6 +190,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params := url.Values{}
 	params.Set("gateway", c.advertiseName)
 	params.Set("ip_addr", c.advertiseAddr)
+	params.Set("last_version", c.lastVersion.Load())
 	log.Infof("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params)
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
@@ -194,6 +206,9 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotModified {
+		return nil, errNotModified
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("invalid status code: %d", resp.StatusCode)
 	}
@@ -209,7 +224,7 @@ func (c *CtrlConfigLoader) Run(ctx context.Context) {
 	c.cancel = cancel
 	for {
 		if err := c.Load(ctx); err != nil {
-			// logging
+			log.Warnf("Failed to load config, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
 			continue
 		}
 		select {
