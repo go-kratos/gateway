@@ -2,7 +2,7 @@ package tracing
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,7 +23,7 @@ func TestTracer(t *testing.T) {
 
 	next := middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			Body: ioutil.NopCloser(bytes.NewBufferString("Hello Kratos")),
+			Body: io.NopCloser(bytes.NewBufferString("Hello Kratos")),
 		}, nil
 	})
 
