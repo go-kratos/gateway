@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -43,8 +44,9 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 			cancel:   cancel,
 			endpoint: endpoint,
 			registry: r,
+			picker:   picker,
 		}
-		if err := applier.apply(ctx, picker); err != nil {
+		if err := applier.apply(ctx); err != nil {
 			return nil, err
 		}
 		client := newClient(applier, picker)
@@ -57,43 +59,24 @@ type nodeApplier struct {
 	cancel   context.CancelFunc
 	endpoint *config.Endpoint
 	registry registry.Discovery
+	picker   selector.Selector
 }
 
-func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
+func (na *nodeApplier) apply(ctx context.Context) error {
 	var nodes []selector.Node
 	for _, backend := range na.endpoint.Backends {
 		target, err := parseTarget(backend.Target)
 		if err != nil {
 			return err
 		}
-		weighted := backend.Weight
 		switch target.Scheme {
 		case "direct":
+			weighted := backend.Weight // weight is only valid for direct scheme
 			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{})
 			nodes = append(nodes, node)
-			dst.Apply(nodes)
+			na.picker.Apply(nodes)
 		case "discovery":
-			existed := AddWatch(ctx, na.registry, target.Endpoint, func(services []*registry.ServiceInstance) error {
-				if atomic.LoadInt64(&na.canceled) == 1 {
-					return ErrCancelWatch
-				}
-				if len(services) == 0 {
-					return nil
-				}
-				var nodes []selector.Node
-				for _, ser := range services {
-					scheme := strings.ToLower(na.endpoint.Protocol.String())
-					addr, err := parseEndpoint(ser.Endpoints, scheme, false)
-					if err != nil || addr == "" {
-						log.Errorf("failed to parse endpoint: %v", err)
-						continue
-					}
-					node := newNode(addr, na.endpoint.Protocol, weighted, ser.Metadata)
-					nodes = append(nodes, node)
-				}
-				dst.Apply(nodes)
-				return nil
-			})
+			existed := AddWatch(ctx, na.registry, target.Endpoint, na)
 			if existed {
 				log.Infof("watch target %+v already existed", target)
 			}
@@ -104,8 +87,48 @@ func (na *nodeApplier) apply(ctx context.Context, dst selector.Selector) error {
 	return nil
 }
 
+var _defaultWeight = int64(10)
+
+func nodeWeight(n *registry.ServiceInstance) *int64 {
+	w, ok := n.Metadata["weight"]
+	if ok {
+		val, _ := strconv.ParseInt(w, 10, 64)
+		if val <= 0 {
+			return &_defaultWeight
+		}
+		return &val
+	}
+	return &_defaultWeight
+}
+
+func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
+	if atomic.LoadInt64(&na.canceled) == 1 {
+		return ErrCancelWatch
+	}
+	if len(services) == 0 {
+		return nil
+	}
+	scheme := strings.ToLower(na.endpoint.Protocol.String())
+	var nodes []selector.Node
+	for _, ser := range services {
+		addr, err := parseEndpoint(ser.Endpoints, scheme, false)
+		if err != nil || addr == "" {
+			log.Errorf("failed to parse endpoint: %v/%s: %v", ser.Endpoints, scheme, err)
+			continue
+		}
+		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata)
+		nodes = append(nodes, node)
+	}
+	na.picker.Apply(nodes)
+	return nil
+}
+
 func (na *nodeApplier) Cancel() {
 	log.Infof("Closing node applier for endpoint: %+v", na.endpoint)
 	atomic.StoreInt64(&na.canceled, 1)
 	na.cancel()
+}
+
+func (na *nodeApplier) Canceled() bool {
+	return atomic.LoadInt64(&na.canceled) == 1
 }

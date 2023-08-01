@@ -147,7 +147,7 @@ func New(factory client.Factory) middleware.FactoryV2 {
 			}
 		}
 		breaker := makeBreakerTrigger(options)
-		onBreakHandler, _, err := makeOnBreakHandler(options, factory) // FIXME: POTENTIAL MEMORY LEAK
+		onBreakHandler, closer, err := makeOnBreakHandler(options, factory)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +160,7 @@ func New(factory client.Factory) middleware.FactoryV2 {
 			return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 				if err := breaker.Allow(); err != nil {
 					// rejected
-					// NOTE: when client reject requets locally,
+					// NOTE: when client reject requests locally,
 					// continue add counter let the drop ratio higher.
 					breaker.MarkFailed()
 					deniedRequestIncr(req)
@@ -178,6 +178,6 @@ func New(factory client.Factory) middleware.FactoryV2 {
 				breaker.MarkSuccess()
 				return resp, nil
 			})
-		}, io.NopCloser(nil)), nil
+		}, closer), nil
 	}
 }
