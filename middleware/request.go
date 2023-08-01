@@ -55,6 +55,15 @@ func (m *metricsLabels) Method() string   { return m.endpoint.Method }
 func (m *metricsLabels) Path() string     { return m.endpoint.Path }
 func (m *metricsLabels) Service() string  { return m.endpoint.Metadata["service"] }
 func (m *metricsLabels) BasePath() string { return m.endpoint.Metadata["basePath"] }
+func (m *metricsLabels) AllLabels() map[string]string {
+	return map[string]string{
+		"protocol": m.Protocol(),
+		"method":   m.Method(),
+		"path":     m.Path(),
+		"service":  m.Service(),
+		"basePath": m.BasePath(),
+	}
+}
 
 // NewRequestOptions new a request options with retry filter.
 func NewRequestOptions(c *config.Endpoint) *RequestOptions {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/middleware/logging"
 )
@@ -32,6 +33,16 @@ func (r *responseWriter) WriteHeader(statusCode int) {
 
 func newResponseWriter() *responseWriter {
 	return &responseWriter{header: make(http.Header)}
+}
+
+type RoundTripperCloserFunc func(*http.Request) (*http.Response, error)
+
+func (f RoundTripperCloserFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func (f RoundTripperCloserFunc) Close() error {
+	return nil
 }
 
 func TestProxy(t *testing.T) {
@@ -65,15 +76,16 @@ func TestProxy(t *testing.T) {
 		},
 	}
 	retryable := false
-	clientFactory := func(*config.Endpoint) (http.RoundTripper, error) {
-		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	clientFactory := func(*config.Endpoint) (client.Client, error) {
+		dummyClient := RoundTripperCloserFunc(func(req *http.Request) (*http.Response, error) {
 			if retryable {
 				retryable = false
 				return &http.Response{StatusCode: http.StatusInternalServerError}, nil
 			}
 			res.Body = req.Body
 			return res, nil
-		}), nil
+		})
+		return dummyClient, nil
 	}
 	middlewareFactory := func(c *config.Middleware) (middleware.MiddlewareV2, error) {
 		return logging.Middleware(c)
