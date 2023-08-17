@@ -5,9 +5,22 @@ import (
 	"strings"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
+	"github.com/go-kratos/kratos/v2/log"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
+var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "middleware"))
 var globalRegistry = NewRegistry()
+var _failedMiddlewareCreate = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Namespace: "go",
+	Subsystem: "gateway",
+	Name:      "failed_middleware_create",
+	Help:      "The total number of failed middleware create",
+}, []string{"name", "required"})
+
+func init() {
+	prometheus.MustRegister(_failedMiddlewareCreate)
+}
 
 // ErrNotFound is middleware not found.
 var ErrNotFound = errors.New("Middleware has not been registered")
@@ -42,7 +55,23 @@ func (p *middlewareRegistry) RegisterV2(name string, factory FactoryV2) {
 // Create instantiates a middleware based on `cfg`.
 func (p *middlewareRegistry) Create(cfg *configv1.Middleware) (MiddlewareV2, error) {
 	if method, ok := p.getMiddleware(createFullName(cfg.Name)); ok {
-		return method(cfg)
+		if cfg.Required {
+			// If the middleware is required, it must be created successfully.
+			instance, err := method(cfg)
+			if err != nil {
+				_failedMiddlewareCreate.WithLabelValues(cfg.Name, "true").Inc()
+				LOG.Errorw(log.DefaultMessageKey, "Failed to create required middleware", "reason", "create_required_middleware_failed", "name", cfg.Name, "error", err, "config", cfg)
+				return nil, err
+			}
+			return instance, nil
+		}
+		instance, err := method(cfg)
+		if err != nil {
+			_failedMiddlewareCreate.WithLabelValues(cfg.Name, "false").Inc()
+			LOG.Errorw(log.DefaultMessageKey, "Failed to create optional middleware", "reason", "create_optional_middleware_failed", "name", cfg.Name, "error", err, "config", cfg)
+			return EmptyMiddleware, nil
+		}
+		return instance, nil
 	}
 	return nil, ErrNotFound
 }
