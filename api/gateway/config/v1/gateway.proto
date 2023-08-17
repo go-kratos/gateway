@@ -31,6 +31,7 @@ message Endpoint {
 message Middleware {
     string name = 1;
     google.protobuf.Any options = 2;
+    bool required = 3;
 }
 
 message Backend {

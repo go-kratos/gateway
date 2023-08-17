@@ -54,3 +54,10 @@ func NewWithCloser(process Middleware, closer io.Closer) MiddlewareV2 {
 		closer:  closer,
 	}
 }
+
+var EmptyMiddleware = emptyMiddleware{}
+
+type emptyMiddleware struct{}
+
+func (emptyMiddleware) Process(next http.RoundTripper) http.RoundTripper { return next }
+func (emptyMiddleware) Close() error                                     { return nil }
