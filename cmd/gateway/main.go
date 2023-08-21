@@ -105,6 +105,9 @@ func main() {
 		if err := ctrlLoader.Load(ctx); err != nil {
 			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
+		if err := ctrlLoader.LoadFeatures(ctx); err != nil {
+			log.Errorf("failed to do initial feature load from control service: %v, using default value instead", err)
+		}
 		go ctrlLoader.Run(ctx)
 	}
 
