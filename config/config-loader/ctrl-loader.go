@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kratos/feature"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"go.uber.org/atomic"
@@ -40,6 +41,11 @@ type CtrlConfigLoader struct {
 type LoadResponse struct {
 	Config  string `json:"config"`
 	Version string `json:"version"`
+}
+
+type LoadFeatureResponse struct {
+	Gateway  string          `json:"gateway"`
+	Features map[string]bool `json:"features"`
 }
 
 func prepareCtrlService(in string) []string {
@@ -125,6 +131,21 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 		return err
 	}
 	c.lastVersion.Store(resp.Version)
+	return nil
+}
+
+func (c *CtrlConfigLoader) LoadFeatures(ctx context.Context) error {
+	featureBytes, err := c.loadFeatures(ctx)
+	if err != nil {
+		return err
+	}
+	resp := &LoadFeatureResponse{}
+	if err := json.Unmarshal(featureBytes, &resp); err != nil {
+		return err
+	}
+	for featureName, enabled := range resp.Features {
+		feature.SetEnabled(featureName, enabled)
+	}
 	return nil
 }
 
@@ -219,6 +240,37 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	return out, nil
 }
 
+func (c *CtrlConfigLoader) loadFeatures(ctx context.Context) ([]byte, error) {
+	params := url.Values{}
+	params.Set("gateway", c.advertiseName)
+	params.Set("ip_addr", c.advertiseAddr)
+	log.Infof("%s is requesting features from %s with params: %+v", c.advertiseName, c.ctrlService, params)
+	api, err := c.urlfor("/v1/control/gateway/features", params)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, api, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotModified {
+		return nil, errNotModified
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("invalid status code: %d", resp.StatusCode)
+	}
+	out, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *CtrlConfigLoader) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	c.cancel = cancel
@@ -226,6 +278,9 @@ func (c *CtrlConfigLoader) Run(ctx context.Context) {
 		if err := c.Load(ctx); err != nil {
 			log.Warnf("Failed to load config, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
 			continue
+		}
+		if err := c.LoadFeatures(ctx); err != nil {
+			log.Warnf("Failed to load gateway features, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
 		}
 		select {
 		case <-ctx.Done():

@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/go-kratos/aegis v0.2.1-0.20230616030432-99110a3f05f4
+	github.com/go-kratos/feature v0.0.0-20230724160043-79ea0633def6
 	github.com/go-kratos/kratos/contrib/registry/consul/v2 v2.0.0-20220318065833-e66a2905ab70
 	github.com/go-kratos/kratos/v2 v2.5.0
 	github.com/google/uuid v1.3.0
