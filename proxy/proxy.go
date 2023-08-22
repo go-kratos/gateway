@@ -257,6 +257,10 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 
 		var resp *http.Response
 		for i := 0; i < retryStrategy.attempts; i++ {
+			if i > 0 && !retryFeature.Enabled() {
+				// disable retry
+				break
+			}
 			if (i + 1) >= retryStrategy.attempts {
 				reqOpts.LastAttempt = true
 			}
