@@ -72,7 +72,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 		switch target.Scheme {
 		case "direct":
 			weighted := backend.Weight // weight is only valid for direct scheme
-			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{})
+			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "")
 			nodes = append(nodes, node)
 			na.picker.Apply(nodes)
 		case "discovery":
@@ -116,7 +116,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 			log.Errorf("failed to parse endpoint: %v/%s: %v", ser.Endpoints, scheme, err)
 			continue
 		}
-		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata)
+		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name)
 		nodes = append(nodes, node)
 	}
 	na.picker.Apply(nodes)

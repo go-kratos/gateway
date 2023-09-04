@@ -93,12 +93,14 @@ func defaultH2Client() *http.Client {
 	}
 }
 
-func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string) *node {
+func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string, version string, name string) *node {
 	node := &node{
 		protocol: protocol,
 		address:  addr,
 		weight:   weight,
 		metadata: md,
+		version:  version,
+		name:     name,
 	}
 	if protocol == config.Protocol_GRPC {
 		node.client = _globalH2Client
