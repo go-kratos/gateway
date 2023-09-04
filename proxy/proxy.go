@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-kratos/aegis/circuitbreaker/sre"
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
@@ -232,6 +233,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 	}
 	labels := middleware.NewMetricsLabels(e)
 	markSuccess, markFailed := splitRetryMetricsHandler(e)
+	retryBreaker := sre.NewBreaker()
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
@@ -257,7 +259,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 
 		var resp *http.Response
 		for i := 0; i < retryStrategy.attempts; i++ {
-			if i > 0 && !retryFeature.Enabled() {
+			if i > 0 && !retryFeature.Enabled() && (retryBreaker.Allow() != nil) {
 				// disable retry
 				break
 			}
@@ -276,6 +278,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
 				markFailed(i, err)
+				retryBreaker.MarkFailed()
 				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
 			}
@@ -285,6 +288,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 				break
 			}
 			markFailed(i, errors.New("assertion failed"))
+			retryBreaker.MarkFailed()
 			// continue the retry loop
 		}
 		if err != nil {
