@@ -39,6 +39,7 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if err != nil {
 		return nil, err
 	}
+	reqOpt.CurrentNode = n
 
 	addr := n.Address()
 	reqOpt.Backends = append(reqOpt.Backends, addr)
