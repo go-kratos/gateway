@@ -17,6 +17,7 @@ type RequestOptions struct {
 	Metadata             map[string]string
 	UpstreamStatusCode   []int
 	UpstreamResponseTime []float64
+	CurrentNode          selector.Node
 	DoneFunc             selector.DoneFunc
 	LastAttempt          bool
 	Values               RequestValues
