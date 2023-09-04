@@ -232,8 +232,18 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 		return nil, nil, err
 	}
 	labels := middleware.NewMetricsLabels(e)
-	markSuccess, markFailed := splitRetryMetricsHandler(e)
+	markSuccessStat, markFailedStat := splitRetryMetricsHandler(e)
 	retryBreaker := sre.NewBreaker()
+	markSuccess := func(i int) {
+		markSuccessStat(i)
+		retryBreaker.MarkSuccess()
+	}
+	markFailed := func(i int, err error) {
+		markFailedStat(i, err)
+		if i > 0 {
+			retryBreaker.MarkFailed()
+		}
+	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
@@ -259,10 +269,16 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 
 		var resp *http.Response
 		for i := 0; i < retryStrategy.attempts; i++ {
-			if i > 0 && !retryFeature.Enabled() && (retryBreaker.Allow() != nil) {
-				// disable retry
-				break
+			if i > 0 {
+				if !retryFeature.Enabled() {
+					break
+				}
+				if err := retryBreaker.Allow(); err != nil {
+					markFailed(i, err)
+					break
+				}
 			}
+
 			if (i + 1) >= retryStrategy.attempts {
 				reqOpts.LastAttempt = true
 			}
@@ -278,7 +294,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
 				markFailed(i, err)
-				retryBreaker.MarkFailed()
 				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
 			}
@@ -288,7 +303,6 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 				break
 			}
 			markFailed(i, errors.New("assertion failed"))
-			retryBreaker.MarkFailed()
 			// continue the retry loop
 		}
 		if err != nil {
