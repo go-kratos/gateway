@@ -94,6 +94,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, labels middle
 	case errors.Is(err, context.DeadlineExceeded):
 		statusCode = 504
 	default:
+		log.Errorf("Failed to handle request: %s: %+v", r.URL.String(), err)
 		statusCode = 502
 	}
 	requestsTotalIncr(labels, statusCode)
