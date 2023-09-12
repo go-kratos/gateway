@@ -109,7 +109,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 		return nil
 	}
 	scheme := strings.ToLower(na.endpoint.Protocol.String())
-	var nodes []selector.Node
+	nodes := make([]selector.Node, 0, len(services))
 	for _, ser := range services {
 		addr, err := parseEndpoint(ser.Endpoints, scheme, false)
 		if err != nil || addr == "" {
