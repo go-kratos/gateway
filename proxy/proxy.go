@@ -89,7 +89,8 @@ func setXFFHeader(req *http.Request) {
 func writeError(w http.ResponseWriter, r *http.Request, err error, labels middleware.MetricsLabels) {
 	var statusCode int
 	switch {
-	case errors.Is(err, context.Canceled):
+	case errors.Is(err, context.Canceled),
+		err.Error() == "client disconnected":
 		statusCode = 499
 	case errors.Is(err, context.DeadlineExceeded):
 		statusCode = 504
