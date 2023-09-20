@@ -238,7 +238,9 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 	retryBreaker := sre.NewBreaker()
 	markSuccess := func(i int) {
 		markSuccessStat(i)
-		retryBreaker.MarkSuccess()
+		if i > 0 {
+			retryBreaker.MarkSuccess()
+		}
 	}
 	markFailed := func(i int, err error) {
 		markFailedStat(i, err)
