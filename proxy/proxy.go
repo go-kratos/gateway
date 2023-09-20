@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-kratos/aegis/circuitbreaker/sre"
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
@@ -233,7 +234,20 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 		return nil, nil, err
 	}
 	labels := middleware.NewMetricsLabels(e)
-	markSuccess, markFailed := splitRetryMetricsHandler(e)
+	markSuccessStat, markFailedStat := splitRetryMetricsHandler(e)
+	retryBreaker := sre.NewBreaker()
+	markSuccess := func(i int) {
+		markSuccessStat(i)
+		if i > 0 {
+			retryBreaker.MarkSuccess()
+		}
+	}
+	markFailed := func(i int, err error) {
+		markFailedStat(i, err)
+		if i > 0 {
+			retryBreaker.MarkFailed()
+		}
+	}
 	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
@@ -259,10 +273,16 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 
 		var resp *http.Response
 		for i := 0; i < retryStrategy.attempts; i++ {
-			if i > 0 && !retryFeature.Enabled() {
-				// disable retry
-				break
+			if i > 0 {
+				if !retryFeature.Enabled() {
+					break
+				}
+				if err := retryBreaker.Allow(); err != nil {
+					markFailed(i, err)
+					break
+				}
 			}
+
 			if (i + 1) >= retryStrategy.attempts {
 				reqOpts.LastAttempt = true
 			}
