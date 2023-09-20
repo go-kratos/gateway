@@ -2,10 +2,12 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
@@ -135,4 +137,94 @@ func TestProxy(t *testing.T) {
 			t.Fatalf("want %+v but got %+v", b, w.body.Bytes())
 		}
 	}
+}
+
+func TestRetryBreaker(t *testing.T) {
+	c := &config.Gateway{
+		Name: "Test",
+		Middlewares: []*config.Middleware{{
+			Name: "logging",
+		}},
+		Endpoints: []*config.Endpoint{
+			{
+				Protocol: config.Protocol_HTTP,
+				Path:     "/retryable",
+				Method:   "GET",
+				Retry: &config.Retry{
+					Attempts: 5,
+					Conditions: []*config.Condition{{
+						Condition: &config.Condition_ByStatusCode{
+							ByStatusCode: "500-599",
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	responseSuccess := false
+	retryToSuccess := false
+	clientFactory := func(*config.Endpoint) (client.Client, error) {
+		dummyClient := RoundTripperCloserFunc(func(req *http.Request) (resp *http.Response, _ error) {
+			opt, _ := middleware.FromRequestContext(req.Context())
+			defer func() {
+				opt.UpstreamStatusCode = append(opt.UpstreamStatusCode, resp.StatusCode)
+			}()
+			if responseSuccess {
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			}
+			if len(opt.UpstreamStatusCode) > 0 {
+				if retryToSuccess {
+					return &http.Response{StatusCode: http.StatusOK}, nil
+				}
+				return &http.Response{StatusCode: http.StatusNotImplemented}, nil
+			}
+			return &http.Response{StatusCode: 505}, nil
+		})
+		return dummyClient, nil
+	}
+	middlewareFactory := func(c *config.Middleware) (middleware.MiddlewareV2, error) {
+		return logging.Middleware(c)
+	}
+	p, err := New(clientFactory, middlewareFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Update(c)
+
+	t.Run("retry-breaker", func(t *testing.T) {
+		var lastResponse *responseWriter
+		for i := 0; i < 5000; i++ {
+			ctx := context.TODO()
+			r := httptest.NewRequest("GET", "/retryable", nil)
+			r = r.WithContext(ctx)
+			w := newResponseWriter()
+			p.ServeHTTP(w, r)
+			lastResponse = w
+		}
+		if lastResponse.statusCode == 505 {
+			t.Logf("Retry breaker is worked as expected")
+		} else {
+			t.Logf("Retry breaker is not worked as expected: %+v", lastResponse)
+			t.FailNow()
+		}
+
+		retryToSuccess = true
+		time.Sleep(time.Second * 5)
+		for i := 0; i < 5000; i++ {
+			ctx := context.TODO()
+			r := httptest.NewRequest("GET", "/retryable", nil)
+			r = r.WithContext(ctx)
+			w := newResponseWriter()
+			p.ServeHTTP(w, r)
+			lastResponse = w
+		}
+		if lastResponse.statusCode == 200 {
+			t.Logf("Retry breaker re-open is worked as expected")
+		} else {
+			t.Logf("Retry breaker re-open is not worked as expected: %+v", lastResponse)
+			t.FailNow()
+		}
+	})
+
 }
