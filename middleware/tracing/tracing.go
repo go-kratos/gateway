@@ -114,7 +114,7 @@ func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerPro
 		otlptracehttp.WithEndpoint(options.HttpEndpoint),
 		otlptracehttp.WithTimeout(timeout),
 	}
-	if options.Insecure != nil && !*options.Insecure {
+	if options.Insecure != nil && *options.Insecure {
 		otlpoptions = append(otlpoptions, otlptracehttp.WithInsecure())
 	}
 
