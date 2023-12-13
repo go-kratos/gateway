@@ -72,6 +72,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				semconv.NetPeerIPKey.String(req.RemoteAddr),
 			)
 
+			car := propagation.HeaderCarrier(req.Header)
+			otel.GetTextMapPropagator().Inject(ctx, car)
+
 			defer func() {
 				if err != nil {
 					span.RecordError(err)
