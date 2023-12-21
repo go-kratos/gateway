@@ -248,7 +248,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 			retryBreaker.MarkFailed()
 		}
 	}
-	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
 
@@ -342,7 +342,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 		}
 		doCopyBody()
 		requestsTotalIncr(labels, resp.StatusCode)
-	})), closer, nil
+	}), closer, nil
 }
 
 func receivedBytesAdd(labels middleware.MetricsLabels, received int64) {
