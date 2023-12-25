@@ -103,7 +103,7 @@ func main() {
 	var ctrlLoader *configLoader.CtrlConfigLoader
 	if ctrlService != "" {
 		log.Infof("setup control service to: %q", ctrlService)
-		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig)
+		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig, priorityConfigDir)
 		if err := ctrlLoader.Load(ctx); err != nil {
 			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
