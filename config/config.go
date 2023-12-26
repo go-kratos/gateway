@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -144,6 +145,7 @@ func (f *FileLoader) mergePriorityConfig(dst *configv1.Gateway) error {
 	if err != nil {
 		return err
 	}
+	replaceOrAppendEndpoint := MakeReplaceOrAppendEndpointFn(dst.Endpoints)
 	for _, e := range entrys {
 		if e.IsDir() {
 			continue
@@ -158,7 +160,7 @@ func (f *FileLoader) mergePriorityConfig(dst *configv1.Gateway) error {
 			continue
 		}
 		for _, e := range pCfg.Endpoints {
-			dst.Endpoints = ReplaceOrAppendEndpoint(dst.Endpoints, e)
+			dst.Endpoints = replaceOrAppendEndpoint(dst.Endpoints, e)
 		}
 		log.Infof("succeeded to merge priority config: %s, %d endpoints effected", cfgPath, len(pCfg.Endpoints))
 	}
@@ -181,14 +183,22 @@ func (f *FileLoader) parsePriorityConfig(cfgPath string) (*configv1.PriorityConf
 	return out, nil
 }
 
-func ReplaceOrAppendEndpoint(dst []*configv1.Endpoint, item *configv1.Endpoint) []*configv1.Endpoint {
-	for i, e := range dst {
-		if e.Path == item.Path && e.Method == item.Method {
-			dst[i] = item
-			return dst
-		}
+func MakeReplaceOrAppendEndpointFn(origin []*configv1.Endpoint) func([]*configv1.Endpoint, *configv1.Endpoint) []*configv1.Endpoint {
+	keyFn := func(e *configv1.Endpoint) string {
+		return fmt.Sprintf("%s-%s", e.Method, e.Path)
 	}
-	return append(dst, item)
+	index := map[string]int{}
+	for i, e := range origin {
+		index[keyFn(e)] = i
+	}
+	return func(dst []*configv1.Endpoint, item *configv1.Endpoint) []*configv1.Endpoint {
+		idx, ok := index[keyFn(item)]
+		if !ok {
+			return append(dst, item)
+		}
+		dst[idx] = item
+		return dst
+	}
 }
 
 func (f *FileLoader) Watch(fn OnChange) {
