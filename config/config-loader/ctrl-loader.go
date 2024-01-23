@@ -178,9 +178,9 @@ func (c *CtrlConfigLoader) encodeLastPriorityVersion(dst url.Values) {
 	if pVersions == nil {
 		return
 	}
-	key := "last_priority_version"
-	for id, version := range *pVersions {
-		dst.Set(fmt.Sprintf("%s[%s]", key, id), version)
+	param := "last_priority_version"
+	for key, version := range *pVersions {
+		dst.Set(param, fmt.Sprintf("%s=%s", key, version))
 	}
 }
 
