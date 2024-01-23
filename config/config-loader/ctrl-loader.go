@@ -25,6 +25,8 @@ import (
 
 var errNotModified = errors.New("config not modified")
 
+var priorityConfigFeature = feature.MustRegister("gw:PriorityConfig", false)
+
 type CtrlConfigLoader struct {
 	ctrlService          []string
 	ctrlServiceIdx       int
@@ -174,6 +176,9 @@ func (c *CtrlConfigLoader) writePriorityConfigs(resp *LoadResponse) error {
 }
 
 func (c *CtrlConfigLoader) encodeLastPriorityVersion(dst url.Values) {
+	if priorityConfigFeature.Enabled() {
+		dst.Set("supportPriorityConfig", "1")
+	}
 	pVersions := c.lastPriorityVersion.Load()
 	if pVersions == nil {
 		return
