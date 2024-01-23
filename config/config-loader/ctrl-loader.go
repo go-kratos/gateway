@@ -176,9 +176,10 @@ func (c *CtrlConfigLoader) writePriorityConfigs(resp *LoadResponse) error {
 }
 
 func (c *CtrlConfigLoader) encodeLastPriorityVersion(dst url.Values) {
-	if priorityConfigFeature.Enabled() {
-		dst.Set("supportPriorityConfig", "1")
+	if !priorityConfigFeature.Enabled() {
+		return
 	}
+	dst.Set("supportPriorityConfig", "1")
 	pVersions := c.lastPriorityVersion.Load()
 	if pVersions == nil {
 		return
