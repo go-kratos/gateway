@@ -43,11 +43,11 @@ type CtrlConfigLoader struct {
 type LoadResponse struct {
 	Config          string                `json:"config"`
 	Version         string                `json:"version"`
-	PriorityConfigs []*PriorityConfigItem `json:"priority_configs"`
+	PriorityConfigs []*PriorityConfigItem `json:"priorityConfigs"`
 }
 
 type PriorityConfigItem struct {
-	ID      string `json:"id"`
+	Key     string `json:"key"`
 	Config  string `json:"config"`
 	Version string `json:"version"`
 }
@@ -159,15 +159,15 @@ func (c *CtrlConfigLoader) writePriorityConfigs(resp *LoadResponse) error {
 		if err != nil {
 			return err
 		}
-		tmpPath := path.Join(c.dstPriorityConfigDir, fmt.Sprintf("%s.yaml.tmp", item.ID))
+		tmpPath := path.Join(c.dstPriorityConfigDir, fmt.Sprintf("%s.yaml.tmp", item.Key))
 		if err := os.WriteFile(tmpPath, yamlBytes, 0644); err != nil {
 			return err
 		}
-		dstName := path.Join(c.dstPriorityConfigDir, fmt.Sprintf("%s.yaml", item.ID))
+		dstName := path.Join(c.dstPriorityConfigDir, fmt.Sprintf("%s.yaml", item.Key))
 		if err := os.Rename(tmpPath, dstName); err != nil {
 			return err
 		}
-		versions[item.ID] = item.Version
+		versions[item.Key] = item.Version
 	}
 	c.lastPriorityVersion.Store(&versions)
 	return nil
@@ -178,7 +178,7 @@ func (c *CtrlConfigLoader) encodeLastPriorityVersion(dst url.Values) {
 	if pVersions == nil {
 		return
 	}
-	param := "last_priority_version"
+	param := "lastPriorityVersions"
 	for key, version := range *pVersions {
 		dst.Set(param, fmt.Sprintf("%s=%s", key, version))
 	}
