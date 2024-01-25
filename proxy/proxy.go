@@ -333,7 +333,7 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 				return false
 			}
 			sentBytesAdd(labels, sent)
-			reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: resp.Trailer})
+			reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
 			// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 			for k, v := range resp.Trailer {
 				headers[http.TrailerPrefix+k] = v
@@ -343,6 +343,13 @@ func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ ht
 		doCopyBody()
 		requestsTotalIncr(labels, resp.StatusCode)
 	})), closer, nil
+}
+
+func getReplyMD(ep *config.Endpoint, resp *http.Response) selector.ReplyMD {
+	if ep.Protocol == config.Protocol_GRPC {
+		return resp.Trailer
+	}
+	return resp.Header
 }
 
 func receivedBytesAdd(labels middleware.MetricsLabels, received int64) {
