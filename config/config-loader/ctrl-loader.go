@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 
 	"strings"
 	"time"
@@ -151,6 +152,30 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	return nil
 }
 
+func (c *CtrlConfigLoader) cleanUpPriorityConfigs(versions map[string]string) {
+	entrys, err := os.ReadDir(c.dstPriorityConfigDir)
+	if err != nil {
+		log.Warnf("Failed to read priority config dir, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+		return
+	}
+	for _, e := range entrys {
+		if e.IsDir() {
+			continue
+		}
+		if filepath.Ext(e.Name()) != ".yaml" {
+			continue
+		}
+		pureName := strings.TrimSuffix(e.Name(), ".yaml")
+		if _, ok := versions[pureName]; ok {
+			continue
+		}
+		// not in the current version, remove it
+		if err := os.Remove(path.Join(c.dstPriorityConfigDir, e.Name())); err != nil {
+			log.Warnf("Failed to remove expired priority config %s, %q-%q, %+v", e.Name(), c.advertiseName, c.advertiseAddr, err)
+		}
+	}
+}
+
 func (c *CtrlConfigLoader) writePriorityConfigs(resp *LoadResponse) error {
 	if c.dstPriorityConfigDir == "" {
 		return nil
@@ -171,6 +196,7 @@ func (c *CtrlConfigLoader) writePriorityConfigs(resp *LoadResponse) error {
 		}
 		versions[item.Key] = item.Version
 	}
+	c.cleanUpPriorityConfigs(versions)
 	c.lastPriorityVersion.Store(&versions)
 	return nil
 }
