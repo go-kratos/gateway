@@ -19,7 +19,8 @@ import (
 
 var _ selector.Node = &node{}
 var _globalClient = defaultClient()
-var _globalH2Client = defaultH2Client()
+var _globalH2CClient = defaultH2CClient()
+var _globalHTTPSClient = defaultHTTPSClient()
 var _dialTimeout = 200 * time.Millisecond
 var followRedirect = false
 
@@ -77,7 +78,7 @@ func defaultClient() *http.Client {
 	}
 }
 
-func defaultH2Client() *http.Client {
+func defaultH2CClient() *http.Client {
 	return &http.Client{
 		CheckRedirect: defaultCheckRedirect,
 		Transport: &http2.Transport{
@@ -93,6 +94,50 @@ func defaultH2Client() *http.Client {
 	}
 }
 
+func defaultHTTPSClient() *http.Client {
+	tr := &http.Transport{
+		// TLSClientConfig: ,
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   _dialTimeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          10000,
+		MaxIdleConnsPerHost:   1000,
+		MaxConnsPerHost:       1000,
+		DisableCompression:    true,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	_ = http2.ConfigureTransport(tr)
+	return &http.Client{
+		CheckRedirect: defaultCheckRedirect,
+		Transport:     tr,
+	}
+}
+
+// func getTLSClient() *http.Client {
+// 	return &http.Client{
+// 		CheckRedirect: defaultCheckRedirect,
+// 		Transport: &http.Transport{
+// 			Proxy: http.ProxyFromEnvironment,
+// 			// TLSClientConfig: ,
+// 			DialContext: (&net.Dialer{
+// 				Timeout:   _dialTimeout,
+// 				KeepAlive: 30 * time.Second,
+// 			}).DialContext,
+// 			MaxIdleConns:          10000,
+// 			MaxIdleConnsPerHost:   1000,
+// 			MaxConnsPerHost:       1000,
+// 			DisableCompression:    true,
+// 			IdleConnTimeout:       90 * time.Second,
+// 			TLSHandshakeTimeout:   10 * time.Second,
+// 			ExpectContinueTimeout: 1 * time.Second,
+// 		},
+// 	}
+// }
+
 func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string, version string, name string) *node {
 	node := &node{
 		protocol: protocol,
@@ -102,11 +147,11 @@ func newNode(addr string, protocol config.Protocol, weight *int64, md map[string
 		version:  version,
 		name:     name,
 	}
+	node.client = _globalClient
 	if protocol == config.Protocol_GRPC {
-		node.client = _globalH2Client
-	} else {
-		node.client = _globalClient
+		node.client = _globalH2CClient
 	}
+
 	return node
 }
 
