@@ -385,6 +385,7 @@ func closeOnError(closer io.Closer, err *error) {
 
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) (retError error) {
+	client.SetGlobalTLSClientConfigs(c.TlsStore)
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
 		handler, closer, err := p.buildEndpoint(e, c.Middlewares)

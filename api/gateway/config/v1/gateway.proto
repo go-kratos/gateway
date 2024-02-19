@@ -17,7 +17,7 @@ message Gateway {
 }
 
 message TLS {
-    bool verify = 1;
+    bool insecure = 1;
     string cacert = 2;
     string cert = 3;
     string key = 4;
@@ -49,7 +49,8 @@ message Backend {
     string target = 1;
     optional int64 weight = 2;
     HealthCheck health_check = 3;
-    string tls = 4;
+    bool tls = 4;
+    string tls_config_name = 5;
 }
 
 enum Protocol {

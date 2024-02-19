@@ -20,7 +20,8 @@ import (
 var _ selector.Node = &node{}
 var _globalClient = defaultClient()
 var _globalH2CClient = defaultH2CClient()
-var _globalHTTPSClient = defaultHTTPSClient()
+var _globalHTTPSClient = createHTTPSClient(nil)
+var httpsClientStore = NewHTTPSClientStore()
 var _dialTimeout = 200 * time.Millisecond
 var followRedirect = false
 
@@ -94,10 +95,10 @@ func defaultH2CClient() *http.Client {
 	}
 }
 
-func defaultHTTPSClient() *http.Client {
+func createHTTPSClient(tlsConfig *tls.Config) *http.Client {
 	tr := &http.Transport{
-		// TLSClientConfig: ,
-		Proxy: http.ProxyFromEnvironment,
+		TLSClientConfig: tlsConfig,
+		Proxy:           http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   _dialTimeout,
 			KeepAlive: 30 * time.Second,
@@ -117,28 +118,54 @@ func defaultHTTPSClient() *http.Client {
 	}
 }
 
-// func getTLSClient() *http.Client {
-// 	return &http.Client{
-// 		CheckRedirect: defaultCheckRedirect,
-// 		Transport: &http.Transport{
-// 			Proxy: http.ProxyFromEnvironment,
-// 			// TLSClientConfig: ,
-// 			DialContext: (&net.Dialer{
-// 				Timeout:   _dialTimeout,
-// 				KeepAlive: 30 * time.Second,
-// 			}).DialContext,
-// 			MaxIdleConns:          10000,
-// 			MaxIdleConnsPerHost:   1000,
-// 			MaxConnsPerHost:       1000,
-// 			DisableCompression:    true,
-// 			IdleConnTimeout:       90 * time.Second,
-// 			TLSHandshakeTimeout:   10 * time.Second,
-// 			ExpectContinueTimeout: 1 * time.Second,
-// 		},
-// 	}
-// }
+type HTTPSClientStore struct {
+	clients map[string]*http.Client
+}
 
-func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string, version string, name string) *node {
+func NewHTTPSClientStore() *HTTPSClientStore {
+	return &HTTPSClientStore{
+		clients: make(map[string]*http.Client),
+	}
+}
+
+func (s *HTTPSClientStore) GetClient(name string) *http.Client {
+	if name == "" {
+		return _globalClient
+	}
+	client, ok := s.clients[name]
+	if ok {
+		return client
+	}
+	globalConfigs := *globalTLSClientConfigs.Load()
+	tlsConfig, ok := globalConfigs[name]
+	if !ok {
+		LOG.Warnf("tls config not found for %s, using default instead", name)
+		return _globalHTTPSClient
+	}
+	client = createHTTPSClient(tlsConfig)
+	s.clients[name] = client
+	return client
+}
+
+type NodeOptions struct {
+	TLS           bool
+	TLSConfigName string
+}
+type NewNodeOption func(*NodeOptions)
+
+func WithTLS(in bool) NewNodeOption {
+	return func(o *NodeOptions) {
+		o.TLS = in
+	}
+}
+
+func WithTLSConfigName(in string) NewNodeOption {
+	return func(o *NodeOptions) {
+		o.TLSConfigName = in
+	}
+}
+
+func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string, version string, name string, opts ...NewNodeOption) *node {
 	node := &node{
 		protocol: protocol,
 		address:  addr,
@@ -151,7 +178,16 @@ func newNode(addr string, protocol config.Protocol, weight *int64, md map[string
 	if protocol == config.Protocol_GRPC {
 		node.client = _globalH2CClient
 	}
-
+	opt := &NodeOptions{}
+	for _, o := range opts {
+		o(opt)
+	}
+	if opt.TLS {
+		node.client = _globalHTTPSClient
+		if opt.TLSConfigName != "" {
+			node.client = httpsClientStore.GetClient(opt.TLSConfigName)
+		}
+	}
 	return node
 }
 

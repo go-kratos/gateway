@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"strconv"
 	"strings"
@@ -15,6 +17,8 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
+var globalTLSClientConfigs = atomic.Pointer[map[string]*tls.Config]{}
+
 // Factory is returns service client.
 type Factory func(*config.Endpoint) (Client, error)
 
@@ -27,6 +31,31 @@ func WithPickerBuilder(in selector.Builder) Option {
 	return func(o *options) {
 		o.pickerBuilder = in
 	}
+}
+
+func SetGlobalTLSClientConfigs(in map[string]*config.TLS) {
+	tlsConfigs := make(map[string]*tls.Config, len(in))
+	for k, v := range in {
+		cfg := &tls.Config{
+			InsecureSkipVerify: v.Insecure,
+		}
+		cert, err := tls.X509KeyPair([]byte(v.Cert), []byte(v.Key))
+		if err != nil {
+			LOG.Warnf("failed to load tls cert: %q: %v", k, err)
+			continue
+		}
+		cfg.Certificates = []tls.Certificate{cert}
+		if v.Cacert != "" {
+			roots := x509.NewCertPool()
+			if ok := roots.AppendCertsFromPEM([]byte(v.Cacert)); !ok {
+				LOG.Warnf("failed to load tls cacert: %q", k)
+				continue
+			}
+			cfg.RootCAs = roots
+		}
+		tlsConfigs[k] = cfg
+	}
+	globalTLSClientConfigs.Store(&tlsConfigs)
 }
 
 // NewFactory new a client factory.
@@ -72,7 +101,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 		switch target.Scheme {
 		case "direct":
 			weighted := backend.Weight // weight is only valid for direct scheme
-			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "")
+			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
 			nodes = append(nodes, node)
 			na.picker.Apply(nodes)
 		case "discovery":
@@ -116,7 +145,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 			log.Errorf("failed to parse endpoint: %v/%s: %v", ser.Endpoints, scheme, err)
 			continue
 		}
-		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name)
+		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name, WithTLS(false))
 		nodes = append(nodes, node)
 	}
 	na.picker.Apply(nodes)
