@@ -183,6 +183,7 @@ func newNode(ctx *BuildContext, addr string, protocol config.Protocol, weight *i
 		o(opt)
 	}
 	if opt.TLS {
+		node.tls = true
 		node.client = _globalHTTPSClient
 		if opt.TLSConfigName != "" {
 			node.client = ctx.TLSClientStore.GetClient(opt.TLSConfigName)
@@ -200,6 +201,7 @@ type node struct {
 
 	client   *http.Client
 	protocol config.Protocol
+	tls      bool
 }
 
 func (n *node) Scheme() string {

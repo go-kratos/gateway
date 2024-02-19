@@ -43,11 +43,15 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 
 	addr := n.Address()
 	reqOpt.Backends = append(reqOpt.Backends, addr)
+	backendNode := n.(*node)
 	req.URL.Host = addr
 	req.URL.Scheme = "http"
+	if backendNode.tls {
+		req.URL.Scheme = "https"
+	}
 	req.RequestURI = ""
 	startAt := time.Now()
-	resp, err = n.(*node).client.Do(req)
+	resp, err = backendNode.client.Do(req)
 	reqOpt.UpstreamResponseTime = append(reqOpt.UpstreamResponseTime, time.Since(startAt).Seconds())
 	if err != nil {
 		done(ctx, selector.DoneInfo{Err: err})

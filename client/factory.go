@@ -80,10 +80,11 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 		picker := o.pickerBuilder.Build()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
-			cancel:   cancel,
-			endpoint: endpoint,
-			registry: r,
-			picker:   picker,
+			cancel:       cancel,
+			endpoint:     endpoint,
+			registry:     r,
+			picker:       picker,
+			buildContext: builderCtx,
 		}
 		if err := applier.apply(ctx); err != nil {
 			return nil, err
