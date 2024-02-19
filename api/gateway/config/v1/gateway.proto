@@ -51,6 +51,7 @@ message Backend {
     HealthCheck health_check = 3;
     bool tls = 4;
     string tls_config_name = 5;
+    map<string, string> metadata = 6;
 }
 
 enum Protocol {

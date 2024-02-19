@@ -113,7 +113,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 		switch target.Scheme {
 		case "direct":
 			weighted := backend.Weight // weight is only valid for direct scheme
-			node := newNode(na.buildContext, backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
+			node := newNode(na.buildContext, backend.Target, na.endpoint.Protocol, weighted, backend.Metadata, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
 			nodes = append(nodes, node)
 			na.picker.Apply(nodes)
 		case "discovery":
