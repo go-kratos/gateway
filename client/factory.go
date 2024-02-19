@@ -17,10 +17,13 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
-var globalTLSClientConfigs = atomic.Pointer[map[string]*tls.Config]{}
+type BuildContext struct {
+	TLSConfigs     map[string]*tls.Config
+	TLSClientStore *HTTPSClientStore
+}
 
 // Factory is returns service client.
-type Factory func(*config.Endpoint) (Client, error)
+type Factory func(*BuildContext, *config.Endpoint) (Client, error)
 
 type Option func(*options)
 type options struct {
@@ -33,9 +36,13 @@ func WithPickerBuilder(in selector.Builder) Option {
 	}
 }
 
-func SetGlobalTLSClientConfigs(in map[string]*config.TLS) {
-	tlsConfigs := make(map[string]*tls.Config, len(in))
-	for k, v := range in {
+func EmptyBuildContext() *BuildContext {
+	return &BuildContext{}
+}
+
+func NewBuildContext(cfg *config.Gateway) *BuildContext {
+	tlsConfigs := make(map[string]*tls.Config, len(cfg.TlsStore))
+	for k, v := range cfg.TlsStore {
 		cfg := &tls.Config{
 			InsecureSkipVerify: v.Insecure,
 		}
@@ -55,7 +62,10 @@ func SetGlobalTLSClientConfigs(in map[string]*config.TLS) {
 		}
 		tlsConfigs[k] = cfg
 	}
-	globalTLSClientConfigs.Store(&tlsConfigs)
+	return &BuildContext{
+		TLSConfigs:     tlsConfigs,
+		TLSClientStore: NewHTTPSClientStore(tlsConfigs),
+	}
 }
 
 // NewFactory new a client factory.
@@ -66,7 +76,7 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	for _, opt := range opts {
 		opt(o)
 	}
-	return func(endpoint *config.Endpoint) (Client, error) {
+	return func(builderCtx *BuildContext, endpoint *config.Endpoint) (Client, error) {
 		picker := o.pickerBuilder.Build()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
@@ -84,11 +94,12 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 }
 
 type nodeApplier struct {
-	canceled int64
-	cancel   context.CancelFunc
-	endpoint *config.Endpoint
-	registry registry.Discovery
-	picker   selector.Selector
+	canceled     int64
+	buildContext *BuildContext
+	cancel       context.CancelFunc
+	endpoint     *config.Endpoint
+	registry     registry.Discovery
+	picker       selector.Selector
 }
 
 func (na *nodeApplier) apply(ctx context.Context) error {
@@ -101,7 +112,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 		switch target.Scheme {
 		case "direct":
 			weighted := backend.Weight // weight is only valid for direct scheme
-			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
+			node := newNode(na.buildContext, backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
 			nodes = append(nodes, node)
 			na.picker.Apply(nodes)
 		case "discovery":
@@ -145,7 +156,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 			log.Errorf("failed to parse endpoint: %v/%s: %v", ser.Endpoints, scheme, err)
 			continue
 		}
-		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name, WithTLS(false))
+		node := newNode(na.buildContext, addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name, WithTLS(false))
 		nodes = append(nodes, node)
 	}
 	na.picker.Apply(nodes)

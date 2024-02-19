@@ -212,8 +212,8 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(int), func(int, error)) 
 	return success, failed
 }
 
-func (p *Proxy) buildEndpoint(e *config.Endpoint, ms []*config.Middleware) (_ http.Handler, _ io.Closer, retError error) {
-	client, err := p.clientFactory(e)
+func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint, ms []*config.Middleware) (_ http.Handler, _ io.Closer, retError error) {
+	client, err := p.clientFactory(buildCtx, e)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -385,10 +385,10 @@ func closeOnError(closer io.Closer, err *error) {
 
 // Update updates service endpoint.
 func (p *Proxy) Update(c *config.Gateway) (retError error) {
-	client.SetGlobalTLSClientConfigs(c.TlsStore)
+	buildContext := client.NewBuildContext(c)
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
-		handler, closer, err := p.buildEndpoint(e, c.Middlewares)
+		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
 		if err != nil {
 			return err
 		}

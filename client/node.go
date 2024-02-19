@@ -21,7 +21,6 @@ var _ selector.Node = &node{}
 var _globalClient = defaultClient()
 var _globalH2CClient = defaultH2CClient()
 var _globalHTTPSClient = createHTTPSClient(nil)
-var httpsClientStore = NewHTTPSClientStore()
 var _dialTimeout = 200 * time.Millisecond
 var followRedirect = false
 
@@ -119,12 +118,14 @@ func createHTTPSClient(tlsConfig *tls.Config) *http.Client {
 }
 
 type HTTPSClientStore struct {
-	clients map[string]*http.Client
+	clientConfigs map[string]*tls.Config
+	clients       map[string]*http.Client
 }
 
-func NewHTTPSClientStore() *HTTPSClientStore {
+func NewHTTPSClientStore(clientConfigs map[string]*tls.Config) *HTTPSClientStore {
 	return &HTTPSClientStore{
-		clients: make(map[string]*http.Client),
+		clientConfigs: clientConfigs,
+		clients:       make(map[string]*http.Client),
 	}
 }
 
@@ -136,8 +137,7 @@ func (s *HTTPSClientStore) GetClient(name string) *http.Client {
 	if ok {
 		return client
 	}
-	globalConfigs := *globalTLSClientConfigs.Load()
-	tlsConfig, ok := globalConfigs[name]
+	tlsConfig, ok := s.clientConfigs[name]
 	if !ok {
 		LOG.Warnf("tls config not found for %s, using default instead", name)
 		return _globalHTTPSClient
@@ -165,7 +165,7 @@ func WithTLSConfigName(in string) NewNodeOption {
 	}
 }
 
-func newNode(addr string, protocol config.Protocol, weight *int64, md map[string]string, version string, name string, opts ...NewNodeOption) *node {
+func newNode(ctx *BuildContext, addr string, protocol config.Protocol, weight *int64, md map[string]string, version string, name string, opts ...NewNodeOption) *node {
 	node := &node{
 		protocol: protocol,
 		address:  addr,
@@ -185,7 +185,7 @@ func newNode(addr string, protocol config.Protocol, weight *int64, md map[string
 	if opt.TLS {
 		node.client = _globalHTTPSClient
 		if opt.TLSConfigName != "" {
-			node.client = httpsClientStore.GetClient(opt.TLSConfigName)
+			node.client = ctx.TLSClientStore.GetClient(opt.TLSConfigName)
 		}
 	}
 	return node

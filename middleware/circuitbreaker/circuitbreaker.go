@@ -22,7 +22,7 @@ import (
 )
 
 func Init(clientFactory client.Factory) {
-	breakerFactory := New(clientFactory)
+	breakerFactory := New(client.EmptyBuildContext(), clientFactory)
 	middleware.RegisterV2("circuitbreaker", breakerFactory)
 	prometheus.MustRegister(_metricDeniedTotal)
 }
@@ -91,11 +91,11 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	}
 }
 
-func makeOnBreakHandler(in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, io.Closer, error) {
+func makeOnBreakHandler(buildContext *client.BuildContext, in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, io.Closer, error) {
 	switch action := in.Action.(type) {
 	case *v1.CircuitBreaker_BackupService:
 		log.Infof("Making backup service as on break handler: %+v", action)
-		client, err := factory(action.BackupService.Endpoint)
+		client, err := factory(buildContext, action.BackupService.Endpoint)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -138,7 +138,7 @@ func deniedRequestIncr(req *http.Request) {
 	}
 }
 
-func New(factory client.Factory) middleware.FactoryV2 {
+func New(buildContext *client.BuildContext, factory client.Factory) middleware.FactoryV2 {
 	return func(c *config.Middleware) (middleware.MiddlewareV2, error) {
 		options := &v1.CircuitBreaker{}
 		if c.Options != nil {
@@ -147,7 +147,7 @@ func New(factory client.Factory) middleware.FactoryV2 {
 			}
 		}
 		breaker := makeBreakerTrigger(options)
-		onBreakHandler, closer, err := makeOnBreakHandler(options, factory)
+		onBreakHandler, closer, err := makeOnBreakHandler(buildContext, options, factory)
 		if err != nil {
 			return nil, err
 		}
