@@ -78,7 +78,7 @@ func TestProxy(t *testing.T) {
 		},
 	}
 	retryable := false
-	clientFactory := func(*config.Endpoint) (client.Client, error) {
+	clientFactory := func(*client.BuildContext, *config.Endpoint) (client.Client, error) {
 		dummyClient := RoundTripperCloserFunc(func(req *http.Request) (*http.Response, error) {
 			if retryable {
 				retryable = false
@@ -164,7 +164,7 @@ func TestRetryBreaker(t *testing.T) {
 
 	responseSuccess := false
 	retryToSuccess := false
-	clientFactory := func(*config.Endpoint) (client.Client, error) {
+	clientFactory := func(*client.BuildContext, *config.Endpoint) (client.Client, error) {
 		dummyClient := RoundTripperCloserFunc(func(req *http.Request) (resp *http.Response, _ error) {
 			opt, _ := middleware.FromRequestContext(req.Context())
 			defer func() {
