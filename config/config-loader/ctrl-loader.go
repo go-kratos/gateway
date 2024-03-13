@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 
 	"strings"
 	"time"
@@ -25,20 +26,31 @@ import (
 
 var errNotModified = errors.New("config not modified")
 
+var priorityConfigFeature = feature.MustRegister("gw:PriorityConfig", false)
+
 type CtrlConfigLoader struct {
-	ctrlService     []string
-	ctrlServiceIdx  int
-	nextCtrlService bool
-	dstPath         string
-	cancel          context.CancelFunc
+	ctrlService          []string
+	ctrlServiceIdx       int
+	nextCtrlService      bool
+	dstPath              string
+	dstPriorityConfigDir string
+	cancel               context.CancelFunc
 
 	advertiseName string
 	advertiseAddr string
 
-	lastVersion atomic.String
+	lastVersion         atomic.String
+	lastPriorityVersion atomic.Pointer[map[string]string]
 }
 
 type LoadResponse struct {
+	Config          string                `json:"config"`
+	Version         string                `json:"version"`
+	PriorityConfigs []*PriorityConfigItem `json:"priorityConfigs"`
+}
+
+type PriorityConfigItem struct {
+	Key     string `json:"key"`
 	Config  string `json:"config"`
 	Version string `json:"version"`
 }
@@ -68,10 +80,11 @@ func prepareCtrlService(in string) []string {
 	return out
 }
 
-func New(name, rawCtrlService, dstPath string) *CtrlConfigLoader {
+func New(name, rawCtrlService, dstPath, dstPriorityConfigDir string) *CtrlConfigLoader {
 	cl := &CtrlConfigLoader{
-		ctrlService: prepareCtrlService(rawCtrlService),
-		dstPath:     dstPath,
+		ctrlService:          prepareCtrlService(rawCtrlService),
+		dstPath:              dstPath,
+		dstPriorityConfigDir: dstPriorityConfigDir,
 	}
 	cl.advertiseName = name
 	cl.advertiseAddr = cl.getAdvertiseAddr()
@@ -118,11 +131,11 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 		return err
 	}
 
+	// write main config
 	yamlBytes, err := yaml.JSONToYAML([]byte(resp.Config))
 	if err != nil {
 		return err
 	}
-
 	tmpPath := fmt.Sprintf("%s.%s.tmp", c.dstPath, uuid.New().String())
 	if err := os.WriteFile(tmpPath, yamlBytes, 0644); err != nil {
 		return err
@@ -131,7 +144,76 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 		return err
 	}
 	c.lastVersion.Store(resp.Version)
+
+	// write priority configs
+	if err := c.writePriorityConfigs(resp); err != nil {
+		log.Warnf("Failed to write priority configs, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+	}
 	return nil
+}
+
+func (c *CtrlConfigLoader) cleanUpPriorityConfigs(versions map[string]string) {
+	entrys, err := os.ReadDir(c.dstPriorityConfigDir)
+	if err != nil {
+		log.Warnf("Failed to read priority config dir, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+		return
+	}
+	for _, e := range entrys {
+		if e.IsDir() {
+			continue
+		}
+		if filepath.Ext(e.Name()) != ".yaml" {
+			continue
+		}
+		pureName := strings.TrimSuffix(e.Name(), ".yaml")
+		if _, ok := versions[pureName]; ok {
+			continue
+		}
+		// not in the current version, remove it
+		if err := os.Remove(path.Join(c.dstPriorityConfigDir, e.Name())); err != nil {
+			log.Warnf("Failed to remove expired priority config %s, %q-%q, %+v", e.Name(), c.advertiseName, c.advertiseAddr, err)
+		}
+	}
+}
+
+func (c *CtrlConfigLoader) writePriorityConfigs(resp *LoadResponse) error {
+	if c.dstPriorityConfigDir == "" {
+		return nil
+	}
+	versions := make(map[string]string, len(resp.PriorityConfigs))
+	for _, item := range resp.PriorityConfigs {
+		yamlBytes, err := yaml.JSONToYAML([]byte(item.Config))
+		if err != nil {
+			return err
+		}
+		tmpPath := path.Join(c.dstPriorityConfigDir, fmt.Sprintf("%s.yaml.tmp", item.Key))
+		if err := os.WriteFile(tmpPath, yamlBytes, 0644); err != nil {
+			return err
+		}
+		dstName := path.Join(c.dstPriorityConfigDir, fmt.Sprintf("%s.yaml", item.Key))
+		if err := os.Rename(tmpPath, dstName); err != nil {
+			return err
+		}
+		versions[item.Key] = item.Version
+	}
+	c.cleanUpPriorityConfigs(versions)
+	c.lastPriorityVersion.Store(&versions)
+	return nil
+}
+
+func (c *CtrlConfigLoader) encodeLastPriorityVersion(dst url.Values) {
+	if !priorityConfigFeature.Enabled() {
+		return
+	}
+	dst.Set("supportPriorityConfig", "1")
+	pVersions := c.lastPriorityVersion.Load()
+	if pVersions == nil {
+		return
+	}
+	param := "lastPriorityVersions"
+	for key, version := range *pVersions {
+		dst.Set(param, fmt.Sprintf("%s=%s", key, version))
+	}
 }
 
 func (c *CtrlConfigLoader) LoadFeatures(ctx context.Context) error {
@@ -212,6 +294,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params.Set("gateway", c.advertiseName)
 	params.Set("ip_addr", c.advertiseAddr)
 	params.Set("last_version", c.lastVersion.Load())
+	c.encodeLastPriorityVersion(params)
 	log.Infof("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params)
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {

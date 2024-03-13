@@ -37,12 +37,13 @@ import (
 )
 
 var (
-	ctrlName     string
-	ctrlService  string
-	discoveryDSN string
-	proxyAddrs   = newSliceVar(":8080")
-	proxyConfig  string
-	withDebug    bool
+	ctrlName          string
+	ctrlService       string
+	discoveryDSN      string
+	proxyAddrs        = newSliceVar(":8080")
+	proxyConfig       string
+	priorityConfigDir string
+	withDebug         bool
 )
 
 type sliceVar struct {
@@ -71,6 +72,7 @@ func init() {
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
 	flag.Var(&proxyAddrs, "addr", "proxy address, eg: -addr 0.0.0.0:8080")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
+	flag.StringVar(&priorityConfigDir, "conf.priority", "", "priority config directory, eg: -conf.priority ./canary")
 	flag.StringVar(&ctrlName, "ctrl.name", os.Getenv("ADVERTISE_NAME"), "control gateway name, eg: gateway")
 	flag.StringVar(&ctrlService, "ctrl.service", "", "control service host, eg: http://127.0.0.1:8000")
 	flag.StringVar(&discoveryDSN, "discovery.dsn", "", "discovery dsn, eg: consul://127.0.0.1:7070?token=secret&datacenter=prod")
@@ -101,7 +103,7 @@ func main() {
 	var ctrlLoader *configLoader.CtrlConfigLoader
 	if ctrlService != "" {
 		log.Infof("setup control service to: %q", ctrlService)
-		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig)
+		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig, priorityConfigDir)
 		if err := ctrlLoader.Load(ctx); err != nil {
 			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
 		}
@@ -111,7 +113,7 @@ func main() {
 		go ctrlLoader.Run(ctx)
 	}
 
-	confLoader, err := config.NewFileLoader(proxyConfig)
+	confLoader, err := config.NewFileLoader(proxyConfig, priorityConfigDir)
 	if err != nil {
 		log.Fatalf("failed to create config file loader: %v", err)
 	}
