@@ -23,6 +23,12 @@ message TLS {
     string key = 4;
 }
 
+message PriorityConfig {
+    string name = 1;
+    string version = 2;
+    repeated Endpoint endpoints = 3;
+}
+
 message Endpoint {
     string path = 1;
     string method = 2;

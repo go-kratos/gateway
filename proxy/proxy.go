@@ -248,7 +248,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			retryBreaker.MarkFailed()
 		}
 	}
-	return http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
 		setXFFHeader(req)
 
@@ -342,7 +342,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		}
 		doCopyBody()
 		requestsTotalIncr(labels, resp.StatusCode)
-	})), closer, nil
+	}), closer, nil
 }
 
 func getReplyMD(ep *config.Endpoint, resp *http.Response) selector.ReplyMD {
