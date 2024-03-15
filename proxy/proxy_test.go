@@ -96,7 +96,8 @@ func TestProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Update(c)
+	buildContext := client.NewBuildContext(c)
+	p.Update(buildContext, c)
 	{
 		b := []byte("notfound")
 		r := httptest.NewRequest("GET", "/notfound", bytes.NewBuffer(b))
@@ -190,7 +191,8 @@ func TestRetryBreaker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Update(c)
+	buildContext := client.NewBuildContext(c)
+	p.Update(buildContext, c)
 
 	t.Run("retry-breaker", func(t *testing.T) {
 		var lastResponse *responseWriter

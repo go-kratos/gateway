@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kratos/aegis/circuitbreaker"
@@ -21,10 +22,21 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func Init(clientFactory client.Factory) {
-	breakerFactory := New(client.EmptyBuildContext(), clientFactory)
-	middleware.RegisterV2("circuitbreaker", breakerFactory)
+var clientBuildContext atomic.Pointer[client.BuildContext]
+
+func init() {
+	clientBuildContext.Store(client.EmptyBuildContext())
 	prometheus.MustRegister(_metricDeniedTotal)
+}
+
+func Init(buildContext *client.BuildContext, clientFactory client.Factory) {
+	SetBuildContext(buildContext)
+	breakerFactory := New(clientFactory)
+	middleware.RegisterV2("circuitbreaker", breakerFactory)
+}
+
+func SetBuildContext(buildContext *client.BuildContext) {
+	clientBuildContext.Store(buildContext)
 }
 
 var (
@@ -138,7 +150,7 @@ func deniedRequestIncr(req *http.Request) {
 	}
 }
 
-func New(buildContext *client.BuildContext, factory client.Factory) middleware.FactoryV2 {
+func New(factory client.Factory) middleware.FactoryV2 {
 	return func(c *config.Middleware) (middleware.MiddlewareV2, error) {
 		options := &v1.CircuitBreaker{}
 		if c.Options != nil {
@@ -147,7 +159,7 @@ func New(buildContext *client.BuildContext, factory client.Factory) middleware.F
 			}
 		}
 		breaker := makeBreakerTrigger(options)
-		onBreakHandler, closer, err := makeOnBreakHandler(buildContext, options, factory)
+		onBreakHandler, closer, err := makeOnBreakHandler(clientBuildContext.Load(), options, factory)
 		if err != nil {
 			return nil, err
 		}
