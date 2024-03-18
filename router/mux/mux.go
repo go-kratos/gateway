@@ -37,13 +37,23 @@ type muxRouter struct {
 	allCloser []io.Closer
 }
 
+func ProtectedHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-For") != "" {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 // NewRouter new a mux router.
 func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Router {
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(EnableStrictSlash),
 		wg:     &sync.WaitGroup{},
 	}
-	r.Router.Handle("/metrics", promhttp.Handler())
+	r.Router.Handle("/metrics", ProtectedHandler(promhttp.Handler()))
 	r.Router.NotFoundHandler = notFoundHandler
 	r.Router.MethodNotAllowedHandler = methodNotAllowedHandler
 	return r
