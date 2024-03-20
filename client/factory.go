@@ -45,6 +45,7 @@ func NewBuildContext(cfg *config.Gateway) *BuildContext {
 	for k, v := range cfg.TlsStore {
 		cfg := &tls.Config{
 			InsecureSkipVerify: v.Insecure,
+			ServerName:         v.ServerName,
 		}
 		cert, err := tls.X509KeyPair([]byte(v.Cert), []byte(v.Key))
 		if err != nil {

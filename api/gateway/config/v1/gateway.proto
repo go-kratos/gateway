@@ -21,6 +21,7 @@ message TLS {
     string cacert = 2;
     string cert = 3;
     string key = 4;
+    string server_name = 5;
 }
 
 message PriorityConfig {
