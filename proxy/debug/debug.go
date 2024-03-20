@@ -6,6 +6,7 @@ import (
 	"path"
 	"strings"
 
+	rmux "github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gorilla/mux"
 )
@@ -39,7 +40,7 @@ func Register(name string, debuggable Debuggable) {
 func MashupWithDebugHandler(origin http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if strings.HasPrefix(req.URL.Path, _debugPrefix) {
-			globalService.ServeHTTP(w, req)
+			rmux.ProtectedHandler(globalService).ServeHTTP(w, req)
 			return
 		}
 		origin.ServeHTTP(w, req)
