@@ -13,6 +13,15 @@ message Gateway {
     repeated string hosts = 3 [deprecated = true];
     repeated Endpoint endpoints = 4;
     repeated Middleware middlewares = 5;
+    map<string, TLS> tls_store = 6;
+}
+
+message TLS {
+    bool insecure = 1;
+    string cacert = 2;
+    string cert = 3;
+    string key = 4;
+    string server_name = 5;
 }
 
 message PriorityConfig {
@@ -47,6 +56,9 @@ message Backend {
     string target = 1;
     optional int64 weight = 2;
     HealthCheck health_check = 3;
+    bool tls = 4;
+    string tls_config_name = 5;
+    map<string, string> metadata = 6;
 }
 
 enum Protocol {
