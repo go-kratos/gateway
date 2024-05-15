@@ -97,7 +97,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
-	circuitbreaker.Init(clientFactory)
 
 	ctx := context.Background()
 	var ctrlLoader *configLoader.CtrlConfigLoader
@@ -123,7 +122,9 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	if err := p.Update(bc); err != nil {
+	buildContext := client.NewBuildContext(bc)
+	circuitbreaker.Init(buildContext, clientFactory)
+	if err := p.Update(buildContext, bc); err != nil {
 		log.Fatalf("failed to update service config: %v", err)
 	}
 	reloader := func() error {
@@ -132,7 +133,9 @@ func main() {
 			log.Errorf("failed to load config: %v", err)
 			return err
 		}
-		if err := p.Update(bc); err != nil {
+		buildContext := client.NewBuildContext(bc)
+		circuitbreaker.SetBuildContext(buildContext)
+		if err := p.Update(buildContext, bc); err != nil {
 			log.Errorf("failed to update service config: %v", err)
 			return err
 		}
