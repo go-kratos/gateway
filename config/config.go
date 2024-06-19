@@ -145,7 +145,7 @@ func (f *FileLoader) mergePriorityConfig(dst *configv1.Gateway) error {
 	if err != nil {
 		return err
 	}
-	replaceOrAppendEndpoint := MakeReplaceOrAppendEndpointFn(dst.Endpoints)
+	replaceOrPrependEndpoint := MakeReplaceOrPrependEndpointFn(dst.Endpoints)
 	for _, e := range entrys {
 		if e.IsDir() {
 			continue
@@ -160,7 +160,7 @@ func (f *FileLoader) mergePriorityConfig(dst *configv1.Gateway) error {
 			continue
 		}
 		for _, e := range pCfg.Endpoints {
-			dst.Endpoints = replaceOrAppendEndpoint(dst.Endpoints, e)
+			dst.Endpoints = replaceOrPrependEndpoint(dst.Endpoints, e)
 		}
 		log.Infof("succeeded to merge priority config: %s, %d endpoints effected", cfgPath, len(pCfg.Endpoints))
 	}
@@ -183,7 +183,7 @@ func (f *FileLoader) parsePriorityConfig(cfgPath string) (*configv1.PriorityConf
 	return out, nil
 }
 
-func MakeReplaceOrAppendEndpointFn(origin []*configv1.Endpoint) func([]*configv1.Endpoint, *configv1.Endpoint) []*configv1.Endpoint {
+func MakeReplaceOrPrependEndpointFn(origin []*configv1.Endpoint) func([]*configv1.Endpoint, *configv1.Endpoint) []*configv1.Endpoint {
 	keyFn := func(e *configv1.Endpoint) string {
 		return fmt.Sprintf("%s-%s", e.Method, e.Path)
 	}
@@ -194,7 +194,7 @@ func MakeReplaceOrAppendEndpointFn(origin []*configv1.Endpoint) func([]*configv1
 	return func(dst []*configv1.Endpoint, item *configv1.Endpoint) []*configv1.Endpoint {
 		idx, ok := index[keyFn(item)]
 		if !ok {
-			return append(dst, item)
+			return append([]*configv1.Endpoint{item}, dst...)
 		}
 		dst[idx] = item
 		return dst
