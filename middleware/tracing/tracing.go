@@ -19,19 +19,19 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
-	defaultTimeout     = time.Duration(10 * time.Second)
+	defaultTimeout     = 10 * time.Second
 	defaultServiceName = "gateway"
 	defaultTracerName  = "gateway"
 )
 
-var globaltp = &struct {
+var globalTp = &struct {
 	provider trace.TracerProvider
 	initOnce sync.Once
 }{}
@@ -40,7 +40,7 @@ func init() {
 	middleware.Register("tracing", Middleware)
 }
 
-// Middleware is a opentelemetry middleware.
+// Middleware is a open telemetry middleware.
 func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 	options := &v1.Tracing{}
 	if c.Options != nil {
@@ -48,11 +48,11 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			return nil, err
 		}
 	}
-	if globaltp.provider == nil {
-		globaltp.initOnce.Do(func() {
-			globaltp.provider = newTracerProvider(context.Background(), options)
+	if globalTp.provider == nil {
+		globalTp.initOnce.Do(func() {
+			globalTp.provider = newTracerProvider(context.Background(), options)
 			propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
-			otel.SetTracerProvider(globaltp.provider)
+			otel.SetTracerProvider(globalTp.provider)
 			otel.SetTextMapPropagator(propagator)
 		})
 	}
@@ -67,9 +67,9 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 
 			// attributes for each request
 			span.SetAttributes(
-				semconv.HTTPMethodKey.String(req.Method),
-				semconv.HTTPTargetKey.String(req.URL.Path),
-				semconv.NetPeerIPKey.String(req.RemoteAddr),
+				semconv.HTTPMethod(req.Method),
+				semconv.HTTPTarget(req.URL.Path),
+				semconv.NetworkPeerAddress(req.RemoteAddr),
 			)
 
 			car := propagation.HeaderCarrier(req.Header)
@@ -83,7 +83,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					span.SetStatus(codes.Ok, "OK")
 				}
 				if reply != nil {
-					span.SetAttributes(semconv.HTTPStatusCodeKey.Int(reply.StatusCode))
+					span.SetAttributes(semconv.HTTPStatusCode(reply.StatusCode))
 				}
 				span.End()
 			}()
@@ -113,17 +113,15 @@ func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerPro
 		sampler = sdktrace.TraceIDRatioBased(float64(*options.SampleRatio))
 	}
 
-	otlpoptions := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(options.HttpEndpoint),
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpointURL(options.HttpEndpoint),
 		otlptracehttp.WithTimeout(timeout),
 	}
 	if options.Insecure != nil && *options.Insecure {
-		otlpoptions = append(otlpoptions, otlptracehttp.WithInsecure())
+		opts = append(opts, otlptracehttp.WithInsecure())
 	}
 
-	client := otlptracehttp.NewClient(
-		otlpoptions...,
-	)
+	client := otlptracehttp.NewClient(opts...)
 
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
@@ -133,7 +131,7 @@ func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerPro
 	// attributes for all requests
 	resources := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceNameKey.String(serviceName),
+		semconv.ServiceName(serviceName),
 	)
 
 	return sdktrace.NewTracerProvider(
