@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"strconv"
 	"strings"
@@ -15,8 +17,13 @@ import (
 	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
+type BuildContext struct {
+	TLSConfigs     map[string]*tls.Config
+	TLSClientStore *HTTPSClientStore
+}
+
 // Factory is returns service client.
-type Factory func(*config.Endpoint) (Client, error)
+type Factory func(*BuildContext, *config.Endpoint) (Client, error)
 
 type Option func(*options)
 type options struct {
@@ -29,6 +36,39 @@ func WithPickerBuilder(in selector.Builder) Option {
 	}
 }
 
+func EmptyBuildContext() *BuildContext {
+	return &BuildContext{}
+}
+
+func NewBuildContext(cfg *config.Gateway) *BuildContext {
+	tlsConfigs := make(map[string]*tls.Config, len(cfg.TlsStore))
+	for k, v := range cfg.TlsStore {
+		cfg := &tls.Config{
+			InsecureSkipVerify: v.Insecure,
+			ServerName:         v.ServerName,
+		}
+		cert, err := tls.X509KeyPair([]byte(v.Cert), []byte(v.Key))
+		if err != nil {
+			LOG.Warnf("failed to load tls cert: %q: %v", k, err)
+			continue
+		}
+		cfg.Certificates = []tls.Certificate{cert}
+		if v.Cacert != "" {
+			roots := x509.NewCertPool()
+			if ok := roots.AppendCertsFromPEM([]byte(v.Cacert)); !ok {
+				LOG.Warnf("failed to load tls cacert: %q", k)
+				continue
+			}
+			cfg.RootCAs = roots
+		}
+		tlsConfigs[k] = cfg
+	}
+	return &BuildContext{
+		TLSConfigs:     tlsConfigs,
+		TLSClientStore: NewHTTPSClientStore(tlsConfigs),
+	}
+}
+
 // NewFactory new a client factory.
 func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	o := &options{
@@ -37,14 +77,15 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	for _, opt := range opts {
 		opt(o)
 	}
-	return func(endpoint *config.Endpoint) (Client, error) {
+	return func(builderCtx *BuildContext, endpoint *config.Endpoint) (Client, error) {
 		picker := o.pickerBuilder.Build()
 		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
-			cancel:   cancel,
-			endpoint: endpoint,
-			registry: r,
-			picker:   picker,
+			cancel:       cancel,
+			endpoint:     endpoint,
+			registry:     r,
+			picker:       picker,
+			buildContext: builderCtx,
 		}
 		if err := applier.apply(ctx); err != nil {
 			return nil, err
@@ -55,11 +96,12 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 }
 
 type nodeApplier struct {
-	canceled int64
-	cancel   context.CancelFunc
-	endpoint *config.Endpoint
-	registry registry.Discovery
-	picker   selector.Selector
+	canceled     int64
+	buildContext *BuildContext
+	cancel       context.CancelFunc
+	endpoint     *config.Endpoint
+	registry     registry.Discovery
+	picker       selector.Selector
 }
 
 func (na *nodeApplier) apply(ctx context.Context) error {
@@ -72,7 +114,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 		switch target.Scheme {
 		case "direct":
 			weighted := backend.Weight // weight is only valid for direct scheme
-			node := newNode(backend.Target, na.endpoint.Protocol, weighted, map[string]string{}, "", "")
+			node := newNode(na.buildContext, backend.Target, na.endpoint.Protocol, weighted, backend.Metadata, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
 			nodes = append(nodes, node)
 			na.picker.Apply(nodes)
 		case "discovery":
@@ -116,7 +158,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 			log.Errorf("failed to parse endpoint: %v/%s: %v", ser.Endpoints, scheme, err)
 			continue
 		}
-		node := newNode(addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name)
+		node := newNode(na.buildContext, addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name, WithTLS(false))
 		nodes = append(nodes, node)
 	}
 	na.picker.Apply(nodes)
