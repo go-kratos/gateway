@@ -8,12 +8,15 @@ import "google/protobuf/duration.proto";
 
 // Tracing middleware config.
 message Tracing {
-	// report endpoint url
-	string http_endpoint = 1;
-	// sample ratio
-	optional float sample_ratio = 2;
-	// report timeout
-	google.protobuf.Duration timeout = 4;
-	// ssl
-	optional bool insecure = 5;
+  // report endpoint url
+  oneof endpoint {
+    string http_endpoint = 1;
+    string http_endpoint_url = 2;
+  }
+  // sample ratio
+  optional float sample_ratio = 3;
+  // report timeout
+  google.protobuf.Duration timeout = 4;
+  // ssl
+  optional bool insecure = 5;
 }
