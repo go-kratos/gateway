@@ -50,6 +50,9 @@ func (c *client) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 		req.URL.Scheme = "https"
 		req.Host = addr
 	}
+	if nodeHost := n.Metadata()["host"]; nodeHost != "" {
+		req.Host = nodeHost
+	}
 	req.RequestURI = ""
 	startAt := time.Now()
 	resp, err = backendNode.client.Do(req)
