@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -123,6 +124,7 @@ func (f *FileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 		return nil, err
 	}
 
+	configData = replaceEnvVariables(configData)
 	jsonData, err := yaml.YAMLToJSON(configData)
 	if err != nil {
 		return nil, err
@@ -298,4 +300,13 @@ func (f *FileLoader) DebugHandler() http.Handler {
 		})
 	})
 	return debugMux
+}
+
+func replaceEnvVariables(text []byte) []byte {
+	var words []string
+	for _, env := range os.Environ() {
+		envPair := strings.SplitN(env, "=", 2)
+		words = append(words, fmt.Sprintf("${%s}", envPair[0]), envPair[1])
+	}
+	return []byte(strings.NewReplacer(words...).Replace(string(text)))
 }
