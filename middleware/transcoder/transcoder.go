@@ -57,7 +57,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			// content-type:
 			// - application/grpc+json
 			// - application/grpc+proto
-			req.Header.Set("Content-Type", "application/grpc+"+strings.TrimLeft(contentType, "application/"))
+			req.Header.Set("Content-Type", "application/grpc+"+strings.TrimPrefix(contentType, "application/"))
 			req.Header.Del("Content-Length")
 			req.ContentLength = int64(len(bb))
 			req.Body = io.NopCloser(bytes.NewReader(bb))
