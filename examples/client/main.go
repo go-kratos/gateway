@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -57,7 +57,7 @@ func main() {
 	for k, v := range resp.Trailer {
 		fmt.Printf("Trailer: %s: %s\n", k, v)
 	}
-	b, err = ioutil.ReadAll(resp.Body)
+	b, err = io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}
