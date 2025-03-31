@@ -325,7 +325,12 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				return true
 			}
 			defer resp.Body.Close()
-			sent, err := io.Copy(w, resp.Body)
+
+			copyFunc := io.Copy
+			if isNoBufferingResponse(resp) {
+				copyFunc = copyNoBuffering(w)
+			}
+			sent, err := copyFunc(w, resp.Body)
 			if err != nil {
 				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
 				sentBytesAdd(req, labels, sent)
