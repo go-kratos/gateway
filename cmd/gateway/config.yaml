@@ -38,7 +38,7 @@ endpoints:
         options:
           '@type': type.googleapis.com/gateway.middleware.rewrite.v1.Rewrite
 #          stripPrefix: /bbs
-  - path: /helloworld.Greeter/*
+  - path: /helloworld.v1.Greeter/*
     method: POST
     timeout: 1s
     protocol: GRPC
