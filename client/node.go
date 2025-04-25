@@ -18,11 +18,12 @@ import (
 )
 
 var _ selector.Node = &node{}
-var _globalClient = defaultClient()
-var _globalH2CClient = defaultH2CClient()
-var _globalHTTPSClient = createHTTPSClient(nil)
 var _dialTimeout = 200 * time.Millisecond
 var followRedirect = false
+
+var _globalClient *http.Client = nil
+var _globalH2CClient *http.Client = nil
+var _globalHTTPSClient *http.Client = nil
 
 func init() {
 	var err error
@@ -34,6 +35,10 @@ func init() {
 	if val := os.Getenv("PROXY_FOLLOW_REDIRECT"); val != "" {
 		followRedirect = true
 	}
+	_globalClient = defaultClient()
+	_globalH2CClient = defaultH2CClient()
+	_globalHTTPSClient = createHTTPSClient(nil)
+
 	prometheus.MustRegister(_metricClientRedirect)
 }
 
