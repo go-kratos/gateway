@@ -6,6 +6,7 @@ import (
 	"errors"
 	"hash/crc32"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
@@ -21,8 +22,21 @@ var ErrCancelWatch = errors.New("cancel watch")
 var globalServiceWatcher = newServiceWatcher()
 var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "servicewatch"))
 
+var _initialResolveTimeout = time.Duration(0)
+
 func init() {
 	debug.Register("watcher", globalServiceWatcher)
+
+	func() {
+		if timeoutVal := os.Getenv("INITIAL_RESOLVE_TIMEOUT"); timeoutVal != "" {
+			initialResolveTimeout, err := time.ParseDuration(timeoutVal)
+			if err != nil {
+				LOG.Errorf("Failed to parse INITIAL_RESOLVE_TIMEOUT: %s, err: %+v", timeoutVal, err)
+				return
+			}
+			_initialResolveTimeout = initialResolveTimeout
+		}
+	}()
 }
 
 func uuid4() string {
@@ -129,14 +143,38 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 		func() {
 			defer close(ws.initializedChan)
 			LOG.Infof("Starting to do initialize services discovery on endpoint: %s", endpoint)
-			services, err := watcher.Next()
-			if err != nil {
-				LOG.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
-				return
+
+			initialServicesChan := make(chan []*registry.ServiceInstance, 1)
+			go func() {
+				defer close(initialServicesChan)
+				services, err := watcher.Next()
+				if err != nil {
+					LOG.Errorf("Failed to do initialize services discovery on endpoint: %s, err: %+v, the watch process will attempt asynchronously", endpoint, err)
+					return
+				}
+				LOG.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services, hash: %s", endpoint, len(services), instancesSetHash(ws.selectedInstances))
+				initialServicesChan <- services
+			}()
+
+			var initialResolveCtx context.Context
+			var initialResolveCancel context.CancelFunc
+			if _initialResolveTimeout > 0 {
+				initialResolveCtx, initialResolveCancel = context.WithTimeout(ctx, _initialResolveTimeout)
+			} else {
+				initialResolveCtx, initialResolveCancel = context.WithCancel(ctx)
 			}
-			LOG.Infof("Succeeded to do initialize services discovery on endpoint: %s, %d services, hash: %s", endpoint, len(services), instancesSetHash(ws.selectedInstances))
-			ws.selectedInstances = services
-			applier.Callback(services)
+			defer initialResolveCancel()
+
+			select {
+			case services := <-initialServicesChan:
+				ws.selectedInstances = services
+				applier.Callback(services)
+			case <-initialResolveCtx.Done():
+				emptyServices := []*registry.ServiceInstance{}
+				ws.selectedInstances = emptyServices
+				applier.Callback(emptyServices)
+				LOG.Warnf("Initial resolve timeout on endpoint: %s, will attempt asynchronously", endpoint)
+			}
 		}()
 
 		go func() {
