@@ -40,7 +40,7 @@ var (
 		Subsystem: "gateway",
 		Name:      "requests_duration_seconds",
 		Help:      "Requests duration(sec).",
-		Buckets:   []float64{0.2, 0.5, 1, 5},
+		Buckets:   []float64{0.01, 0.1, 0.5, 1, 5},
 	}, []string{"protocol", "method", "path", "service", "basePath"})
 	_metricSentBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
