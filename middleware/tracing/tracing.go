@@ -114,8 +114,13 @@ func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerPro
 	}
 
 	otlpoptions := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(options.HttpEndpoint),
 		otlptracehttp.WithTimeout(timeout),
+	}
+	switch options.Endpoint.(type) {
+	case *v1.Tracing_HttpEndpoint:
+		otlpoptions = append(otlpoptions, otlptracehttp.WithEndpoint(options.GetHttpEndpoint()))
+	case *v1.Tracing_HttpEndpointUrl:
+		otlpoptions = append(otlpoptions, otlptracehttp.WithEndpointURL(options.GetHttpEndpointUrl()))
 	}
 	if options.Insecure != nil && *options.Insecure {
 		otlpoptions = append(otlpoptions, otlptracehttp.WithInsecure())
