@@ -307,6 +307,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				break
 			}
 			markFailed(req, i, errors.New("assertion failed"))
+			resp.Body.Close()
 			// continue the retry loop
 		}
 		if err != nil {
