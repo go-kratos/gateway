@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -47,6 +48,8 @@ func (f RoundTripperCloserFunc) Close() error {
 	return nil
 }
 
+var nopBody = io.NopCloser(&bytes.Buffer{})
+
 func TestProxy(t *testing.T) {
 	c := &config.Gateway{
 		Name: "Test",
@@ -76,13 +79,14 @@ func TestProxy(t *testing.T) {
 		Header: http.Header{
 			"testKey": []string{"testValue"},
 		},
+		Body: nopBody,
 	}
 	retryable := false
 	clientFactory := func(*client.BuildContext, *config.Endpoint) (client.Client, error) {
 		dummyClient := RoundTripperCloserFunc(func(req *http.Request) (*http.Response, error) {
 			if retryable {
 				retryable = false
-				return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+				return &http.Response{StatusCode: http.StatusInternalServerError, Body: nopBody}, nil
 			}
 			res.Body = req.Body
 			return res, nil
@@ -172,15 +176,15 @@ func TestRetryBreaker(t *testing.T) {
 				opt.UpstreamStatusCode = append(opt.UpstreamStatusCode, resp.StatusCode)
 			}()
 			if responseSuccess {
-				return &http.Response{StatusCode: http.StatusOK}, nil
+				return &http.Response{StatusCode: http.StatusOK, Body: nopBody}, nil
 			}
 			if len(opt.UpstreamStatusCode) > 0 {
 				if retryToSuccess {
-					return &http.Response{StatusCode: http.StatusOK}, nil
+					return &http.Response{StatusCode: http.StatusOK, Body: nopBody}, nil
 				}
-				return &http.Response{StatusCode: http.StatusNotImplemented}, nil
+				return &http.Response{StatusCode: http.StatusNotImplemented, Body: nopBody}, nil
 			}
-			return &http.Response{StatusCode: 505}, nil
+			return &http.Response{StatusCode: 505, Body: nopBody}, nil
 		})
 		return dummyClient, nil
 	}
