@@ -1,11 +1,15 @@
 package condition
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"testing"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
+
+var nopBody = io.NopCloser(&bytes.Buffer{})
 
 func TestRetryByStatusCode(t *testing.T) {
 	testCases := []struct {
@@ -19,7 +23,7 @@ func TestRetryByStatusCode(t *testing.T) {
 					ByStatusCode: "501",
 				},
 			},
-			resp:   &http.Response{StatusCode: 501},
+			resp:   &http.Response{StatusCode: 501, Body: nopBody},
 			result: true,
 		},
 		{
@@ -28,7 +32,7 @@ func TestRetryByStatusCode(t *testing.T) {
 					ByStatusCode: "501-509",
 				},
 			},
-			resp:   &http.Response{StatusCode: 500},
+			resp:   &http.Response{StatusCode: 500, Body: nopBody},
 			result: false,
 		},
 		{
@@ -37,7 +41,7 @@ func TestRetryByStatusCode(t *testing.T) {
 					ByStatusCode: "501-509",
 				},
 			},
-			resp:   &http.Response{StatusCode: 502},
+			resp:   &http.Response{StatusCode: 502, Body: nopBody},
 			result: true,
 		},
 	}
@@ -72,6 +76,7 @@ func TestRetryByHeader(t *testing.T) {
 				Header: http.Header{
 					"Grpc-Status": []string{"5"},
 				},
+				Body: nopBody,
 			},
 			result: true,
 		},
@@ -88,6 +93,7 @@ func TestRetryByHeader(t *testing.T) {
 				Header: http.Header{
 					"Grpc-Status": []string{"10"},
 				},
+				Body: nopBody,
 			},
 			result: false,
 		},
@@ -104,6 +110,7 @@ func TestRetryByHeader(t *testing.T) {
 				Header: http.Header{
 					"Grpc-Status": []string{"15"},
 				},
+				Body: nopBody,
 			},
 			result: true,
 		},
@@ -120,6 +127,7 @@ func TestRetryByHeader(t *testing.T) {
 				Header: http.Header{
 					"Grpc-Status": []string{"16"},
 				},
+				Body: nopBody,
 			},
 			result: true,
 		},
@@ -136,6 +144,7 @@ func TestRetryByHeader(t *testing.T) {
 				Header: http.Header{
 					"Xxx-Should-Retry": []string{"true"},
 				},
+				Body: nopBody,
 			},
 			result: true,
 		},
@@ -150,6 +159,7 @@ func TestRetryByHeader(t *testing.T) {
 			},
 			resp: &http.Response{
 				Header: http.Header{},
+				Body:   nopBody,
 			},
 			result: false,
 		},
