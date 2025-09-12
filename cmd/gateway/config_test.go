@@ -100,7 +100,9 @@ func equalTo() *configv1.Gateway {
 			{
 				Name: "tracing",
 				Options: asAny(&tracingv1.Tracing{
-					HttpEndpoint: "localhost:4318",
+					Endpoint: &tracingv1.Tracing_HttpEndpoint{
+						HttpEndpoint: "localhost:4318",
+					},
 				}),
 			},
 			{

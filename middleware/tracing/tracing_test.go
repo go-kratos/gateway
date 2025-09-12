@@ -15,7 +15,9 @@ import (
 
 func TestTracer(t *testing.T) {
 	cfg, err := anypb.New(&v1.Tracing{
-		HttpEndpoint: "127.0.0.1:4318",
+		Endpoint: &v1.Tracing_HttpEndpoint{
+			HttpEndpoint: "127.0.0.1:4318",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
