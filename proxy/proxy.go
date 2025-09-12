@@ -320,6 +320,14 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			headers[k] = v
 		}
 		w.WriteHeader(resp.StatusCode)
+		// flush headers immediately for HTTP/2 GRPC requests.
+		// otherwise, the http2 server will send `content-length: 0` in error response,
+		// which will cause many reverse proxy into unexpected state.
+		if reqOpts.Endpoint.Protocol == config.Protocol_GRPC && req.ProtoMajor == 2 {
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		}
 
 		doCopyBody := func() bool {
 			if resp.Body == nil {
