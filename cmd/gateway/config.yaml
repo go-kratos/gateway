@@ -8,16 +8,6 @@ middlewares:
       httpEndpoint: 'localhost:4318' # default opentelemetry collector port
   - name: logging
   - name: transcoder
-  - name: cors
-    options:
-      '@type': type.googleapis.com/gateway.middleware.cors.v1.Cors
-      allowCredentials: true
-      allowOrigins:
-        - .google.com
-      allowMethods:
-        - GET
-        - POST
-        - OPTIONS
     method: POST
     timeout: 1s
     protocol: GRPC
@@ -45,3 +35,8 @@ streamEndpoints:
     protocol: GRPC
     backends:
       - target: '127.0.0.1:50051'
+  - path: /ws
+    timeout: 1s
+    protocol: HTTP
+    backends:
+      - target: '127.0.0.1:18080'
