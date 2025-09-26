@@ -413,6 +413,17 @@ func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (re
 		}
 		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
+	for _, e := range c.StreamEndpoints {
+		handler, closer, err := p.buildStreamEndpoint(buildContext, e, c.Middlewares)
+		if err != nil {
+			return err
+		}
+		defer closeOnError(closer, &retError)
+		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
+			return err
+		}
+		log.Infof("build stream endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+	}
 	old := p.router.Swap(router)
 	tryCloseRouter(old)
 	return nil

@@ -14,6 +14,8 @@ message Gateway {
     repeated Endpoint endpoints = 4;
     repeated Middleware middlewares = 5;
     map<string, TLS> tls_store = 6;
+    // stream endpoints are used to support bidirectional request/response like websocket or grpc stream
+    repeated Endpoint stream_endpoints = 7;
 }
 
 message TLS {
