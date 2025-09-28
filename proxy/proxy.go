@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"runtime"
 	"strconv"
@@ -260,6 +261,31 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			requestsDurationObserve(req, labels, time.Since(startTime).Seconds())
 		}()
 
+		proxyStream := func() {
+			reverseProxy := &httputil.ReverseProxy{
+				Rewrite: func(_ *httputil.ProxyRequest) {},
+				ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
+					reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
+					markFailed(req, 0, err)
+					writeError(w, req, err, labels)
+				},
+				ModifyResponse: func(resp *http.Response) error {
+					reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
+					markSuccess(req, 0)
+					requestsTotalIncr(req, labels, resp.StatusCode)
+					return nil
+				},
+				Transport:     tripper,
+				FlushInterval: -1,
+			}
+			reverseProxy.ServeHTTP(w, req.Clone(ctx))
+			fmt.Println("STREAM PROXY DONE")
+		}
+		if e.Stream {
+			proxyStream()
+			return
+		}
+
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			writeError(w, req, err, labels)
@@ -403,30 +429,15 @@ func closeOnError(closer io.Closer, err *error) {
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
-		switch e.Stream {
-		case true:
-			handler, closer, err := p.buildStreamEndpoint(buildContext, e, c.Middlewares)
-			if err != nil {
-				return err
-			}
-			defer closeOnError(closer, &retError)
-			if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
-				return err
-			}
-			log.Infof("build stream endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
-			continue
-		default:
-			handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
-			if err != nil {
-				return err
-			}
-			defer closeOnError(closer, &retError)
-			if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
-				return err
-			}
-			log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
-			continue
+		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
+		if err != nil {
+			return err
 		}
+		defer closeOnError(closer, &retError)
+		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
+			return err
+		}
+		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
 	old := p.router.Swap(router)
 	tryCloseRouter(old)

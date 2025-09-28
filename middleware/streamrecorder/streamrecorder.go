@@ -170,5 +170,5 @@ func (b *readCloserBody) Read(p []byte) (n int, err error) {
 }
 
 func (b *readCloserBody) String() string {
-	return fmt.Sprintf("readCloserBody{idx: %d, tag: %d, messages: %v}", b.idx, b.tag, b.messages)
+	return fmt.Sprintf("readCloserBody{idx: %d, tag: %d, messages: %d}", b.idx, b.tag, len(b.messages))
 }

@@ -24,15 +24,9 @@ endpoints:
     backends:
       - target: '127.0.0.1:50051'
     stream: true
-    retry:
-      attempts: 1
-      perTryTimeout: 10s
   - path: /ws
     timeout: 10s
     protocol: HTTP
     backends:
       - target: '127.0.0.1:18080'
     stream: true
-    retry:
-      attempts: 1
-      perTryTimeout: 10s
