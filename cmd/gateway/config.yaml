@@ -22,21 +22,23 @@ middlewares:
             name: 'Grpc-Status'
             value: '14'
 endpoints:
-streamEndpoints:
   - path: /
     timeout: 1s
     protocol: HTTP
     backends:
       - target: 'www.baidu.com'
         tls: true
+    stream: true
   - path: /grpc.examples.echo.Echo/BidirectionalStreamingEcho
     method: POST
     timeout: 1s
     protocol: GRPC
     backends:
       - target: '127.0.0.1:50051'
+    stream: true
   - path: /ws
     timeout: 1s
     protocol: HTTP
     backends:
       - target: '127.0.0.1:18080'
+    stream: true

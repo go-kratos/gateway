@@ -32,6 +32,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			ctx := req.Context()
 			// nodes, _ := middleware.RequestBackendsFromContext(ctx)
 			reqOpt, _ := middleware.FromRequestContext(ctx)
+			isStream := false
+			if reqOpt.Endpoint != nil {
+				isStream = reqOpt.Endpoint.Stream
+			}
 			log.Context(ctx).Log(level,
 				"source", "accesslog",
 				"host", req.Host,
@@ -46,6 +50,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"backend_code", reqOpt.UpstreamStatusCode,
 				"backend_latency", reqOpt.UpstreamResponseTime,
 				"last_attempt", reqOpt.LastAttempt,
+				"stream", isStream,
 			)
 			return reply, err
 		})

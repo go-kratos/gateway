@@ -45,5 +45,5 @@ func (p *Proxy) buildStreamEndpoint(buildContext *client.BuildContext, e *config
 		},
 		Transport:     tripper,
 		FlushInterval: -1,
-	}, io.NopCloser(nil), nil
+	}, closer, nil
 }

@@ -403,26 +403,30 @@ func closeOnError(closer io.Closer, err *error) {
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
-		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
-		if err != nil {
-			return err
+		switch e.Stream {
+		case true:
+			handler, closer, err := p.buildStreamEndpoint(buildContext, e, c.Middlewares)
+			if err != nil {
+				return err
+			}
+			defer closeOnError(closer, &retError)
+			if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
+				return err
+			}
+			log.Infof("build stream endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+			continue
+		default:
+			handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
+			if err != nil {
+				return err
+			}
+			defer closeOnError(closer, &retError)
+			if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
+				return err
+			}
+			log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+			continue
 		}
-		defer closeOnError(closer, &retError)
-		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
-			return err
-		}
-		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
-	}
-	for _, e := range c.StreamEndpoints {
-		handler, closer, err := p.buildStreamEndpoint(buildContext, e, c.Middlewares)
-		if err != nil {
-			return err
-		}
-		defer closeOnError(closer, &retError)
-		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
-			return err
-		}
-		log.Infof("build stream endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
 	old := p.router.Swap(router)
 	tryCloseRouter(old)
