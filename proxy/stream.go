@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,10 +29,10 @@ func (p *Proxy) buildStreamEndpoint(buildContext *client.BuildContext, e *config
 	if err != nil {
 		return nil, nil, err
 	}
-	// retryStrategy, err := prepareRetryStrategy(e)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
+	retryStrategy, err := prepareRetryStrategy(e)
+	if err != nil {
+		return nil, nil, err
+	}
 	labels := middleware.NewMetricsLabels(e)
 	markSuccessStat, markFailedStat := splitRetryMetricsHandler(e)
 	retryBreaker := sre.NewBreaker(sre.WithSuccess(0.8))
@@ -47,25 +48,29 @@ func (p *Proxy) buildStreamEndpoint(buildContext *client.BuildContext, e *config
 			retryBreaker.MarkFailed()
 		}
 	}
-	return &httputil.ReverseProxy{
-		Rewrite: func(proxy *httputil.ProxyRequest) {
-			reqOpts := middleware.NewRequestOptions(e)
-			ctx := middleware.NewRequestContext(proxy.Out.Context(), reqOpts)
-			newReq := proxy.Out.WithContext(ctx)
-			proxy.Out = newReq
-			fmt.Println("Incoming request", proxy.Out.URL.String())
-		},
-		ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
-			markFailed(req, 0, err)
-			writeError(w, req, err, labels)
-		},
-		ModifyResponse: func(res *http.Response) error {
-			// Wrap respnse body, record the whole response body
-			fmt.Println("Outgoing response", res.StatusCode, res.Header)
-			markSuccess(res.Request, 0)
-			return nil
-		},
-		Transport:     tripper,
-		FlushInterval: -1,
-	}, closer, nil
+
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		reqOpts := middleware.NewRequestOptions(e)
+		// stream should always be last attempt
+		reqOpts.LastAttempt = true
+		ctx := middleware.NewRequestContext(req.Context(), reqOpts)
+		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
+		defer cancel()
+
+		reverseProxy := &httputil.ReverseProxy{
+			Rewrite: func(_ *httputil.ProxyRequest) {},
+			ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
+				markFailed(req, 0, err)
+				writeError(w, req, err, labels)
+			},
+			ModifyResponse: func(res *http.Response) error {
+				markSuccess(req, 0)
+				return nil
+			},
+			Transport:     tripper,
+			FlushInterval: -1,
+		}
+		reverseProxy.ServeHTTP(w, req.Clone(ctx))
+		fmt.Println("STREAM PROXY DONE")
+	}), closer, nil
 }

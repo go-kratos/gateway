@@ -8,19 +8,7 @@ middlewares:
       httpEndpoint: 'localhost:4318' # default opentelemetry collector port
   - name: logging
   - name: transcoder
-    method: POST
-    timeout: 1s
-    protocol: GRPC
-    backends:
-      - target: '127.0.0.1:9000'
-    retry:
-      attempts: 3
-      perTryTimeout: 0.1s
-      conditions:
-        - byStatusCode: '502-504'
-        - byHeader:
-            name: 'Grpc-Status'
-            value: '14'
+  - name: streamrecorder
 endpoints:
   - path: /
     timeout: 1s
@@ -31,14 +19,20 @@ endpoints:
     stream: true
   - path: /grpc.examples.echo.Echo/BidirectionalStreamingEcho
     method: POST
-    timeout: 1s
+    timeout: 10s
     protocol: GRPC
     backends:
       - target: '127.0.0.1:50051'
     stream: true
+    retry:
+      attempts: 1
+      perTryTimeout: 10s
   - path: /ws
-    timeout: 1s
+    timeout: 10s
     protocol: HTTP
     backends:
       - target: '127.0.0.1:18080'
     stream: true
+    retry:
+      attempts: 1
+      perTryTimeout: 10s

@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -36,6 +37,34 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if reqOpt.Endpoint != nil {
 				isStream = reqOpt.Endpoint.Stream
 			}
+			if isStream {
+				notifier, ok := reply.Body.(http.CloseNotifier)
+				if ok {
+					fmt.Println("GOT STREAM CLOSE NOTIFIER")
+					go func() {
+						<-notifier.CloseNotify()
+						log.Context(ctx).Log(level,
+							"source", "accesslog",
+							"host", req.Host,
+							"method", req.Method,
+							"scheme", req.URL.Scheme,
+							"path", req.URL.Path,
+							"query", req.URL.RawQuery,
+							"code", code,
+							"error", errMsg,
+							"latency", time.Since(startTime).Seconds(),
+							"backend", strings.Join(reqOpt.Backends, ","),
+							"backend_code", reqOpt.UpstreamStatusCode,
+							"backend_latency", reqOpt.UpstreamResponseTime,
+							"last_attempt", reqOpt.LastAttempt,
+							"stream", isStream,
+							"stream_body", notifier,
+						)
+					}()
+					return reply, err
+				}
+			}
+
 			log.Context(ctx).Log(level,
 				"source", "accesslog",
 				"host", req.Host,
