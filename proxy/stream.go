@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 
+	"github.com/go-kratos/aegis/circuitbreaker/sre"
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
@@ -31,6 +32,21 @@ func (p *Proxy) buildStreamEndpoint(buildContext *client.BuildContext, e *config
 	// if err != nil {
 	// 	return nil, nil, err
 	// }
+	labels := middleware.NewMetricsLabels(e)
+	markSuccessStat, markFailedStat := splitRetryMetricsHandler(e)
+	retryBreaker := sre.NewBreaker(sre.WithSuccess(0.8))
+	markSuccess := func(req *http.Request, i int) {
+		markSuccessStat(req, i)
+		if i > 0 {
+			retryBreaker.MarkSuccess()
+		}
+	}
+	markFailed := func(req *http.Request, i int, err error) {
+		markFailedStat(req, i, err)
+		if i > 0 {
+			retryBreaker.MarkFailed()
+		}
+	}
 	return &httputil.ReverseProxy{
 		Rewrite: func(proxy *httputil.ProxyRequest) {
 			reqOpts := middleware.NewRequestOptions(e)
@@ -39,8 +55,14 @@ func (p *Proxy) buildStreamEndpoint(buildContext *client.BuildContext, e *config
 			proxy.Out = newReq
 			fmt.Println("Incoming request", proxy.Out.URL.String())
 		},
+		ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
+			markFailed(req, 0, err)
+			writeError(w, req, err, labels)
+		},
 		ModifyResponse: func(res *http.Response) error {
+			// Wrap respnse body, record the whole response body
 			fmt.Println("Outgoing response", res.StatusCode, res.Header)
+			markSuccess(res.Request, 0)
 			return nil
 		},
 		Transport:     tripper,
