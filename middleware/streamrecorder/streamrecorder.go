@@ -15,14 +15,14 @@ func init() {
 }
 
 func New(*configv1.Middleware) (middleware.MiddlewareV2, error) {
-	return &streamRecorderWrapper{}, nil
+	return &streamRecorder{}, nil
 }
 
-type streamRecorderWrapper struct{}
+type streamRecorder struct{}
 
-var _ middleware.MiddlewareV2 = (*streamRecorderWrapper)(nil)
+var _ middleware.MiddlewareV2 = (*streamRecorder)(nil)
 
-func (s *streamRecorderWrapper) Process(next http.RoundTripper) http.RoundTripper {
+func (s *streamRecorder) Process(next http.RoundTripper) http.RoundTripper {
 	return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		reply, err := next.RoundTrip(req)
 		if err != nil {
@@ -37,7 +37,7 @@ func (s *streamRecorderWrapper) Process(next http.RoundTripper) http.RoundTrippe
 	})
 }
 
-func (s *streamRecorderWrapper) processH1(_ *http.Request, reply *http.Response) {
+func (s *streamRecorder) processH1(_ *http.Request, reply *http.Response) {
 	if reply.Body != nil {
 		rwc, ok := reply.Body.(io.ReadWriteCloser)
 		if ok {
@@ -51,7 +51,7 @@ func (s *streamRecorderWrapper) processH1(_ *http.Request, reply *http.Response)
 	}
 }
 
-func (s *streamRecorderWrapper) processH2(req *http.Request, reply *http.Response) {
+func (s *streamRecorder) processH2(req *http.Request, reply *http.Response) {
 	messages := []message{}
 	if req.Body != nil {
 		w := newReadCloserBody(req.Body, tagRequest, messages)
@@ -67,7 +67,7 @@ func (s *streamRecorderWrapper) processH2(req *http.Request, reply *http.Respons
 	}
 }
 
-func (s *streamRecorderWrapper) Close() error {
+func (s *streamRecorder) Close() error {
 	return nil
 }
 
