@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -40,7 +39,6 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			if isStream {
 				notifier, ok := reply.Body.(http.CloseNotifier)
 				if ok {
-					fmt.Println("GOT STREAM CLOSE NOTIFIER")
 					go func() {
 						<-notifier.CloseNotify()
 						log.Context(ctx).Log(level,

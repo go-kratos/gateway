@@ -42,10 +42,6 @@ func (s *streamRecorder) processH1(_ *http.Request, reply *http.Response) {
 		rwc, ok := reply.Body.(io.ReadWriteCloser)
 		if ok {
 			w := newReadWriteCloserBody(rwc)
-			go func() {
-				<-w.done
-				fmt.Println("WEBSOCKET PROXY DONE")
-			}()
 			reply.Body = w
 		}
 	}
@@ -59,10 +55,6 @@ func (s *streamRecorder) processH2(req *http.Request, reply *http.Response) {
 	}
 	if reply.Body != nil {
 		w := newReadCloserBody(reply.Body, tagResponse, messages)
-		go func() {
-			<-w.done
-			fmt.Println("GRPC STREAM PROXY DONE")
-		}()
 		reply.Body = w
 	}
 }

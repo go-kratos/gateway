@@ -279,7 +279,6 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				FlushInterval: -1,
 			}
 			reverseProxy.ServeHTTP(w, req.Clone(ctx))
-			fmt.Println("STREAM PROXY DONE")
 		}
 		if e.Stream {
 			proxyStream()
