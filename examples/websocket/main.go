@@ -60,7 +60,7 @@ func handleWebsocket(conn *websocket.Conn) {
 		}
 
 		log.Printf("received message: %q", payload)
-		response := fmt.Sprintf("[%s] echo: %s", time.Now().Format(time.RFC3339), payload)
+		response := fmt.Sprintf("[%s] S echo: %s", time.Now().Format(time.RFC3339), payload)
 		if err := websocket.Message.Send(conn, response); err != nil {
 			log.Printf("write error: %v", err)
 			return

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
@@ -24,13 +25,23 @@ var _ middleware.MiddlewareV2 = (*streamRecorder)(nil)
 
 func (s *streamRecorder) Process(next http.RoundTripper) http.RoundTripper {
 	return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if req.ProtoMajor == 2 {
+			chunks := newBodyChunks()
+			if req.Body != nil {
+				w := newReadCloserBody(req.Body, TagRequest, chunks)
+				req.Body = w
+			}
+			reply, err := next.RoundTrip(req)
+			if err != nil {
+				return nil, err
+			}
+			s.processH2(req, reply, chunks)
+			return reply, nil
+		}
+
 		reply, err := next.RoundTrip(req)
 		if err != nil {
 			return nil, err
-		}
-		if reply.ProtoMajor == 2 {
-			s.processH2(req, reply)
-			return reply, nil
 		}
 		s.processH1(req, reply)
 		return reply, nil
@@ -43,18 +54,17 @@ func (s *streamRecorder) processH1(_ *http.Request, reply *http.Response) {
 		if ok {
 			w := newReadWriteCloserBody(rwc)
 			reply.Body = w
+			return
 		}
+		w := newReadCloserBody(reply.Body, TagResponse, newBodyChunks())
+		reply.Body = w
+		return
 	}
 }
 
-func (s *streamRecorder) processH2(req *http.Request, reply *http.Response) {
-	messages := []message{}
-	if req.Body != nil {
-		w := newReadCloserBody(req.Body, tagRequest, messages)
-		req.Body = w
-	}
+func (s *streamRecorder) processH2(_ *http.Request, reply *http.Response, chunks *bodyChunks) {
 	if reply.Body != nil {
-		w := newReadCloserBody(reply.Body, tagResponse, messages)
+		w := newReadCloserBody(reply.Body, TagResponse, chunks)
 		reply.Body = w
 	}
 }
@@ -64,41 +74,28 @@ func (s *streamRecorder) Close() error {
 }
 
 const (
-	tagRead  = 0
-	tagWrite = 1
-
-	tagRequest  = 0
-	tagResponse = 1
+	TagRequest  = "request"
+	TagResponse = "response"
 )
 
 type message struct {
-	idx  int64
-	tag  int8
-	data []byte
+	Index int64
+	Tag   string
+	Data  []byte
 }
 
-var _ http.CloseNotifier = (*readWriteCloserBody)(nil)
+var _ ChunkRecorder = (*readWriteCloserBody)(nil)
 
 type readWriteCloserBody struct {
-	idx      int64
-	messages struct {
-		read  []message
-		write []message
-	}
-	done chan bool
+	chunks *bodyChunks
+	done   chan bool
 	io.ReadWriteCloser
 }
 
 func newReadWriteCloserBody(rwc io.ReadWriteCloser) *readWriteCloserBody {
 	return &readWriteCloserBody{
-		done: make(chan bool),
-		messages: struct {
-			read  []message
-			write []message
-		}{
-			read:  []message{},
-			write: []message{},
-		},
+		done:            make(chan bool),
+		chunks:          newBodyChunks(),
 		ReadWriteCloser: rwc,
 	}
 }
@@ -112,40 +109,82 @@ func (b *readWriteCloserBody) Close() error {
 	return b.ReadWriteCloser.Close()
 }
 
-func (b *readWriteCloserBody) Read(p []byte) (n int, err error) {
-	idx := atomic.AddInt64(&b.idx, 1)
-	b.messages.read = append(b.messages.read, message{idx: idx, tag: tagRead, data: p})
-	return b.ReadWriteCloser.Read(p)
+func dupData(p []byte) []byte {
+	dup := make([]byte, len(p))
+	copy(dup, p)
+	return dup
 }
 
-func (b *readWriteCloserBody) Write(p []byte) (n int, err error) {
-	idx := atomic.AddInt64(&b.idx, 1)
-	b.messages.write = append(b.messages.write, message{idx: idx, tag: tagWrite, data: p})
-	return b.ReadWriteCloser.Write(p)
+func (b *readWriteCloserBody) Read(p []byte) (int, error) {
+	n, err := b.ReadWriteCloser.Read(p)
+	b.chunks.Append(&message{Tag: TagResponse, Data: dupData(p[:n])})
+	return n, err
+}
+
+func (b *readWriteCloserBody) Write(p []byte) (int, error) {
+	n, err := b.ReadWriteCloser.Write(p)
+	b.chunks.Append(&message{Tag: TagRequest, Data: dupData(p[:n])})
+	return n, err
 }
 
 func (b *readWriteCloserBody) String() string {
-	return fmt.Sprintf("readWriteCloserBody{idx: %d, messages: %d}", b.idx, len(b.messages.read)+len(b.messages.write))
+	return fmt.Sprintf("websocketIO{chunks: %d}", b.chunks.Len())
 }
 
-var _ http.CloseNotifier = (*readCloserBody)(nil)
+func (b *readWriteCloserBody) GetChunks() []*message {
+	return b.chunks.GetChunks()
+}
+
+var _ ChunkRecorder = (*readCloserBody)(nil)
+
+type bodyChunks struct {
+	sync.Mutex
+	length int64
+	chunks []*message
+}
+
+func (c *bodyChunks) Append(m *message) {
+	c.Lock()
+	defer c.Unlock()
+	m.Index = atomic.AddInt64(&c.length, 1)
+	c.chunks = append(c.chunks, m)
+}
+
+func (c *bodyChunks) Len() int64 {
+	return atomic.LoadInt64(&c.length)
+}
+
+func (c *bodyChunks) GetChunks() []*message {
+	c.Lock()
+	defer c.Unlock()
+	out := make([]*message, c.length)
+	copy(out, c.chunks)
+	return out
+}
+
+func newBodyChunks() *bodyChunks {
+	return &bodyChunks{
+		chunks: make([]*message, 0),
+		length: 0,
+	}
+}
 
 type readCloserBody struct {
-	idx      int64
-	tag      int8
-	messages []message
-	done     chan bool
+	tag    string
+	chunks *bodyChunks
+	done   chan bool
 	io.ReadCloser
 }
 
-func newReadCloserBody(rc io.ReadCloser, tag int8, messages []message) *readCloserBody {
+func newReadCloserBody(rc io.ReadCloser, tag string, chunks *bodyChunks) *readCloserBody {
 	return &readCloserBody{
 		done:       make(chan bool),
-		messages:   messages,
+		chunks:     chunks,
 		tag:        tag,
 		ReadCloser: rc,
 	}
 }
+
 func (b *readCloserBody) CloseNotify() <-chan bool {
 	return b.done
 }
@@ -155,12 +194,21 @@ func (b *readCloserBody) Close() error {
 	return b.ReadCloser.Close()
 }
 
-func (b *readCloserBody) Read(p []byte) (n int, err error) {
-	idx := atomic.AddInt64(&b.idx, 1)
-	b.messages = append(b.messages, message{idx: idx, tag: b.tag, data: p})
-	return b.ReadCloser.Read(p)
+func (b *readCloserBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	b.chunks.Append(&message{Tag: b.tag, Data: dupData(p[:n])})
+	return n, err
 }
 
 func (b *readCloserBody) String() string {
-	return fmt.Sprintf("readCloserBody{idx: %d, tag: %d, messages: %d}", b.idx, b.tag, len(b.messages))
+	return fmt.Sprintf("http2Body{chunks: %d}", b.chunks.Len())
+}
+
+func (b *readCloserBody) GetChunks() []*message {
+	return b.chunks.GetChunks()
+}
+
+type ChunkRecorder interface {
+	CloseNotify() <-chan bool
+	GetChunks() []*message
 }

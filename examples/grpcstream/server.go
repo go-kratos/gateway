@@ -31,7 +31,7 @@ func (s *echoServer) BidirectionalStreamingEcho(stream pb.Echo_BidirectionalStre
 		if s.artificialDelay > 0 {
 			time.Sleep(s.artificialDelay)
 		}
-		resp := &pb.EchoResponse{Message: fmt.Sprintf("echo: %s", req.GetMessage())}
+		resp := &pb.EchoResponse{Message: fmt.Sprintf("S echo: %s", req.GetMessage())}
 		if err := stream.Send(resp); err != nil {
 			return fmt.Errorf("stream send failed: %w", err)
 		}
