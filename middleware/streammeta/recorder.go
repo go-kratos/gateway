@@ -1,78 +1,12 @@
-package streamrecorder
+package streammeta
 
 import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 	"sync/atomic"
-
-	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/gateway/middleware"
 )
-
-func init() {
-	middleware.RegisterV2("streamrecorder", New)
-}
-
-func New(*configv1.Middleware) (middleware.MiddlewareV2, error) {
-	return &streamRecorder{}, nil
-}
-
-type streamRecorder struct{}
-
-var _ middleware.MiddlewareV2 = (*streamRecorder)(nil)
-
-func (s *streamRecorder) Process(next http.RoundTripper) http.RoundTripper {
-	return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		if req.ProtoMajor == 2 {
-			chunks := newBodyChunks()
-			if req.Body != nil {
-				w := newReadCloserBody(req.Body, TagRequest, chunks)
-				req.Body = w
-			}
-			reply, err := next.RoundTrip(req)
-			if err != nil {
-				return nil, err
-			}
-			s.processH2(req, reply, chunks)
-			return reply, nil
-		}
-
-		reply, err := next.RoundTrip(req)
-		if err != nil {
-			return nil, err
-		}
-		s.processH1(req, reply)
-		return reply, nil
-	})
-}
-
-func (s *streamRecorder) processH1(_ *http.Request, reply *http.Response) {
-	if reply.Body != nil {
-		rwc, ok := reply.Body.(io.ReadWriteCloser)
-		if ok {
-			w := newReadWriteCloserBody(rwc)
-			reply.Body = w
-			return
-		}
-		w := newReadCloserBody(reply.Body, TagResponse, newBodyChunks())
-		reply.Body = w
-		return
-	}
-}
-
-func (s *streamRecorder) processH2(_ *http.Request, reply *http.Response, chunks *bodyChunks) {
-	if reply.Body != nil {
-		w := newReadCloserBody(reply.Body, TagResponse, chunks)
-		reply.Body = w
-	}
-}
-
-func (s *streamRecorder) Close() error {
-	return nil
-}
 
 const (
 	TagRequest  = "request"
@@ -88,13 +22,15 @@ type message struct {
 var _ ChunkRecorder = (*readWriteCloserBody)(nil)
 
 type readWriteCloserBody struct {
-	chunks *bodyChunks
-	done   chan bool
+	ctxValue *MetaStreamContextValue
+	chunks   *bodyChunks
+	done     chan bool
 	io.ReadWriteCloser
 }
 
-func newReadWriteCloserBody(rwc io.ReadWriteCloser) *readWriteCloserBody {
+func newReadWriteCloserBody(rwc io.ReadWriteCloser, ctxValue *MetaStreamContextValue) *readWriteCloserBody {
 	return &readWriteCloserBody{
+		ctxValue:        ctxValue,
 		done:            make(chan bool),
 		chunks:          newBodyChunks(),
 		ReadWriteCloser: rwc,
@@ -106,19 +42,36 @@ func (b *readWriteCloserBody) CloseNotify() <-chan bool {
 }
 
 func (b *readWriteCloserBody) Close() error {
+	defer func() {
+		for _, fn := range b.ctxValue.OnFinish {
+			fn(b.ctxValue.Request, b.ctxValue.Response)
+		}
+	}()
 	close(b.done)
 	return b.ReadWriteCloser.Close()
 }
 
 func (b *readWriteCloserBody) Read(p []byte) (int, error) {
 	n, err := b.ReadWriteCloser.Read(p)
-	b.chunks.Append(&message{Tag: TagResponse, Data: bytes.Clone(p[:n])})
+	m := &message{Tag: TagResponse, Data: bytes.Clone(p[:n])}
+	b.chunks.Append(m)
+	defer func() {
+		for _, fn := range b.ctxValue.OnChunk {
+			fn(b.ctxValue.Request, b.ctxValue.Response, m)
+		}
+	}()
 	return n, err
 }
 
 func (b *readWriteCloserBody) Write(p []byte) (int, error) {
 	n, err := b.ReadWriteCloser.Write(p)
-	b.chunks.Append(&message{Tag: TagRequest, Data: bytes.Clone(p[:n])})
+	m := &message{Tag: TagRequest, Data: bytes.Clone(p[:n])}
+	b.chunks.Append(m)
+	defer func() {
+		for _, fn := range b.ctxValue.OnChunk {
+			fn(b.ctxValue.Request, b.ctxValue.Response, m)
+		}
+	}()
 	return n, err
 }
 
@@ -165,14 +118,16 @@ func newBodyChunks() *bodyChunks {
 }
 
 type readCloserBody struct {
-	tag    string
-	chunks *bodyChunks
-	done   chan bool
+	ctxValue *MetaStreamContextValue
+	tag      string
+	chunks   *bodyChunks
+	done     chan bool
 	io.ReadCloser
 }
 
-func newReadCloserBody(rc io.ReadCloser, tag string, chunks *bodyChunks) *readCloserBody {
+func newReadCloserBody(rc io.ReadCloser, tag string, chunks *bodyChunks, ctxValue *MetaStreamContextValue) *readCloserBody {
 	return &readCloserBody{
+		ctxValue:   ctxValue,
 		done:       make(chan bool),
 		chunks:     chunks,
 		tag:        tag,
@@ -185,13 +140,24 @@ func (b *readCloserBody) CloseNotify() <-chan bool {
 }
 
 func (b *readCloserBody) Close() error {
+	defer func() {
+		for _, fn := range b.ctxValue.OnFinish {
+			fn(b.ctxValue.Request, b.ctxValue.Response)
+		}
+	}()
 	close(b.done)
 	return b.ReadCloser.Close()
 }
 
 func (b *readCloserBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
-	b.chunks.Append(&message{Tag: b.tag, Data: bytes.Clone(p[:n])})
+	m := &message{Tag: b.tag, Data: bytes.Clone(p[:n])}
+	b.chunks.Append(m)
+	defer func() {
+		for _, fn := range b.ctxValue.OnChunk {
+			fn(b.ctxValue.Request, b.ctxValue.Response, m)
+		}
+	}()
 	return n, err
 }
 
@@ -206,4 +172,24 @@ func (b *readCloserBody) GetChunks() []*message {
 type ChunkRecorder interface {
 	CloseNotify() <-chan bool
 	GetChunks() []*message
+}
+
+func ResponseBytes(in []*message) []byte {
+	var buf bytes.Buffer
+	for _, m := range in {
+		if m.Tag == TagResponse {
+			buf.Write(m.Data)
+		}
+	}
+	return buf.Bytes()
+}
+
+func RequestBytes(in []*message) []byte {
+	var buf bytes.Buffer
+	for _, m := range in {
+		if m.Tag == TagRequest {
+			buf.Write(m.Data)
+		}
+	}
+	return buf.Bytes()
 }

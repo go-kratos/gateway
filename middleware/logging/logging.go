@@ -7,7 +7,7 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
-	"github.com/go-kratos/gateway/middleware/streamrecorder"
+	"github.com/go-kratos/gateway/middleware/streammeta"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -38,7 +38,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				isStream = reqOpt.Endpoint.Stream
 			}
 			if isStream && reply != nil {
-				recorder, ok := reply.Body.(streamrecorder.ChunkRecorder)
+				recorder, ok := reply.Body.(streammeta.ChunkRecorder)
 				if ok {
 					go func() {
 						<-recorder.CloseNotify()
