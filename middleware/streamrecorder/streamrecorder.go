@@ -1,6 +1,7 @@
 package streamrecorder
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -109,21 +110,15 @@ func (b *readWriteCloserBody) Close() error {
 	return b.ReadWriteCloser.Close()
 }
 
-func dupData(p []byte) []byte {
-	dup := make([]byte, len(p))
-	copy(dup, p)
-	return dup
-}
-
 func (b *readWriteCloserBody) Read(p []byte) (int, error) {
 	n, err := b.ReadWriteCloser.Read(p)
-	b.chunks.Append(&message{Tag: TagResponse, Data: dupData(p[:n])})
+	b.chunks.Append(&message{Tag: TagResponse, Data: bytes.Clone(p[:n])})
 	return n, err
 }
 
 func (b *readWriteCloserBody) Write(p []byte) (int, error) {
 	n, err := b.ReadWriteCloser.Write(p)
-	b.chunks.Append(&message{Tag: TagRequest, Data: dupData(p[:n])})
+	b.chunks.Append(&message{Tag: TagRequest, Data: bytes.Clone(p[:n])})
 	return n, err
 }
 
@@ -196,7 +191,7 @@ func (b *readCloserBody) Close() error {
 
 func (b *readCloserBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
-	b.chunks.Append(&message{Tag: b.tag, Data: dupData(p[:n])})
+	b.chunks.Append(&message{Tag: b.tag, Data: bytes.Clone(p[:n])})
 	return n, err
 }
 
