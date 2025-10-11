@@ -267,7 +267,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		proxyStream := func() {
 			reqOpts.LastAttempt = true
 			streamCtx := &middleware.MetaStreamContext{
-				Request:  req,
+				Request:  nil,
 				Response: nil,
 				OnFinish: nil,
 				OnChunk:  nil,
@@ -539,6 +539,7 @@ func builtinStreamTripper(tripper http.RoundTripper) http.RoundTripper {
 		if !ok {
 			return tripper.RoundTrip(req)
 		}
+		streamCtx.Request = req
 		resp, err := tripper.RoundTrip(req)
 		if err != nil {
 			return nil, err
