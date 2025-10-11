@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
@@ -29,6 +30,24 @@ type streamRecorderKey struct{}
 type StreamRecorder struct {
 	Request  []*middleware.MetaStreamChunk
 	Response []*middleware.MetaStreamChunk
+}
+
+func (s *StreamRecorder) Mix() *streamReaderSeeker {
+	mixed := make([]*middleware.MetaStreamChunk, 0, len(s.Request)+len(s.Response))
+	mixed = append(mixed, s.Request...)
+	mixed = append(mixed, s.Response...)
+	sort.Slice(mixed, func(i, j int) bool {
+		return mixed[i].Index < mixed[j].Index
+	})
+	return &streamReaderSeeker{inner: mixed}
+}
+
+func (s *StreamRecorder) RequestReader() *streamReaderSeeker {
+	return &streamReaderSeeker{inner: s.Request}
+}
+
+func (s *StreamRecorder) ResponseReader() *streamReaderSeeker {
+	return &streamReaderSeeker{inner: s.Response}
 }
 
 func InitStreamRecorder(reqOpts *middleware.RequestOptions, recorder *StreamRecorder) {
