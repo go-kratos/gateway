@@ -18,10 +18,11 @@ const (
 
 type MetaStreamContextKey struct{}
 type MetaStreamContext struct {
-	Request  *http.Request
-	Response *http.Response
-	OnFinish []func(req *http.Request, reply *http.Response, tag string)
-	OnChunk  []func(req *http.Request, reply *http.Response, chunk *MetaStreamChunk)
+	Request    *http.Request
+	Response   *http.Response
+	OnResponse []func(req *http.Request, reply *http.Response)
+	OnFinish   []func(req *http.Request, reply *http.Response, tag string)
+	OnChunk    []func(req *http.Request, reply *http.Response, chunk *MetaStreamChunk)
 }
 
 func InitMetaStreamContext(opts *RequestOptions, value *MetaStreamContext) {

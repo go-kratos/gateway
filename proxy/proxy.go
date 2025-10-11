@@ -266,12 +266,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 
 		proxyStream := func() {
 			reqOpts.LastAttempt = true
-			streamCtx := &middleware.MetaStreamContext{
-				Request:  nil,
-				Response: nil,
-				OnFinish: nil,
-				OnChunk:  nil,
-			}
+			streamCtx := &middleware.MetaStreamContext{}
 			middleware.InitMetaStreamContext(reqOpts, streamCtx)
 			wrapStreamRequestBody(req, streamCtx)
 			reverseProxy := &httputil.ReverseProxy{
@@ -282,6 +277,11 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 					writeError(w, req, err, labels)
 				},
 				ModifyResponse: func(resp *http.Response) error {
+					defer func() {
+						for _, fn := range streamCtx.OnResponse {
+							fn(req, resp)
+						}
+					}()
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
 					markSuccess(req, 0)
 					requestsTotalIncr(req, labels, resp.StatusCode)
