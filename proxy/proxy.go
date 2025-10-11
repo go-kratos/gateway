@@ -222,6 +222,9 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 	closer := io.Closer(client)
 	defer closeOnError(closer, &retError)
 
+	if e.Stream {
+		tripper = builtinStreamTripper(tripper)
+	}
 	tripper, err = p.buildMiddleware(e.Middlewares, tripper)
 	if err != nil {
 		return nil, nil, err
@@ -262,8 +265,17 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		}()
 
 		proxyStream := func() {
+			reqOpts.LastAttempt = true
+			streamCtx := &middleware.MetaStreamContext{
+				Request:  req,
+				Response: nil,
+				OnFinish: nil,
+				OnChunk:  nil,
+			}
+			middleware.InitMetaStreamContext(reqOpts, streamCtx)
+			wrapStreamRequestBody(req, streamCtx)
 			reverseProxy := &httputil.ReverseProxy{
-				Rewrite: func(_ *httputil.ProxyRequest) {},
+				Rewrite: func(proxyRequest *httputil.ProxyRequest) {},
 				ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
 					markFailed(req, 0, err)
@@ -484,4 +496,55 @@ func (p *Proxy) DebugHandler() http.Handler {
 		json.NewEncoder(rw).Encode(inspect)
 	})
 	return debugMux
+}
+
+func wrapStreamRequestBody(req *http.Request, ctxValue *middleware.MetaStreamContext) {
+	if req.Body == nil {
+		return
+	}
+	switch req.ProtoMajor {
+	case 1:
+		return
+	case 2:
+		req.Body = middleware.WrapReadCloserBody(req.Body, middleware.TagRequest, ctxValue)
+	}
+}
+
+func wrapStreamResponseBody(resp *http.Response, ctxValue *middleware.MetaStreamContext) {
+	if resp.Body == nil {
+		return
+	}
+	switch resp.ProtoMajor {
+	case 1:
+		// websocket
+		rwc, ok := resp.Body.(io.ReadWriteCloser)
+		if ok {
+			resp.Body = middleware.WrapReadWriteCloserBody(rwc, ctxValue)
+			return
+		}
+		// common http1.x response body
+		resp.Body = middleware.WrapReadCloserBody(resp.Body, middleware.TagResponse, ctxValue)
+	case 2:
+		resp.Body = middleware.WrapReadCloserBody(resp.Body, middleware.TagResponse, ctxValue)
+	}
+}
+
+func builtinStreamTripper(tripper http.RoundTripper) http.RoundTripper {
+	return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		reqOpts, ok := middleware.FromRequestContext(req.Context())
+		if !ok {
+			return tripper.RoundTrip(req)
+		}
+		streamCtx, ok := middleware.GetMetaStreamContext(reqOpts)
+		if !ok {
+			return tripper.RoundTrip(req)
+		}
+		resp, err := tripper.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+		streamCtx.Response = resp
+		wrapStreamResponseBody(resp, streamCtx)
+		return resp, nil
+	})
 }

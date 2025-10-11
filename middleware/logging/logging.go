@@ -7,7 +7,6 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
-	"github.com/go-kratos/gateway/middleware/streammeta"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -38,10 +37,10 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				isStream = reqOpt.Endpoint.Stream
 			}
 			if isStream && reply != nil {
-				recorder, ok := reply.Body.(streammeta.ChunkRecorder)
+				streamBody, ok := reply.Body.(middleware.StreamBody)
 				if ok {
 					go func() {
-						<-recorder.CloseNotify()
+						<-streamBody.CloseNotify()
 						log.Context(ctx).Log(level,
 							"source", "accesslog",
 							"host", req.Host,
@@ -57,7 +56,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 							"backend_latency", reqOpt.UpstreamResponseTime,
 							"last_attempt", reqOpt.LastAttempt,
 							"stream", isStream,
-							"stream_body", recorder,
+							"stream_body", streamBody,
 						)
 					}()
 					return reply, err
