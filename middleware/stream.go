@@ -25,6 +25,12 @@ type MetaStreamContext struct {
 	OnChunk    []func(req *http.Request, reply *http.Response, chunk *MetaStreamChunk)
 }
 
+func (s *MetaStreamContext) DoOnResponse() {
+	for _, fn := range s.OnResponse {
+		fn(s.Request, s.Response)
+	}
+}
+
 func InitMetaStreamContext(opts *RequestOptions, value *MetaStreamContext) {
 	opts.Values.Set(MetaStreamContextKey{}, value)
 }
