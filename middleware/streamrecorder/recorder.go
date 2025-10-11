@@ -1,4 +1,4 @@
-package streammeta
+package streamrecorder
 
 import (
 	"fmt"
