@@ -239,7 +239,10 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 	}
 	labels := middleware.NewMetricsLabels(e)
 	markSuccessStat, markFailedStat := splitRetryMetricsHandler(e)
-	retryBreaker := sre.NewBreaker(sre.WithSuccess(0.8))
+	retryBreaker := sre.NewBreaker(
+		sre.WithRequest(10),
+		sre.WithSuccess(0.8),
+	)
 	markSuccess := func(req *http.Request, i int) {
 		markSuccessStat(req, i)
 		if i > 0 {
