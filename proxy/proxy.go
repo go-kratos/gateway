@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-kratos/aegis/circuitbreaker"
 	"github.com/go-kratos/aegis/circuitbreaker/sre"
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/client"
@@ -192,13 +193,13 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 	return next, nil
 }
 
-func splitRetryMetricsHandler(e *config.Endpoint) (func(*http.Request, int), func(*http.Request, int, error)) {
+func splitRetryMetricsHandler(e *config.Endpoint) (func(*http.Request, int), func(*http.Request, int, error), func(*http.Request, int)) {
 	labels := middleware.NewMetricsLabels(e)
 	success := func(req *http.Request, i int) {
 		if i <= 0 {
 			return
 		}
-		retryStateIncr(req, labels, true)
+		retryStateIncr(req, labels, "true")
 	}
 	failed := func(req *http.Request, i int, err error) {
 		if i <= 0 {
@@ -207,9 +208,15 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(*http.Request, int), fun
 		if errors.Is(err, context.Canceled) {
 			return
 		}
-		retryStateIncr(req, labels, false)
+		retryStateIncr(req, labels, "false")
 	}
-	return success, failed
+	breaker := func(req *http.Request, i int) {
+		if i <= 0 {
+			return
+		}
+		retryStateIncr(req, labels, "breaker")
+	}
+	return success, failed, breaker
 }
 
 func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint, ms []*config.Middleware) (_ http.Handler, _ io.Closer, retError error) {
@@ -234,7 +241,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		return nil, nil, err
 	}
 	labels := middleware.NewMetricsLabels(e)
-	markSuccessStat, markFailedStat := splitRetryMetricsHandler(e)
+	markSuccessStat, markFailedStat, markBreakerStat := splitRetryMetricsHandler(e)
 	retryBreaker := sre.NewBreaker(sre.WithSuccess(0.8), sre.WithRequest(10))
 	markSuccess := func(req *http.Request, i int) {
 		markSuccessStat(req, i)
@@ -247,6 +254,9 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		if i > 0 {
 			retryBreaker.MarkFailed()
 		}
+	}
+	markBreaker := func(req *http.Request, i int) {
+		markBreakerStat(req, i)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
@@ -278,7 +288,11 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 					break
 				}
 				if err := retryBreaker.Allow(); err != nil {
-					markFailed(req, i, err)
+					if errors.Is(err, circuitbreaker.ErrNotAllowed) {
+						markBreaker(req, i)
+					} else {
+						markFailed(req, i, err)
+					}
 					break
 				}
 			}
@@ -384,12 +398,8 @@ func requestsDurationObserve(req *http.Request, labels middleware.MetricsLabels,
 	_metricRequestsDuration.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath()).Observe(seconds)
 }
 
-func retryStateIncr(req *http.Request, labels middleware.MetricsLabels, success bool) {
-	if success {
-		_metricRetryState.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath(), "true").Inc()
-		return
-	}
-	_metricRetryState.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath(), "false").Inc()
+func retryStateIncr(req *http.Request, labels middleware.MetricsLabels, state string) {
+	_metricRetryState.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath(), state).Inc()
 }
 
 func closeOnError(closer io.Closer, err *error) {
