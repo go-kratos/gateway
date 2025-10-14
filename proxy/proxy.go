@@ -216,6 +216,7 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(*http.Request, int), fun
 		}
 		retryStateIncr(req, labels, "breaker")
 	}
+
 	return success, failed, breaker
 }
 
