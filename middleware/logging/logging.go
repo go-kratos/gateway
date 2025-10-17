@@ -32,6 +32,36 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			ctx := req.Context()
 			// nodes, _ := middleware.RequestBackendsFromContext(ctx)
 			reqOpt, _ := middleware.FromRequestContext(ctx)
+			isStream := false
+			if reqOpt.Endpoint != nil {
+				isStream = reqOpt.Endpoint.Stream
+			}
+			if isStream && reply != nil {
+				streamBody, ok := reply.Body.(middleware.StreamBody)
+				if ok {
+					go func() {
+						<-streamBody.CloseNotify()
+						log.Context(ctx).Log(level,
+							"source", "accesslog",
+							"host", req.Host,
+							"method", req.Method,
+							"scheme", req.URL.Scheme,
+							"path", req.URL.Path,
+							"query", req.URL.RawQuery,
+							"code", code,
+							"error", errMsg,
+							"latency", time.Since(startTime).Seconds(),
+							"backend", strings.Join(reqOpt.Backends, ","),
+							"backend_code", reqOpt.UpstreamStatusCode,
+							"backend_latency", reqOpt.UpstreamResponseTime,
+							"last_attempt", reqOpt.LastAttempt,
+							"stream", isStream,
+							"stream_body", streamBody,
+						)
+					}()
+					return reply, err
+				}
+			}
 			log.Context(ctx).Log(level,
 				"source", "accesslog",
 				"host", req.Host,
@@ -46,6 +76,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				"backend_code", reqOpt.UpstreamStatusCode,
 				"backend_latency", reqOpt.UpstreamResponseTime,
 				"last_attempt", reqOpt.LastAttempt,
+				"stream", isStream,
 			)
 			return reply, err
 		})

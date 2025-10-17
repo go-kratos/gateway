@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -56,6 +57,9 @@ func calcPerTryTimeout(endpoint *config.Endpoint) time.Duration {
 }
 
 func prepareRetryStrategy(e *config.Endpoint) (*retryStrategy, error) {
+	if e.Stream && e.Retry != nil {
+		return nil, errors.New("cannot configure retry strategy for stream endpoints")
+	}
 	strategy := &retryStrategy{
 		attempts:      calcAttempts(e),
 		timeout:       calcTimeout(e),

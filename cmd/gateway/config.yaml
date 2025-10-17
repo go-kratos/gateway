@@ -8,47 +8,25 @@ middlewares:
       httpEndpoint: 'localhost:4318' # default opentelemetry collector port
   - name: logging
   - name: transcoder
-  - name: cors
-    options:
-      '@type': type.googleapis.com/gateway.middleware.cors.v1.Cors
-      allowCredentials: true
-      allowOrigins:
-        - .google.com
-      allowMethods:
-        - GET
-        - POST
-        - OPTIONS
+  - name: streamrecorder
 endpoints:
-  - path: /helloworld/*
+  - path: /
     timeout: 1s
     protocol: HTTP
-    host: localhost
     backends:
-      - target: '127.0.0.1:8000'
-#      - target: 'discovery:///bbs'
-    middlewares:
-      - name: circuitbreaker
-        options:
-          '@type': type.googleapis.com/gateway.middleware.circuitbreaker.v1.CircuitBreaker
-          successRatio: {"success":0.6, "request":"1", "bucket":"10", "window":"3s"}
-          backupService: {"endpoint":{"backends":[{"target":"127.0.0.1:8001"}]}}
-          assertCondtions:
-          - {"by_status_code":"200"}
-      - name: rewrite
-        options:
-          '@type': type.googleapis.com/gateway.middleware.rewrite.v1.Rewrite
-#          stripPrefix: /bbs
-  - path: /helloworld.v1.Greeter/*
+      - target: 'www.baidu.com'
+        tls: true
+    stream: true
+  - path: /grpc.examples.echo.Echo/BidirectionalStreamingEcho
     method: POST
-    timeout: 1s
+    timeout: 10s
     protocol: GRPC
     backends:
-      - target: '127.0.0.1:9000'
-    retry:
-      attempts: 3
-      perTryTimeout: 0.1s
-      conditions:
-        - byStatusCode: '502-504'
-        - byHeader:
-            name: 'Grpc-Status'
-            value: '14'
+      - target: '127.0.0.1:50051'
+    stream: true
+  - path: /ws
+    timeout: 10s
+    protocol: HTTP
+    backends:
+      - target: '127.0.0.1:18080'
+    stream: true

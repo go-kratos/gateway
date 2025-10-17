@@ -41,6 +41,8 @@ message Endpoint {
     Retry retry = 8;
     map<string, string> metadata = 9;
     string host = 10;
+    // stream endpoints are used to support bidirectional request/response like websocket or grpc stream.
+    bool stream = 11;
 }
 
 message Middleware {
