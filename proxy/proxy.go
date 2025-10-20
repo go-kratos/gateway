@@ -511,6 +511,7 @@ func wrapStreamRequestBody(req *http.Request, ctxValue *middleware.MetaStreamCon
 	}
 	switch req.ProtoMajor {
 	case 1:
+		req.Body = middleware.WrapReadCloserBody(req.Body, middleware.TagRequest, ctxValue)
 		return
 	case 2:
 		req.Body = middleware.WrapReadCloserBody(req.Body, middleware.TagRequest, ctxValue)
