@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
@@ -36,9 +35,6 @@ func (s *StreamRecorder) Mix() *streamReaderSeeker {
 	mixed := make([]*middleware.MetaStreamChunk, 0, len(s.Request)+len(s.Response))
 	mixed = append(mixed, s.Request...)
 	mixed = append(mixed, s.Response...)
-	sort.Slice(mixed, func(i, j int) bool {
-		return mixed[i].Index < mixed[j].Index
-	})
 	return &streamReaderSeeker{inner: mixed}
 }
 

@@ -505,12 +505,21 @@ func (p *Proxy) DebugHandler() http.Handler {
 	return debugMux
 }
 
+func isWebSocketRequest(r *http.Request) bool {
+	return strings.EqualFold(r.Header.Get("Connection"), "Upgrade") &&
+		strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
+}
+
 func wrapStreamRequestBody(req *http.Request, ctxValue *middleware.MetaStreamContext) {
 	if req.Body == nil {
 		return
 	}
 	switch req.ProtoMajor {
 	case 1:
+		// the websocket request body does not need to be wrapped, all data will be received in response body
+		if isWebSocketRequest(req) {
+			return
+		}
 		req.Body = middleware.WrapReadCloserBody(req.Body, middleware.TagRequest, ctxValue)
 		return
 	case 2:

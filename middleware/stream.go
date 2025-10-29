@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"sync/atomic"
 )
 
 type StreamBody interface {
@@ -23,12 +24,31 @@ type MetaStreamContext struct {
 	OnResponse []func(req *http.Request, reply *http.Response)
 	OnFinish   []func(req *http.Request, reply *http.Response, tag string)
 	OnChunk    []func(req *http.Request, reply *http.Response, chunk *MetaStreamChunk)
+
+	// For bidirectional streaming: track when both request and response bodies are closed
+	// bodiesCount is the number of bodies to wait for (0, 1, or 2)
+	// closedCount tracks how many have been closed
+	bodiesCount int32
+	closedCount int32
+	finishOnce  sync.Once
 }
 
 func (s *MetaStreamContext) DoOnResponse() {
 	for _, fn := range s.OnResponse {
 		fn(s.Request, s.Response)
 	}
+}
+
+// RegisterBody increments the count of bodies to wait for before calling OnFinish
+func (s *MetaStreamContext) RegisterBody() {
+	atomic.AddInt32(&s.bodiesCount, 1)
+}
+
+// notifyBodyClosed is called when a body is closed. Returns true if all bodies are closed.
+func (s *MetaStreamContext) notifyBodyClosed() bool {
+	closed := atomic.AddInt32(&s.closedCount, 1)
+	expected := atomic.LoadInt32(&s.bodiesCount)
+	return closed >= expected && expected > 0
 }
 
 func InitMetaStreamContext(opts *RequestOptions, value *MetaStreamContext) {
@@ -44,9 +64,8 @@ func GetMetaStreamContext(opts *RequestOptions) (*MetaStreamContext, bool) {
 }
 
 type MetaStreamChunk struct {
-	Index int64
-	Tag   string
-	Data  []byte
+	Tag  string
+	Data []byte
 }
 
 var _ StreamBody = (*readWriteCloserBody)(nil)
@@ -59,6 +78,7 @@ type readWriteCloserBody struct {
 }
 
 func WrapReadWriteCloserBody(rwc io.ReadWriteCloser, ctxValue *MetaStreamContext) *readWriteCloserBody {
+	ctxValue.RegisterBody()
 	return &readWriteCloserBody{
 		ctxValue:        ctxValue,
 		done:            make(chan bool),
@@ -72,12 +92,15 @@ func (b *readWriteCloserBody) CloseNotify() <-chan bool {
 
 func (b *readWriteCloserBody) Close() error {
 	b.doneOnce.Do(func() {
-		defer func() {
-			for _, fn := range b.ctxValue.OnFinish {
-				fn(b.ctxValue.Request, b.ctxValue.Response, "")
-			}
-		}()
 		close(b.done)
+		// Only call OnFinish when all registered bodies are closed
+		if b.ctxValue.notifyBodyClosed() {
+			b.ctxValue.finishOnce.Do(func() {
+				for _, fn := range b.ctxValue.OnFinish {
+					fn(b.ctxValue.Request, b.ctxValue.Response, "")
+				}
+			})
+		}
 	})
 	return b.ReadWriteCloser.Close()
 }
@@ -115,6 +138,7 @@ type readCloserBody struct {
 }
 
 func WrapReadCloserBody(rc io.ReadCloser, tag string, ctxValue *MetaStreamContext) *readCloserBody {
+	ctxValue.RegisterBody()
 	return &readCloserBody{
 		ctxValue:   ctxValue,
 		done:       make(chan bool),
@@ -130,12 +154,15 @@ func (b *readCloserBody) CloseNotify() <-chan bool {
 func (b *readCloserBody) Close() error {
 	// In reverse proxy, the body maybe closed multiple times, so we need to use a sync.Once to ensure it is closed only once.
 	b.doneOnce.Do(func() {
-		defer func() {
-			for _, fn := range b.ctxValue.OnFinish {
-				fn(b.ctxValue.Request, b.ctxValue.Response, b.tag)
-			}
-		}()
 		close(b.done)
+		// Only call OnFinish when all registered bodies (request + response) are closed
+		if b.ctxValue.notifyBodyClosed() {
+			b.ctxValue.finishOnce.Do(func() {
+				for _, fn := range b.ctxValue.OnFinish {
+					fn(b.ctxValue.Request, b.ctxValue.Response, b.tag)
+				}
+			})
+		}
 	})
 	return b.ReadCloser.Close()
 }
