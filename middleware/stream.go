@@ -22,7 +22,7 @@ type MetaStreamContext struct {
 	Request    *http.Request
 	Response   *http.Response
 	OnResponse []func(req *http.Request, reply *http.Response)
-	OnFinish   []func(req *http.Request, reply *http.Response, tag string)
+	OnFinish   []func(req *http.Request, reply *http.Response)
 	OnChunk    []func(req *http.Request, reply *http.Response, chunk *MetaStreamChunk)
 
 	// For bidirectional streaming: track when both request and response bodies are closed
@@ -66,6 +66,7 @@ func GetMetaStreamContext(opts *RequestOptions) (*MetaStreamContext, bool) {
 type MetaStreamChunk struct {
 	Tag  string
 	Data []byte
+	Err  error
 }
 
 var _ StreamBody = (*readWriteCloserBody)(nil)
@@ -97,7 +98,7 @@ func (b *readWriteCloserBody) Close() error {
 		if b.ctxValue.notifyBodyClosed() {
 			b.ctxValue.finishOnce.Do(func() {
 				for _, fn := range b.ctxValue.OnFinish {
-					fn(b.ctxValue.Request, b.ctxValue.Response, "")
+					fn(b.ctxValue.Request, b.ctxValue.Response)
 				}
 			})
 		}
@@ -107,7 +108,7 @@ func (b *readWriteCloserBody) Close() error {
 
 func (b *readWriteCloserBody) Read(p []byte) (int, error) {
 	n, err := b.ReadWriteCloser.Read(p)
-	m := &MetaStreamChunk{Tag: TagResponse, Data: bytes.Clone(p[:n])}
+	m := &MetaStreamChunk{Tag: TagResponse, Data: bytes.Clone(p[:n]), Err: err}
 	defer func() {
 		for _, fn := range b.ctxValue.OnChunk {
 			fn(b.ctxValue.Request, b.ctxValue.Response, m)
@@ -118,7 +119,7 @@ func (b *readWriteCloserBody) Read(p []byte) (int, error) {
 
 func (b *readWriteCloserBody) Write(p []byte) (int, error) {
 	n, err := b.ReadWriteCloser.Write(p)
-	m := &MetaStreamChunk{Tag: TagRequest, Data: bytes.Clone(p[:n])}
+	m := &MetaStreamChunk{Tag: TagRequest, Data: bytes.Clone(p[:n]), Err: err}
 	defer func() {
 		for _, fn := range b.ctxValue.OnChunk {
 			fn(b.ctxValue.Request, b.ctxValue.Response, m)
@@ -159,7 +160,7 @@ func (b *readCloserBody) Close() error {
 		if b.ctxValue.notifyBodyClosed() {
 			b.ctxValue.finishOnce.Do(func() {
 				for _, fn := range b.ctxValue.OnFinish {
-					fn(b.ctxValue.Request, b.ctxValue.Response, b.tag)
+					fn(b.ctxValue.Request, b.ctxValue.Response)
 				}
 			})
 		}
@@ -169,7 +170,7 @@ func (b *readCloserBody) Close() error {
 
 func (b *readCloserBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
-	m := &MetaStreamChunk{Tag: b.tag, Data: bytes.Clone(p[:n])}
+	m := &MetaStreamChunk{Tag: b.tag, Data: bytes.Clone(p[:n]), Err: err}
 	defer func() {
 		for _, fn := range b.ctxValue.OnChunk {
 			fn(b.ctxValue.Request, b.ctxValue.Response, m)

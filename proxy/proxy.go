@@ -280,6 +280,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			streamCtx := &middleware.MetaStreamContext{}
 			middleware.InitMetaStreamContext(reqOpts, streamCtx)
 			wrapStreamRequestBody(req, streamCtx)
+			defer req.Body.Close()
 			reverseProxy := &httputil.ReverseProxy{
 				Rewrite: func(proxyRequest *httputil.ProxyRequest) {},
 				ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
