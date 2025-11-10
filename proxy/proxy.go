@@ -481,6 +481,9 @@ func tryCloseRouter(in interface{}) {
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
+			if err == http.ErrAbortHandler {
+				return
+			}
 			w.WriteHeader(http.StatusBadGateway)
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)

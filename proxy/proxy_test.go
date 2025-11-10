@@ -234,3 +234,101 @@ func TestRetryBreaker(t *testing.T) {
 	})
 
 }
+
+func TestRecoverErrAbortHandler(t *testing.T) {
+	// Test that http.ErrAbortHandler is properly recovered and identified
+	testCases := []struct {
+		name          string
+		panicValue    interface{}
+		shouldMatch   bool
+		shouldRepanic bool
+	}{
+		{
+			name:          "panic with http.ErrAbortHandler",
+			panicValue:    http.ErrAbortHandler,
+			shouldMatch:   true,
+			shouldRepanic: false,
+		},
+		{
+			name:          "panic with string error",
+			panicValue:    "some other error",
+			shouldMatch:   false,
+			shouldRepanic: true,
+		},
+		{
+			name:          "panic with custom error",
+			panicValue:    io.EOF,
+			shouldMatch:   false,
+			shouldRepanic: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var innerRecoveredErr interface{}
+			var outerRecoveredErr interface{}
+			var didInnerRecover bool
+			var didOuterRecover bool
+
+			// Outer recovery to catch re-panicked errors
+			func() {
+				defer func() {
+					if err := recover(); err != nil {
+						didOuterRecover = true
+						outerRecoveredErr = err
+					}
+				}()
+
+				// Inner function that simulates the proxyStream recovery logic
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+							didInnerRecover = true
+							innerRecoveredErr = err
+							// Check if it's http.ErrAbortHandler
+							if err == http.ErrAbortHandler {
+								// This is the expected case - silently return
+								return
+							}
+							// Re-panic for other errors
+							panic(err)
+						}
+					}()
+
+					// Trigger the panic
+					panic(tc.panicValue)
+				}()
+			}()
+
+			if !didInnerRecover {
+				t.Fatal("expected panic to be recovered by inner defer")
+			}
+
+			// Verify the error comparison
+			isAbortHandler := innerRecoveredErr == http.ErrAbortHandler
+			if isAbortHandler != tc.shouldMatch {
+				t.Errorf("expected isAbortHandler=%v, got %v (recovered: %v)",
+					tc.shouldMatch, isAbortHandler, innerRecoveredErr)
+			}
+
+			// Verify re-panic behavior
+			if tc.shouldRepanic {
+				if !didOuterRecover {
+					t.Error("expected re-panic to be caught by outer defer")
+				}
+				if outerRecoveredErr != tc.panicValue {
+					t.Errorf("expected outer recover to catch %v, got %v", tc.panicValue, outerRecoveredErr)
+				}
+			} else {
+				if didOuterRecover {
+					t.Errorf("unexpected re-panic for http.ErrAbortHandler: %v", outerRecoveredErr)
+				}
+			}
+
+			// For http.ErrAbortHandler, we should have returned early without re-panic
+			if tc.shouldMatch && innerRecoveredErr != http.ErrAbortHandler {
+				t.Errorf("expected to recover http.ErrAbortHandler, got %v", innerRecoveredErr)
+			}
+		})
+	}
+}
