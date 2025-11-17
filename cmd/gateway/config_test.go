@@ -95,6 +95,17 @@ func equalTo() *configv1.Gateway {
 					},
 				},
 			},
+			{
+				Path:     "/ws",
+				Timeout:  &durationpb.Duration{Seconds: 10},
+				Protocol: configv1.Protocol_HTTP,
+				Backends: []*configv1.Backend{
+					{
+						Target: "127.0.0.1:18080",
+					},
+				},
+				Stream: true,
+			},
 		},
 		Middlewares: []*configv1.Middleware{
 			{
@@ -118,6 +129,9 @@ func equalTo() *configv1.Gateway {
 					AllowOrigins:     []string{".google.com"},
 					AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 				}),
+			},
+			{
+				Name: "streamrecorder",
 			},
 		},
 	}
