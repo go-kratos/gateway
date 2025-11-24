@@ -278,6 +278,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		proxyStream := func() {
 			reqOpts.LastAttempt = true
 			streamCtx := &middleware.MetaStreamContext{}
+			defer streamCtx.DoOnFinish()
 			middleware.InitMetaStreamContext(reqOpts, streamCtx)
 			wrapStreamRequestBody(req, streamCtx)
 			defer req.Body.Close()
