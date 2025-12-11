@@ -101,6 +101,9 @@ func WithAttemptTimeoutContext(f AttemptTimeoutContext) Option {
 	}
 }
 
+// AttemptTimeoutContext is a function type that prepares a context with timeout for an HTTP request.
+type AttemptTimeoutContext func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router                       atomic.Value
