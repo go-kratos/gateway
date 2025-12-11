@@ -78,6 +78,8 @@ func NewObserver(endpoint *config.Endpoint) Observer {
 	return &observer{}
 }
 
+type observerKey struct{}
+
 type observable struct{}
 
 func (o *observable) Observe(endpoint *config.Endpoint) Observer {

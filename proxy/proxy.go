@@ -70,78 +70,56 @@ func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err 
 	observer.HandleRequest(r, w.Header(), statusCode)
 }
 
-// notFoundHandler replies to the request with an HTTP 404 not found error.
-func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	code := http.StatusNotFound
-	message := "404 page not found"
-	http.Error(w, message, code)
-	log.Context(r.Context()).Errorw(
-		"source", "accesslog",
-		"host", r.Host,
-		"method", r.Method,
-		"path", r.URL.Path,
-		"query", r.URL.RawQuery,
-		"user_agent", r.Header.Get("User-Agent"),
-		"code", code,
-		"error", message,
-	)
-	metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/404", strconv.Itoa(code), "", "").Inc()
-}
-
-func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
-	code := http.StatusMethodNotAllowed
-	message := http.StatusText(code)
-	http.Error(w, message, code)
-	log.Context(r.Context()).Errorw(
-		"source", "accesslog",
-		"host", r.Host,
-		"method", r.Method,
-		"path", r.URL.Path,
-		"query", r.URL.RawQuery,
-		"user_agent", r.Header.Get("User-Agent"),
-		"code", code,
-		"error", message,
-	)
-	metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/405", strconv.Itoa(code), "", "").Inc()
-}
-
-type interceptors struct {
-	prepareAttemptTimeoutContext func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)
-}
-
-func (i *interceptors) SetPrepareAttemptTimeoutContext(f func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)) {
-	if f != nil {
-		i.prepareAttemptTimeoutContext = f
-	}
-}
-
 // Option is proxy option.
 type Option func(*Proxy)
 
-// WithObserver set observer option.
-func WithObserver(o Observable) Option {
+// WithObservable set observable option.
+func WithObservable(o Observable) Option {
 	return func(p *Proxy) {
 		p.observable = o
 	}
 }
 
+// WithNotFoundHandler set not found handler option.
+func WithNotFoundHandler(h http.Handler) Option {
+	return func(p *Proxy) {
+		p.notFoundHandler = h
+	}
+}
+
+// WithMethodNotAllowedHandler set method not allowed handler option.
+func WithMethodNotAllowedHandler(h http.Handler) Option {
+	return func(p *Proxy) {
+		p.methodNotAllowedHandler = h
+	}
+}
+
+// WithAttemptTimeoutContext set attempt timeout context option.
+func WithAttemptTimeoutContext(f AttemptTimeoutContext) Option {
+	return func(p *Proxy) {
+		p.prepareAttemptTimeoutContext = f
+	}
+}
+
 // Proxy is a gateway proxy.
 type Proxy struct {
-	router            atomic.Value
-	clientFactory     client.Factory
-	Interceptors      interceptors
-	middlewareFactory middleware.FactoryV2
-	observable        Observable
+	router                       atomic.Value
+	clientFactory                client.Factory
+	middlewareFactory            middleware.FactoryV2
+	observable                   Observable
+	notFoundHandler              http.Handler
+	methodNotAllowedHandler      http.Handler
+	prepareAttemptTimeoutContext AttemptTimeoutContext
 }
 
 // New is new a gateway proxy.
 func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, opts ...Option) (*Proxy, error) {
 	p := &Proxy{
-		clientFactory:     clientFactory,
-		middlewareFactory: middlewareFactory,
-		Interceptors: interceptors{
-			prepareAttemptTimeoutContext: defaultAttemptTimeoutContext,
-		},
+		clientFactory:                clientFactory,
+		middlewareFactory:            middlewareFactory,
+		prepareAttemptTimeoutContext: defaultAttemptTimeoutContext,
+		notFoundHandler:              http.HandlerFunc(notFoundHandler),
+		methodNotAllowedHandler:      http.HandlerFunc(methodNotAllowedHandler),
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -150,7 +128,7 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 	if p.observable == nil {
 		p.observable = NewObservable()
 	}
-	p.router.Store(mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler)))
+	p.router.Store(mux.NewRouter(p.notFoundHandler, p.methodNotAllowedHandler))
 	return p, nil
 }
 
@@ -316,7 +294,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				markFailed(w, req, i, err)
 				break
 			}
-			tryCtx, cancel := p.Interceptors.prepareAttemptTimeoutContext(ctx, req, retryStrategy.perTryTimeout)
+			tryCtx, cancel := p.prepareAttemptTimeoutContext(ctx, req, retryStrategy.perTryTimeout)
 			defer cancel()
 			reader := bytes.NewReader(body)
 			req.Body = io.NopCloser(reader)
