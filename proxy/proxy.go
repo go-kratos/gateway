@@ -349,6 +349,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			}
 			sent, err := copyFunc(w, resp.Body)
 			if err != nil {
+				observer.HandleSentBytes(req, sent)
 				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
 				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err)
 				return false
