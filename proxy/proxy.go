@@ -85,7 +85,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 		"code", code,
 		"error", message,
 	)
-	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/404", strconv.Itoa(code), "", "").Inc()
+	metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/404", strconv.Itoa(code), "", "").Inc()
 }
 
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +102,7 @@ func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 		"code", code,
 		"error", message,
 	)
-	_metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/405", strconv.Itoa(code), "", "").Inc()
+	metricRequestsTotal.WithLabelValues("HTTP", r.Method, "/405", strconv.Itoa(code), "", "").Inc()
 }
 
 type interceptors struct {
@@ -169,27 +169,29 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 	return next, nil
 }
 
-func splitRetryMetricsHandler(observer Observer) (func(*http.Request, int), func(*http.Request, int, error), func(*http.Request, int)) {
-	success := func(req *http.Request, i int) {
+func splitRetryMetricsHandler(observer Observer) (
+	func(http.ResponseWriter, *http.Request, int), func(http.ResponseWriter, *http.Request, int, error), func(http.ResponseWriter, *http.Request, int)) {
+	// success marks a successful retry attempt
+	success := func(w http.ResponseWriter, req *http.Request, i int) {
 		if i <= 0 {
 			return
 		}
-		observer.HandleRetry(req, "true")
+		observer.HandleRetry(req, w.Header(), "true")
 	}
-	failed := func(req *http.Request, i int, err error) {
+	failed := func(w http.ResponseWriter, req *http.Request, i int, err error) {
 		if i <= 0 {
 			return
 		}
 		if errors.Is(err, context.Canceled) {
 			return
 		}
-		observer.HandleRetry(req, "false")
+		observer.HandleRetry(req, w.Header(), "false")
 	}
-	breaker := func(req *http.Request, i int) {
+	breaker := func(w http.ResponseWriter, req *http.Request, i int) {
 		if i <= 0 {
 			return
 		}
-		observer.HandleRetry(req, "breaker")
+		observer.HandleRetry(req, w.Header(), "breaker")
 	}
 	return success, failed, breaker
 }
@@ -221,20 +223,20 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 	observer := p.observable.Observe(e)
 	markSuccessStat, markFailedStat, markBreakerStat := splitRetryMetricsHandler(observer)
 	retryBreaker := sre.NewBreaker(sre.WithSuccess(0.8), sre.WithRequest(10))
-	markSuccess := func(req *http.Request, i int) {
-		markSuccessStat(req, i)
+	markSuccess := func(w http.ResponseWriter, req *http.Request, i int) {
+		markSuccessStat(w, req, i)
 		if i > 0 {
 			retryBreaker.MarkSuccess()
 		}
 	}
-	markFailed := func(req *http.Request, i int, err error) {
-		markFailedStat(req, i, err)
+	markFailed := func(w http.ResponseWriter, req *http.Request, i int, err error) {
+		markFailedStat(w, req, i, err)
 		if i > 0 {
 			retryBreaker.MarkFailed()
 		}
 	}
-	markBreaker := func(req *http.Request, i int) {
-		markBreakerStat(req, i)
+	markBreaker := func(w http.ResponseWriter, req *http.Request, i int) {
+		markBreakerStat(w, req, i)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		startTime := time.Now()
@@ -259,13 +261,13 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				Rewrite: func(proxyRequest *httputil.ProxyRequest) {},
 				ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
-					markFailed(req, 0, err)
+					markFailed(w, req, 0, err)
 					writeError(w, req, e, err, observer)
 				},
 				ModifyResponse: func(resp *http.Response) error {
 					defer streamCtx.DoOnResponse()
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
-					markSuccess(req, 0)
+					markSuccess(w, req, 0)
 					observer.HandleRequest(req, w.Header(), resp.StatusCode)
 					return nil
 				},
@@ -298,9 +300,9 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				}
 				if err := retryBreaker.Allow(); err != nil {
 					if errors.Is(err, circuitbreaker.ErrNotAllowed) {
-						markBreaker(req, i)
+						markBreaker(w, req, i)
 					} else {
-						markFailed(req, i, err)
+						markFailed(w, req, i, err)
 					}
 					break
 				}
@@ -311,7 +313,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			}
 			// canceled or deadline exceeded
 			if err = ctx.Err(); err != nil {
-				markFailed(req, i, err)
+				markFailed(w, req, i, err)
 				break
 			}
 			tryCtx, cancel := p.Interceptors.prepareAttemptTimeoutContext(ctx, req, retryStrategy.perTryTimeout)
@@ -320,16 +322,16 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			req.Body = io.NopCloser(reader)
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
-				markFailed(req, i, err)
+				markFailed(w, req, i, err)
 				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
 				continue
 			}
 			if !judgeRetryRequired(retryStrategy.conditions, resp) {
 				reqOpts.LastAttempt = true
-				markSuccess(req, i)
+				markSuccess(w, req, i)
 				break
 			}
-			markFailed(req, i, errors.New("assertion failed"))
+			markFailed(w, req, i, errors.New("assertion failed"))
 			resp.Body.Close()
 			// continue the retry loop
 		}
