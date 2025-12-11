@@ -226,8 +226,8 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		reqOpts := middleware.NewRequestOptions(e)
 		ctx := middleware.NewRequestContext(req.Context(), reqOpts)
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
+		defer cancel()
 		defer func() {
-			cancel()
 			observer.HandleLatency(req, time.Since(startTime))
 		}()
 
