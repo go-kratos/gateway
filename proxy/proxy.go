@@ -27,50 +27,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
 	"github.com/go-kratos/kratos/v2/transport/http/status"
-	"github.com/prometheus/client_golang/prometheus"
 )
-
-var (
-	_metricRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_code_total",
-		Help:      "The total number of processed requests",
-	}, []string{"protocol", "method", "path", "code", "service", "basePath"})
-	_metricRequestsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_duration_seconds",
-		Help:      "Requests duration(sec).",
-		Buckets:   []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
-	}, []string{"protocol", "method", "path", "service", "basePath"})
-	_metricSentBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_tx_bytes",
-		Help:      "Total sent connection bytes",
-	}, []string{"protocol", "method", "path", "service", "basePath"})
-	_metricReceivedBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_rx_bytes",
-		Help:      "Total received connection bytes",
-	}, []string{"protocol", "method", "path", "service", "basePath"})
-	_metricRetryState = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "go",
-		Subsystem: "gateway",
-		Name:      "requests_retry_state",
-		Help:      "Total request retries",
-	}, []string{"protocol", "method", "path", "service", "basePath", "success"})
-)
-
-func init() {
-	prometheus.MustRegister(_metricRequestsTotal)
-	prometheus.MustRegister(_metricRequestsDuration)
-	prometheus.MustRegister(_metricRetryState)
-	prometheus.MustRegister(_metricSentBytes)
-	prometheus.MustRegister(_metricReceivedBytes)
-}
 
 func setXFFHeader(req *http.Request) {
 	// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
@@ -89,7 +46,7 @@ func setXFFHeader(req *http.Request) {
 	}
 }
 
-func writeError(w http.ResponseWriter, r *http.Request, err error, labels middleware.MetricsLabels) {
+func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err error, observer Observer) {
 	var statusCode int
 	switch {
 	case errors.Is(err, context.Canceled),
@@ -101,8 +58,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, labels middle
 		log.Errorf("Failed to handle request: %s: %+v", r.URL.String(), err)
 		statusCode = 502
 	}
-	requestsTotalIncr(r, labels, statusCode)
-	if labels.Protocol() == config.Protocol_GRPC.String() {
+	if e.Protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
 		w.Header().Set("Content-Type", "application/grpc")
@@ -111,6 +67,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error, labels middle
 		statusCode = 200
 	}
 	w.WriteHeader(statusCode)
+	observer.HandleRequest(r, w.Header(), statusCode)
 }
 
 // notFoundHandler replies to the request with an HTTP 404 not found error.
@@ -158,22 +115,40 @@ func (i *interceptors) SetPrepareAttemptTimeoutContext(f func(ctx context.Contex
 	}
 }
 
+// Option is proxy option.
+type Option func(*Proxy)
+
+// WithObserver set observer option.
+func WithObserver(o Observable) Option {
+	return func(p *Proxy) {
+		p.observable = o
+	}
+}
+
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router            atomic.Value
 	clientFactory     client.Factory
 	Interceptors      interceptors
 	middlewareFactory middleware.FactoryV2
+	observable        Observable
 }
 
 // New is new a gateway proxy.
-func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2) (*Proxy, error) {
+func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, opts ...Option) (*Proxy, error) {
 	p := &Proxy{
 		clientFactory:     clientFactory,
 		middlewareFactory: middlewareFactory,
 		Interceptors: interceptors{
 			prepareAttemptTimeoutContext: defaultAttemptTimeoutContext,
 		},
+	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	// if no observer is provided, create a default one and register metrics
+	if p.observable == nil {
+		p.observable = NewObservable()
 	}
 	p.router.Store(mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler)))
 	return p, nil
@@ -194,13 +169,12 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 	return next, nil
 }
 
-func splitRetryMetricsHandler(e *config.Endpoint) (func(*http.Request, int), func(*http.Request, int, error), func(*http.Request, int)) {
-	labels := middleware.NewMetricsLabels(e)
+func splitRetryMetricsHandler(observer Observer) (func(*http.Request, int), func(*http.Request, int, error), func(*http.Request, int)) {
 	success := func(req *http.Request, i int) {
 		if i <= 0 {
 			return
 		}
-		retryStateIncr(req, labels, "true")
+		observer.HandleRetry(req, "true")
 	}
 	failed := func(req *http.Request, i int, err error) {
 		if i <= 0 {
@@ -209,15 +183,14 @@ func splitRetryMetricsHandler(e *config.Endpoint) (func(*http.Request, int), fun
 		if errors.Is(err, context.Canceled) {
 			return
 		}
-		retryStateIncr(req, labels, "false")
+		observer.HandleRetry(req, "false")
 	}
 	breaker := func(req *http.Request, i int) {
 		if i <= 0 {
 			return
 		}
-		retryStateIncr(req, labels, "breaker")
+		observer.HandleRetry(req, "breaker")
 	}
-
 	return success, failed, breaker
 }
 
@@ -245,8 +218,8 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 	if err != nil {
 		return nil, nil, err
 	}
-	labels := middleware.NewMetricsLabels(e)
-	markSuccessStat, markFailedStat, markBreakerStat := splitRetryMetricsHandler(e)
+	observer := p.observable.Observe(e)
+	markSuccessStat, markFailedStat, markBreakerStat := splitRetryMetricsHandler(observer)
 	retryBreaker := sre.NewBreaker(sre.WithSuccess(0.8), sre.WithRequest(10))
 	markSuccess := func(req *http.Request, i int) {
 		markSuccessStat(req, i)
@@ -270,9 +243,9 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 		reqOpts := middleware.NewRequestOptions(e)
 		ctx := middleware.NewRequestContext(req.Context(), reqOpts)
 		ctx, cancel := context.WithTimeout(ctx, retryStrategy.timeout)
-		defer cancel()
 		defer func() {
-			requestsDurationObserve(req, labels, time.Since(startTime).Seconds())
+			cancel()
+			observer.HandleLatency(req, time.Since(startTime))
 		}()
 
 		proxyStream := func() {
@@ -287,13 +260,13 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				ErrorHandler: func(w http.ResponseWriter, req *http.Request, err error) {
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
 					markFailed(req, 0, err)
-					writeError(w, req, err, labels)
+					writeError(w, req, e, err, observer)
 				},
 				ModifyResponse: func(resp *http.Response) error {
 					defer streamCtx.DoOnResponse()
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
 					markSuccess(req, 0)
-					requestsTotalIncr(req, labels, resp.StatusCode)
+					observer.HandleRequest(req, w.Header(), resp.StatusCode)
 					return nil
 				},
 				Transport:     tripper,
@@ -308,10 +281,10 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			writeError(w, req, err, labels)
+			writeError(w, req, e, err, observer)
 			return
 		}
-		receivedBytesAdd(req, labels, int64(len(body)))
+		observer.HandleReceivedBytes(req, int64(len(body)))
 		req.GetBody = func() (io.ReadCloser, error) {
 			reader := bytes.NewReader(body)
 			return io.NopCloser(reader), nil
@@ -361,7 +334,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			// continue the retry loop
 		}
 		if err != nil {
-			writeError(w, req, err, labels)
+			writeError(w, req, e, err, observer)
 			return
 		}
 
@@ -394,11 +367,10 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			sent, err := copyFunc(w, resp.Body)
 			if err != nil {
 				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
-				sentBytesAdd(req, labels, sent)
 				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err)
 				return false
 			}
-			sentBytesAdd(req, labels, sent)
+			observer.HandleSentBytes(req, sent)
 			reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
 			// see https://pkg.go.dev/net/http#example-ResponseWriter-Trailers
 			for k, v := range resp.Trailer {
@@ -407,7 +379,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			return true
 		}
 		doCopyBody()
-		requestsTotalIncr(req, labels, resp.StatusCode)
+		observer.HandleRequest(req, headers, resp.StatusCode)
 	}), closer, nil
 }
 
@@ -416,26 +388,6 @@ func getReplyMD(ep *config.Endpoint, resp *http.Response) selector.ReplyMD {
 		return resp.Trailer
 	}
 	return resp.Header
-}
-
-func receivedBytesAdd(req *http.Request, labels middleware.MetricsLabels, received int64) {
-	_metricReceivedBytes.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath()).Add(float64(received))
-}
-
-func sentBytesAdd(req *http.Request, labels middleware.MetricsLabels, sent int64) {
-	_metricSentBytes.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath()).Add(float64(sent))
-}
-
-func requestsTotalIncr(req *http.Request, labels middleware.MetricsLabels, statusCode int) {
-	_metricRequestsTotal.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), strconv.Itoa(statusCode), labels.Service(), labels.BasePath()).Inc()
-}
-
-func requestsDurationObserve(req *http.Request, labels middleware.MetricsLabels, seconds float64) {
-	_metricRequestsDuration.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath()).Observe(seconds)
-}
-
-func retryStateIncr(req *http.Request, labels middleware.MetricsLabels, state string) {
-	_metricRetryState.WithLabelValues(labels.Protocol(), req.Method, labels.Path(), labels.Service(), labels.BasePath(), state).Inc()
 }
 
 func closeOnError(closer io.Closer, err *error) {
