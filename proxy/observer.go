@@ -12,32 +12,32 @@ import (
 )
 
 var (
-	metricRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	MetricRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_code_total",
 		Help:      "The total number of processed requests",
 	}, []string{"protocol", "method", "path", "code", "service", "basePath"})
-	metricRequestsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	MetricRequestsDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_duration_seconds",
 		Help:      "Requests duration(sec).",
 		Buckets:   []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
 	}, []string{"protocol", "method", "path", "service", "basePath"})
-	metricSentBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
+	MetricSentBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_tx_bytes",
 		Help:      "Total sent connection bytes",
 	}, []string{"protocol", "method", "path", "service", "basePath"})
-	metricReceivedBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
+	MetricReceivedBytes = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_rx_bytes",
 		Help:      "Total received connection bytes",
 	}, []string{"protocol", "method", "path", "service", "basePath"})
-	metricRetryState = prometheus.NewCounterVec(prometheus.CounterOpts{
+	MetricRetryState = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "go",
 		Subsystem: "gateway",
 		Name:      "requests_retry_state",
@@ -64,11 +64,11 @@ type Observer interface {
 // NewObservable creates a new Observable instance and registers the metrics.
 func NewObservable() Observable {
 	metricOnce.Do(func() {
-		prometheus.MustRegister(metricRequestsTotal)
-		prometheus.MustRegister(metricRequestsDuration)
-		prometheus.MustRegister(metricRetryState)
-		prometheus.MustRegister(metricSentBytes)
-		prometheus.MustRegister(metricReceivedBytes)
+		prometheus.MustRegister(MetricRequestsTotal)
+		prometheus.MustRegister(MetricRequestsDuration)
+		prometheus.MustRegister(MetricRetryState)
+		prometheus.MustRegister(MetricSentBytes)
+		prometheus.MustRegister(MetricReceivedBytes)
 	})
 	return &observable{}
 }
@@ -84,21 +84,21 @@ type observer struct {
 }
 
 func (o *observer) HandleRequest(req *http.Request, responseHeader http.Header, statusCode int) {
-	metricRequestsTotal.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), strconv.Itoa(statusCode), o.labels.Service(), o.labels.BasePath()).Inc()
+	MetricRequestsTotal.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), strconv.Itoa(statusCode), o.labels.Service(), o.labels.BasePath()).Inc()
 }
 
 func (o *observer) HandleRetry(req *http.Request, responseHeader http.Header, state string) {
-	metricRetryState.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath(), state).Inc()
+	MetricRetryState.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath(), state).Inc()
 }
 
 func (o *observer) HandleLatency(req *http.Request, latency time.Duration) {
-	metricRequestsDuration.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath()).Observe(latency.Seconds())
+	MetricRequestsDuration.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath()).Observe(latency.Seconds())
 }
 
 func (o *observer) HandleSentBytes(req *http.Request, bytes int64) {
-	metricSentBytes.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath()).Add(float64(bytes))
+	MetricSentBytes.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath()).Add(float64(bytes))
 }
 
 func (o *observer) HandleReceivedBytes(req *http.Request, bytes int64) {
-	metricReceivedBytes.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath()).Add(float64(bytes))
+	MetricReceivedBytes.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), o.labels.Service(), o.labels.BasePath()).Add(float64(bytes))
 }
