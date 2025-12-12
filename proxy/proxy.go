@@ -58,6 +58,7 @@ func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err 
 		log.Errorf("Failed to handle request: %s: %+v", r.URL.String(), err)
 		statusCode = 502
 	}
+	observer.HandleRequest(r, w.Header(), statusCode)
 	if e.Protocol == config.Protocol_GRPC {
 		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
@@ -67,7 +68,6 @@ func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err 
 		statusCode = 200
 	}
 	w.WriteHeader(statusCode)
-	observer.HandleRequest(r, w.Header(), statusCode)
 }
 
 // Option is proxy option.
