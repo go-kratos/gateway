@@ -12,7 +12,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -26,49 +25,7 @@ import (
 	"github.com/go-kratos/gateway/router/mux"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/transport/http/status"
 )
-
-func setXFFHeader(req *http.Request) {
-	// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
-	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		// If we aren't the first proxy retain prior
-		// X-Forwarded-For information as a comma+space
-		// separated list and fold multiple headers into one.
-		prior, ok := req.Header["X-Forwarded-For"]
-		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
-		if len(prior) > 0 {
-			clientIP = strings.Join(prior, ", ") + ", " + clientIP
-		}
-		if !omit {
-			req.Header.Set("X-Forwarded-For", clientIP)
-		}
-	}
-}
-
-func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err error, observer Observer) {
-	var statusCode int
-	switch {
-	case errors.Is(err, context.Canceled),
-		err.Error() == "client disconnected":
-		statusCode = 499
-	case errors.Is(err, context.DeadlineExceeded):
-		statusCode = 504
-	default:
-		log.Errorf("Failed to handle request: %s: %+v", r.URL.String(), err)
-		statusCode = 502
-	}
-	observer.HandleRequest(r, w.Header(), statusCode)
-	if e.Protocol == config.Protocol_GRPC {
-		// see https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
-		code := strconv.Itoa(int(status.ToGRPCCode(statusCode)))
-		w.Header().Set("Content-Type", "application/grpc")
-		w.Header().Set("Grpc-Status", code)
-		w.Header().Set("Grpc-Message", err.Error())
-		statusCode = 200
-	}
-	w.WriteHeader(statusCode)
-}
 
 // Option is proxy option.
 type Option func(*Proxy)
@@ -148,33 +105,6 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 		next = m.Process(next)
 	}
 	return next, nil
-}
-
-func splitRetryMetricsHandler(observer Observer) (
-	func(http.ResponseWriter, *http.Request, int), func(http.ResponseWriter, *http.Request, int, error), func(http.ResponseWriter, *http.Request, int)) {
-	// success marks a successful retry attempt
-	success := func(w http.ResponseWriter, req *http.Request, i int) {
-		if i <= 0 {
-			return
-		}
-		observer.HandleRetry(req, w.Header(), "true")
-	}
-	failed := func(w http.ResponseWriter, req *http.Request, i int, err error) {
-		if i <= 0 {
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			return
-		}
-		observer.HandleRetry(req, w.Header(), "false")
-	}
-	breaker := func(w http.ResponseWriter, req *http.Request, i int) {
-		if i <= 0 {
-			return
-		}
-		observer.HandleRetry(req, w.Header(), "breaker")
-	}
-	return success, failed, breaker
 }
 
 func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint, ms []*config.Middleware) (_ http.Handler, _ io.Closer, retError error) {
@@ -367,20 +297,6 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 	}), closer, nil
 }
 
-func getReplyMD(ep *config.Endpoint, resp *http.Response) selector.ReplyMD {
-	if ep.Protocol == config.Protocol_GRPC {
-		return resp.Trailer
-	}
-	return resp.Header
-}
-
-func closeOnError(closer io.Closer, err *error) {
-	if *err == nil {
-		return
-	}
-	closer.Close()
-}
-
 // Update updates service endpoint.
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
 	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
@@ -398,21 +314,6 @@ func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (re
 	old := p.router.Swap(router)
 	tryCloseRouter(old)
 	return nil
-}
-
-func tryCloseRouter(in interface{}) {
-	if in == nil {
-		return
-	}
-	r, ok := in.(router.Router)
-	if !ok {
-		return
-	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		defer cancel()
-		r.SyncClose(ctx)
-	}()
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -444,6 +345,61 @@ func (p *Proxy) DebugHandler() http.Handler {
 		json.NewEncoder(rw).Encode(inspect)
 	})
 	return debugMux
+}
+
+func getReplyMD(ep *config.Endpoint, resp *http.Response) selector.ReplyMD {
+	if ep.Protocol == config.Protocol_GRPC {
+		return resp.Trailer
+	}
+	return resp.Header
+}
+
+func closeOnError(closer io.Closer, err *error) {
+	if *err == nil {
+		return
+	}
+	closer.Close()
+}
+
+func tryCloseRouter(in interface{}) {
+	if in == nil {
+		return
+	}
+	r, ok := in.(router.Router)
+	if !ok {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+		r.SyncClose(ctx)
+	}()
+}
+func splitRetryMetricsHandler(observer Observer) (
+	func(http.ResponseWriter, *http.Request, int), func(http.ResponseWriter, *http.Request, int, error), func(http.ResponseWriter, *http.Request, int)) {
+	// success marks a successful retry attempt
+	success := func(w http.ResponseWriter, req *http.Request, i int) {
+		if i <= 0 {
+			return
+		}
+		observer.HandleRetry(req, w.Header(), "true")
+	}
+	failed := func(w http.ResponseWriter, req *http.Request, i int, err error) {
+		if i <= 0 {
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			return
+		}
+		observer.HandleRetry(req, w.Header(), "false")
+	}
+	breaker := func(w http.ResponseWriter, req *http.Request, i int) {
+		if i <= 0 {
+			return
+		}
+		observer.HandleRetry(req, w.Header(), "breaker")
+	}
+	return success, failed, breaker
 }
 
 func isWebSocketRequest(r *http.Request) bool {
@@ -506,4 +462,21 @@ func builtinStreamTripper(tripper http.RoundTripper) http.RoundTripper {
 		wrapStreamResponseBody(resp, streamCtx)
 		return resp, nil
 	})
+}
+
+func setXFFHeader(req *http.Request) {
+	// see https://github.com/golang/go/blob/master/src/net/http/httputil/reverseproxy.go
+	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+		// If we aren't the first proxy retain prior
+		// X-Forwarded-For information as a comma+space
+		// separated list and fold multiple headers into one.
+		prior, ok := req.Header["X-Forwarded-For"]
+		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
+		if len(prior) > 0 {
+			clientIP = strings.Join(prior, ", ") + ", " + clientIP
+		}
+		if !omit {
+			req.Header.Set("X-Forwarded-For", clientIP)
+		}
+	}
 }
