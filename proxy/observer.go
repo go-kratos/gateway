@@ -55,7 +55,7 @@ type Observable interface {
 // Observer is the interface for observing proxy metrics.
 type Observer interface {
 	HandleRetry(req *http.Request, responseHeader http.Header, state string)
-	HandleRequest(req *http.Request, responseHeader http.Header, statusCode int)
+	HandleRequest(req *http.Request, responseHeader http.Header, statusCode int, err error)
 	HandleSentBytes(req *http.Request, bytes int64)
 	HandleReceivedBytes(req *http.Request, bytes int64)
 	HandleLatency(req *http.Request, latency time.Duration)
@@ -83,7 +83,7 @@ type observer struct {
 	labels middleware.MetricsLabels
 }
 
-func (o *observer) HandleRequest(req *http.Request, responseHeader http.Header, statusCode int) {
+func (o *observer) HandleRequest(req *http.Request, responseHeader http.Header, statusCode int, err error) {
 	MetricRequestsTotal.WithLabelValues(o.labels.Protocol(), req.Method, o.labels.Path(), strconv.Itoa(statusCode), o.labels.Service(), o.labels.BasePath()).Inc()
 }
 

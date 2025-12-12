@@ -179,7 +179,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 					defer streamCtx.DoOnResponse()
 					reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
 					markSuccess(w, req, 0)
-					observer.HandleRequest(req, w.Header(), resp.StatusCode)
+					observer.HandleRequest(req, w.Header(), resp.StatusCode, nil)
 					return nil
 				},
 				Transport:     tripper,
@@ -267,9 +267,9 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			}
 		}
 
-		doCopyBody := func() bool {
+		doCopyBody := func() (bool, error) {
 			if resp.Body == nil {
-				return true
+				return true, nil
 			}
 			defer resp.Body.Close()
 
@@ -282,7 +282,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 				observer.HandleSentBytes(req, sent)
 				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
 				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err)
-				return false
+				return false, err
 			}
 			observer.HandleSentBytes(req, sent)
 			reqOpts.DoneFunc(ctx, selector.DoneInfo{ReplyMD: getReplyMD(e, resp)})
@@ -290,10 +290,10 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			for k, v := range resp.Trailer {
 				headers[http.TrailerPrefix+k] = v
 			}
-			return true
+			return true, nil
 		}
-		doCopyBody()
-		observer.HandleRequest(req, headers, resp.StatusCode)
+		_, err = doCopyBody()
+		observer.HandleRequest(req, headers, resp.StatusCode, err)
 	}), closer, nil
 }
 
