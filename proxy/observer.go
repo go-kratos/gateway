@@ -73,17 +73,10 @@ func NewObservable() Observable {
 	return &observable{}
 }
 
-// NewObserver creates a new Observer instance and registers the metrics.
-func NewObserver(endpoint *config.Endpoint) Observer {
-	return &observer{}
-}
-
-type observerKey struct{}
-
 type observable struct{}
 
 func (o *observable) Observe(endpoint *config.Endpoint) Observer {
-	return NewObserver(endpoint)
+	return &observer{labels: middleware.NewMetricsLabels(endpoint)}
 }
 
 type observer struct {
