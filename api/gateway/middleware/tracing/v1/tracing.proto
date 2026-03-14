@@ -19,4 +19,8 @@ message Tracing {
   google.protobuf.Duration timeout = 4;
   // ssl
   optional bool insecure = 5;
+  // service name
+  optional string service_name = 6;
+  // tracer name
+  optional string tracer_name = 7;
 }

@@ -56,7 +56,13 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 			otel.SetTextMapPropagator(propagator)
 		})
 	}
-	tracer := otel.Tracer(defaultTracerName)
+	tracerName := func() string {
+		if options.TracerName != nil {
+			return *options.TracerName
+		}
+		return defaultTracerName
+	}()
+	tracer := otel.Tracer(tracerName)
 	return func(next http.RoundTripper) http.RoundTripper {
 		return middleware.RoundTripperFunc(func(req *http.Request) (reply *http.Response, err error) {
 			ctx, span := tracer.Start(
@@ -97,6 +103,13 @@ func newTracerProvider(ctx context.Context, options *v1.Tracing) trace.TracerPro
 		timeout     = defaultTimeout
 		serviceName = defaultServiceName
 	)
+
+	serviceName = func() string {
+		if options.ServiceName != nil {
+			return *options.ServiceName
+		}
+		return defaultServiceName
+	}()
 
 	if appInfo, ok := kratos.FromContext(ctx); ok {
 		serviceName = appInfo.Name()
