@@ -88,6 +88,9 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if host != "" {
 		next = next.Host(host)
 	}
+	if method != "" && method != "*" {
+		next = next.Methods(method, http.MethodOptions)
+	}
 	if strings.HasSuffix(pattern, "*") {
 		// /api/echo/*
 		next = next.PathPrefix(strings.TrimRight(pattern, "*"))
@@ -96,9 +99,6 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 		// /api/echo/[a-z]+
 		// /api/echo/{name}
 		next = next.Path(pattern)
-	}
-	if method != "" && method != "*" {
-		next = next.Methods(method, http.MethodOptions)
 	}
 	if err := next.GetError(); err != nil {
 		return err
