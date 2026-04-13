@@ -299,23 +299,19 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 
 // Update updates service endpoint.
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
-	brouter := newBucketedRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
+	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
 	for _, e := range c.Endpoints {
 		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
 		if err != nil {
 			return err
 		}
 		defer closeOnError(closer, &retError)
-		targetRouter := brouter.defaultRouter
-		if basePath := endpointBasePath(e); basePath != "" && strings.HasPrefix(basePath, "/") && strings.HasPrefix(e.Path, basePath) {
-			targetRouter = brouter.getOrCreate(basePath, http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
-		}
-		if err = targetRouter.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
+		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
 			return err
 		}
 		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
 	}
-	old := p.router.Swap(brouter)
+	old := p.router.Swap(router)
 	tryCloseRouter(old)
 	return nil
 }
@@ -344,25 +340,9 @@ func (p *Proxy) DebugHandler() http.Handler {
 		if !ok {
 			return
 		}
-		switch rt := router.(type) {
-		case *bucketedRouter:
-			out := map[string]interface{}{
-				"default": mux.InspectMuxRouter(rt.defaultRouter),
-				"buckets": map[string]interface{}{},
-			}
-			buckets := out["buckets"].(map[string]interface{})
-			for _, pfx := range rt.prefixes {
-				if br, ok := rt.buckets[pfx]; ok {
-					buckets[pfx] = mux.InspectMuxRouter(br)
-				}
-			}
-			rw.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(rw).Encode(out)
-		default:
-			inspect := mux.InspectMuxRouter(router)
-			rw.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(rw).Encode(inspect)
-		}
+		inspect := mux.InspectMuxRouter(router)
+		rw.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(rw).Encode(inspect)
 	})
 	return debugMux
 }
@@ -372,13 +352,6 @@ func getReplyMD(ep *config.Endpoint, resp *http.Response) selector.ReplyMD {
 		return resp.Trailer
 	}
 	return resp.Header
-}
-
-func endpointBasePath(ep *config.Endpoint) string {
-	if ep == nil || ep.Metadata == nil {
-		return ""
-	}
-	return ep.Metadata["basePath"]
 }
 
 func closeOnError(closer io.Closer, err *error) {

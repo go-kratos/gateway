@@ -35,6 +35,7 @@ type muxRouter struct {
 	*mux.Router
 	wg        *sync.WaitGroup
 	allCloser []io.Closer
+	exact     map[exactKey]http.Handler
 }
 
 func ProtectedHandler(h http.Handler) http.Handler {
@@ -52,6 +53,7 @@ func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Rou
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(EnableStrictSlash),
 		wg:     &sync.WaitGroup{},
+		exact:  make(map[exactKey]http.Handler),
 	}
 	r.Router.Handle("/metrics", ProtectedHandler(promhttp.Handler()))
 	r.Router.NotFoundHandler = notFoundHandler
@@ -80,6 +82,10 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.wg.Add(1)
 	defer r.wg.Done()
 	req.URL.Path = cleanPath(req.URL.Path)
+	if h, ok := r.exactHandler(req.Method, req.URL.Path); ok {
+		h.ServeHTTP(w, req)
+		return
+	}
 	r.Router.ServeHTTP(w, req)
 }
 
@@ -103,8 +109,40 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if err := next.GetError(); err != nil {
 		return err
 	}
+	if host == "" && isExactPathPattern(pattern) {
+		if method != "" && method != "*" {
+			r.exact[makeExactKey(method, pattern)] = handler
+			r.exact[makeExactKey(http.MethodOptions, pattern)] = handler
+		} else {
+			r.exact[makeExactKey("", pattern)] = handler
+		}
+	}
 	r.allCloser = append(r.allCloser, closer)
 	return nil
+}
+
+type exactKey struct {
+	method string
+	path   string
+}
+
+func makeExactKey(method, path string) exactKey {
+	return exactKey{method: method, path: path}
+}
+
+func (r *muxRouter) exactHandler(method, path string) (http.Handler, bool) {
+	if h, ok := r.exact[makeExactKey(method, path)]; ok {
+		return h, true
+	}
+	if h, ok := r.exact[makeExactKey("", path)]; ok {
+		return h, true
+	}
+	return nil, false
+}
+
+func isExactPathPattern(pattern string) bool {
+	// Exclude wildcard/prefix and mux variables/regex patterns.
+	return strings.IndexAny(pattern, "*{}[]()") == -1
 }
 
 func (r *muxRouter) SyncClose(ctx context.Context) error {
