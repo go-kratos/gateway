@@ -94,8 +94,8 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if host != "" {
 		next = next.Host(host)
 	}
-	if method != "" && method != "*" {
-		next = next.Methods(method, http.MethodOptions)
+	if ms := methodsForRoute(method); len(ms) > 0 {
+		next = next.Methods(ms...)
 	}
 	if strings.HasSuffix(pattern, "*") {
 		// /api/echo/*
@@ -110,12 +110,7 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 		return err
 	}
 	if host == "" && isExactPathPattern(pattern) {
-		if method != "" && method != "*" {
-			r.exact[makeExactKey(method, pattern)] = handler
-			r.exact[makeExactKey(http.MethodOptions, pattern)] = handler
-		} else {
-			r.exact[makeExactKey("", pattern)] = handler
-		}
+		registerExact(r.exact, method, pattern, handler)
 	}
 	r.allCloser = append(r.allCloser, closer)
 	return nil
@@ -138,6 +133,24 @@ func (r *muxRouter) exactHandler(method, path string) (http.Handler, bool) {
 		return h, true
 	}
 	return nil, false
+}
+
+func registerExact(dst map[exactKey]http.Handler, method, path string, handler http.Handler) {
+	ms := methodsForRoute(method)
+	if len(ms) == 0 {
+		dst[makeExactKey("", path)] = handler
+		return
+	}
+	for _, m := range ms {
+		dst[makeExactKey(m, path)] = handler
+	}
+}
+
+func methodsForRoute(method string) []string {
+	if method == "" || method == "*" {
+		return nil
+	}
+	return []string{method, http.MethodOptions}
 }
 
 func isExactPathPattern(pattern string) bool {
