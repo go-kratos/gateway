@@ -127,19 +127,19 @@ func makeExactKey(method, path, host string) exactKey {
 }
 
 func (r *muxRouter) exactHandler(method, path, host string) (http.Handler, bool) {
-	if h, ok := r.exact[makeExactKey(method, path, host)]; ok {
+	if h, ok := r.exact[makeExactKey(method, path, "")]; ok {
 		return h, true
 	}
-	if h, ok := r.exact[makeExactKey("", path, host)]; ok {
+	if h, ok := r.exact[makeExactKey("", path, "")]; ok {
 		return h, true
 	}
 	if host == "" {
 		return nil, false
 	}
-	if h, ok := r.exact[makeExactKey(method, path, "")]; ok {
+	if h, ok := r.exact[makeExactKey(method, path, host)]; ok {
 		return h, true
 	}
-	if h, ok := r.exact[makeExactKey("", path, "")]; ok {
+	if h, ok := r.exact[makeExactKey("", path, host)]; ok {
 		return h, true
 	}
 	return nil, false
