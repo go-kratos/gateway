@@ -2,6 +2,7 @@ package mux
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -94,6 +95,60 @@ func BenchmarkManyRoutesExactPathMiss(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.ServeHTTP(w, req)
+	}
+}
+
+func TestExactPathFastPathRespectsHost(t *testing.T) {
+	r := NewRouter(http.NotFoundHandler(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	hostHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})
+	defaultHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	if err := r.Handle("/api/v1/room/enter", http.MethodGet, "api.example.com", hostHandler, noopCloser{}); err != nil {
+		t.Fatalf("handle host route: %v", err)
+	}
+	if err := r.Handle("/api/v1/room/enter", http.MethodGet, "", defaultHandler, noopCloser{}); err != nil {
+		t.Fatalf("handle default route: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/api/v1/room/enter", nil)
+	req.Host = "api.example.com"
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("host route status = %d, want %d", w.Code, http.StatusCreated)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "http://example.com/api/v1/room/enter", nil)
+	req.Host = "other.example.com"
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("fallback route status = %d, want %d", w.Code, http.StatusAccepted)
+	}
+}
+
+func TestExactPathFastPathEmptyHostMatchesAnyHost(t *testing.T) {
+	r := NewRouter(http.NotFoundHandler(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	defaultHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	if err := r.Handle("/api/v1/room/enter", http.MethodGet, "", defaultHandler, noopCloser{}); err != nil {
+		t.Fatalf("handle default route: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/api/v1/room/enter", nil)
+	req.Host = "api.example.com"
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("hosted request status = %d, want %d", w.Code, http.StatusAccepted)
 	}
 }
 

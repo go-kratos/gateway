@@ -82,7 +82,7 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.wg.Add(1)
 	defer r.wg.Done()
 	req.URL.Path = cleanPath(req.URL.Path)
-	if h, ok := r.exactHandler(req.Method, req.URL.Path); ok {
+	if h, ok := r.exactHandler(req.Method, req.URL.Path, req.Host); ok {
 		h.ServeHTTP(w, req)
 		return
 	}
@@ -109,8 +109,8 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if err := next.GetError(); err != nil {
 		return err
 	}
-	if host == "" && isExactPathPattern(pattern) {
-		registerExact(r.exact, method, pattern, handler)
+	if isExactPathPattern(pattern) {
+		registerExact(r.exact, method, pattern, host, handler)
 	}
 	r.allCloser = append(r.allCloser, closer)
 	return nil
@@ -119,30 +119,40 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 type exactKey struct {
 	method string
 	path   string
+	host   string
 }
 
-func makeExactKey(method, path string) exactKey {
-	return exactKey{method: method, path: path}
+func makeExactKey(method, path, host string) exactKey {
+	return exactKey{method: method, path: path, host: host}
 }
 
-func (r *muxRouter) exactHandler(method, path string) (http.Handler, bool) {
-	if h, ok := r.exact[makeExactKey(method, path)]; ok {
+func (r *muxRouter) exactHandler(method, path, host string) (http.Handler, bool) {
+	if h, ok := r.exact[makeExactKey(method, path, host)]; ok {
 		return h, true
 	}
-	if h, ok := r.exact[makeExactKey("", path)]; ok {
+	if h, ok := r.exact[makeExactKey("", path, host)]; ok {
+		return h, true
+	}
+	if host == "" {
+		return nil, false
+	}
+	if h, ok := r.exact[makeExactKey(method, path, "")]; ok {
+		return h, true
+	}
+	if h, ok := r.exact[makeExactKey("", path, "")]; ok {
 		return h, true
 	}
 	return nil, false
 }
 
-func registerExact(dst map[exactKey]http.Handler, method, path string, handler http.Handler) {
+func registerExact(dst map[exactKey]http.Handler, method, path, host string, handler http.Handler) {
 	ms := methodsForRoute(method)
 	if len(ms) == 0 {
-		dst[makeExactKey("", path)] = handler
+		dst[makeExactKey("", path, host)] = handler
 		return
 	}
 	for _, m := range ms {
-		dst[makeExactKey(m, path)] = handler
+		dst[makeExactKey(m, path, host)] = handler
 	}
 }
 
