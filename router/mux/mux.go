@@ -61,6 +61,10 @@ func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Rou
 	return r
 }
 
+func (r *muxRouter) RouteExactClean() {
+	r.exact = make(map[exactKey]http.Handler)
+}
+
 func cleanPath(p string) string {
 	if p == "" {
 		return "/"

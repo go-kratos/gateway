@@ -98,7 +98,7 @@ func BenchmarkManyRoutesExactPathMiss(b *testing.B) {
 	}
 }
 
-func TestExactPathFastPathRespectsHost(t *testing.T) {
+func TestExactPathFastPathPrefersEmptyHost(t *testing.T) {
 	r := NewRouter(http.NotFoundHandler(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 
 	hostHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,8 +119,8 @@ func TestExactPathFastPathRespectsHost(t *testing.T) {
 	req.Host = "api.example.com"
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusCreated {
-		t.Fatalf("host route status = %d, want %d", w.Code, http.StatusCreated)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("default route status = %d, want %d", w.Code, http.StatusAccepted)
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "http://example.com/api/v1/room/enter", nil)
@@ -149,6 +149,56 @@ func TestExactPathFastPathEmptyHostMatchesAnyHost(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("hosted request status = %d, want %d", w.Code, http.StatusAccepted)
+	}
+}
+
+func TestExactPathFastPathMatchesSpecificHostWithoutDefault(t *testing.T) {
+	r := NewRouter(http.NotFoundHandler(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	hostHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})
+
+	if err := r.Handle("/api/v1/room/enter", http.MethodGet, "api.example.com", hostHandler, noopCloser{}); err != nil {
+		t.Fatalf("handle host route: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/api/v1/room/enter", nil)
+	req.Host = "api.example.com"
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("host route status = %d, want %d", w.Code, http.StatusCreated)
+	}
+}
+
+func TestRouteExactClean(t *testing.T) {
+	r, ok := NewRouter(http.NotFoundHandler(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).(*muxRouter)
+	if !ok {
+		t.Fatal("router type assertion failed")
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	if err := r.Handle("/api/v1/room/enter", http.MethodGet, "", handler, noopCloser{}); err != nil {
+		t.Fatalf("handle route: %v", err)
+	}
+	if len(r.exact) == 0 {
+		t.Fatal("exact fast path should be populated before clean")
+	}
+
+	r.RouteExactClean()
+	if len(r.exact) != 0 {
+		t.Fatalf("exact fast path size = %d, want 0", len(r.exact))
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/api/v1/room/enter", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("route status after clean = %d, want %d", w.Code, http.StatusAccepted)
 	}
 }
 
