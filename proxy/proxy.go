@@ -92,6 +92,13 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 	return p, nil
 }
 
+// RouteExactClean clears the router exact-path fast path when supported.
+func (p *Proxy) RouteExactClean() {
+	if cleaner, ok := p.router.Load().(interface{ RouteExactClean() }); ok {
+		cleaner.RouteExactClean()
+	}
+}
+
 func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper) (http.RoundTripper, error) {
 	for i := len(ms) - 1; i >= 0; i-- {
 		m, err := p.middlewareFactory(ms[i])
