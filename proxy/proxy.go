@@ -58,6 +58,13 @@ func WithAttemptTimeoutContext(f AttemptTimeoutContext) Option {
 	}
 }
 
+// WithExactFastPath toggles the router exact-path fast path.
+func WithExactFastPath(enabled bool) Option {
+	return func(p *Proxy) {
+		p.exactFastPath = enabled
+	}
+}
+
 // AttemptTimeoutContext is a function type that prepares a context with timeout for an HTTP request.
 type AttemptTimeoutContext func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)
 
@@ -70,6 +77,7 @@ type Proxy struct {
 	notFoundHandler              http.Handler
 	methodNotAllowedHandler      http.Handler
 	prepareAttemptTimeoutContext AttemptTimeoutContext
+	exactFastPath                bool
 }
 
 // New is new a gateway proxy.
@@ -88,7 +96,11 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 	if p.observable == nil {
 		p.observable = NewObservable()
 	}
-	p.router.Store(mux.NewRouter(p.notFoundHandler, p.methodNotAllowedHandler))
+	p.router.Store(mux.NewRouter(
+		p.notFoundHandler,
+		p.methodNotAllowedHandler,
+		mux.WithExactFastPath(p.exactFastPath),
+	))
 	return p, nil
 }
 
@@ -306,7 +318,11 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 
 // Update updates service endpoint.
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
-	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
+	router := mux.NewRouter(
+		http.HandlerFunc(notFoundHandler),
+		http.HandlerFunc(methodNotAllowedHandler),
+		mux.WithExactFastPath(p.exactFastPath),
+	)
 	for _, e := range c.Endpoints {
 		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
 		if err != nil {
