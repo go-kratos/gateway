@@ -45,6 +45,7 @@ var (
 	proxyConfig       string
 	priorityConfigDir string
 	withDebug         bool
+	withExactFastPath bool
 )
 
 type sliceVar struct {
@@ -71,6 +72,7 @@ func init() {
 	rand.Seed(uint64(time.Now().Nanosecond()))
 
 	flag.BoolVar(&withDebug, "debug", false, "enable debug handlers")
+	flag.BoolVar(&withExactFastPath, "router.exact-fast-path", false, "enable exact-path fast path")
 	flag.Var(&proxyAddrs, "addr", "proxy address, eg: -addr 0.0.0.0:8080")
 	flag.StringVar(&proxyConfig, "conf", "config.yaml", "config path, eg: -conf config.yaml")
 	flag.StringVar(&priorityConfigDir, "conf.priority", "", "priority config directory, eg: -conf.priority ./canary")
@@ -94,7 +96,8 @@ func main() {
 	flag.Parse()
 
 	clientFactory := client.NewFactory(makeDiscovery())
-	p, err := proxy.New(clientFactory, middleware.Create)
+	p, err := proxy.New(clientFactory, middleware.Create,
+		proxy.WithExactFastPath(withExactFastPath))
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}
