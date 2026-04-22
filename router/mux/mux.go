@@ -82,11 +82,17 @@ func cleanPath(p string) string {
 	return np
 }
 
+func getHost(r *http.Request) string {
+	if r.URL.IsAbs() {
+		return r.URL.Host
+	}
+	return r.Host
+}
+
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.wg.Add(1)
 	defer r.wg.Done()
-	req.URL.Path = cleanPath(req.URL.Path)
-	if h, ok := r.exactHandler(req.Method, req.URL.Path, req.Host); ok {
+	if h, ok := r.exactHandler(req.Method, cleanPath(req.URL.Path), getHost(req)); ok {
 		h.ServeHTTP(w, req)
 		return
 	}
@@ -113,7 +119,7 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if err := next.GetError(); err != nil {
 		return err
 	}
-	if isExactPathPattern(pattern) && hasExactMethod(method) {
+	if isExactRoute(pattern, method) {
 		registerExact(r.exact, method, pattern, host, handler)
 	}
 	r.allCloser = append(r.allCloser, closer)
@@ -143,23 +149,18 @@ func (r *muxRouter) exactHandler(method, path, host string) (http.Handler, bool)
 }
 
 func registerExact(dst map[exactKey]http.Handler, method, path, host string, handler http.Handler) {
-	if !hasExactMethod(method) {
-		return
-	}
 	if host != "" {
-		if _, shadowed := dst[makeExactKey(method, path, "")]; shadowed {
+		if _, ok := dst[makeExactKey(method, path, "")]; ok {
+			log.Warnf("Skip exact route registration because host-specific route is shadowed by hostless route: method=%q path=%q host=%q", method, path, host)
 			return
 		}
 	}
 	key := makeExactKey(method, path, host)
 	if _, exists := dst[key]; exists {
+		log.Warnf("Skip duplicate exact route registration: method=%q path=%q host=%q", method, path, host)
 		return
 	}
 	dst[key] = handler
-}
-
-func hasExactMethod(method string) bool {
-	return method != "" && method != "*"
 }
 
 func isExactPathPattern(pattern string) bool {
@@ -224,4 +225,8 @@ func InspectMuxRouter(in interface{}) []*RouterInspect {
 		return nil
 	})
 	return out
+}
+
+func isExactRoute(pattern, method string) bool {
+	return strings.IndexAny(pattern, "*{}[]()") == -1 && method != "" && method != "*"
 }
