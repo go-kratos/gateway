@@ -33,9 +33,20 @@ var _ = new(router.Router)
 
 type muxRouter struct {
 	*mux.Router
-	wg        *sync.WaitGroup
-	allCloser []io.Closer
-	exact     map[exactKey]http.Handler
+	wg            *sync.WaitGroup
+	allCloser     []io.Closer
+	exact         map[exactKey]http.Handler
+	exactFastPath bool
+}
+
+// Option is mux router option.
+type Option func(*muxRouter)
+
+// WithExactFastPath toggles the exact-path fast path.
+func WithExactFastPath(enabled bool) Option {
+	return func(r *muxRouter) {
+		r.exactFastPath = enabled
+	}
 }
 
 func ProtectedHandler(h http.Handler) http.Handler {
@@ -49,11 +60,14 @@ func ProtectedHandler(h http.Handler) http.Handler {
 }
 
 // NewRouter new a mux router.
-func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Router {
+func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler, opts ...Option) router.Router {
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(EnableStrictSlash),
 		wg:     &sync.WaitGroup{},
 		exact:  make(map[exactKey]http.Handler),
+	}
+	for _, opt := range opts {
+		opt(r)
 	}
 	r.Router.Handle("/metrics", ProtectedHandler(promhttp.Handler()))
 	r.Router.NotFoundHandler = notFoundHandler
@@ -92,9 +106,11 @@ func getHost(r *http.Request) string {
 func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.wg.Add(1)
 	defer r.wg.Done()
-	if h, ok := r.exactHandler(req.Method, cleanPath(req.URL.Path), getHost(req)); ok {
-		h.ServeHTTP(w, req)
-		return
+	if r.exactFastPath {
+		if h, ok := r.exactHandler(req.Method, cleanPath(req.URL.Path), getHost(req)); ok {
+			h.ServeHTTP(w, req)
+			return
+		}
 	}
 	r.Router.ServeHTTP(w, req)
 }
@@ -119,7 +135,7 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if err := next.GetError(); err != nil {
 		return err
 	}
-	if isExactRoute(pattern, method) {
+	if r.isBuildExactRoute(pattern, method) {
 		registerExact(r.exact, method, pattern, host, handler)
 	}
 	r.allCloser = append(r.allCloser, closer)
@@ -227,6 +243,6 @@ func InspectMuxRouter(in interface{}) []*RouterInspect {
 	return out
 }
 
-func isExactRoute(pattern, method string) bool {
-	return strings.IndexAny(pattern, "*{}[]()") == -1 && method != "" && method != "*"
+func (r *muxRouter) isBuildExactRoute(pattern, method string) bool {
+	return r.exactFastPath && strings.IndexAny(pattern, "*{}[]()") == -1 && method != "" && method != "*"
 }
