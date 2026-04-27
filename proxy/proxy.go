@@ -58,12 +58,19 @@ func WithAttemptTimeoutContext(f AttemptTimeoutContext) Option {
 	}
 }
 
+func WithRouterOptions(opts ...mux.Option) Option {
+	return func(p *Proxy) {
+		p.routerOptions = opts
+	}
+}
+
 // AttemptTimeoutContext is a function type that prepares a context with timeout for an HTTP request.
 type AttemptTimeoutContext func(ctx context.Context, req *http.Request, timeout time.Duration) (context.Context, context.CancelFunc)
 
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router                       atomic.Value
+	routerOptions                []mux.Option
 	clientFactory                client.Factory
 	middlewareFactory            middleware.FactoryV2
 	observable                   Observable
@@ -88,7 +95,11 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 	if p.observable == nil {
 		p.observable = NewObservable()
 	}
-	p.router.Store(mux.NewRouter(p.notFoundHandler, p.methodNotAllowedHandler))
+	p.router.Store(mux.NewRouter(
+		p.notFoundHandler,
+		p.methodNotAllowedHandler,
+		p.routerOptions...,
+	))
 	return p, nil
 }
 
@@ -299,7 +310,11 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 
 // Update updates service endpoint.
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
-	router := mux.NewRouter(http.HandlerFunc(notFoundHandler), http.HandlerFunc(methodNotAllowedHandler))
+	router := mux.NewRouter(
+		http.HandlerFunc(notFoundHandler),
+		http.HandlerFunc(methodNotAllowedHandler),
+		p.routerOptions...,
+	)
 	for _, e := range c.Endpoints {
 		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
 		if err != nil {
