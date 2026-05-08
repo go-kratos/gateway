@@ -64,6 +64,14 @@ type exactEntry struct {
 const anyMethod = ""
 const anyHost = ""
 
+func (n nopRouter) clonePreRouter() PreRouter {
+	return nopRouter{}
+}
+
+func (e *exactRouter) clonePreRouter() PreRouter {
+	return NewExactRouter()
+}
+
 func (e *exactRouter) Register(route *mux.Route, handler http.Handler) {
 	pathTemplate, err := route.GetPathTemplate()
 	if err != nil || !isExactPathTemplate(pathTemplate) {
