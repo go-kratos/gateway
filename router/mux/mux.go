@@ -43,18 +43,10 @@ type muxRouter struct {
 // Option is mux router option.
 type Option func(*muxRouter)
 
-type preRouterCloner interface {
-	clonePreRouter() PreRouter
-}
-
 // WithPreRouter sets the pre-router for mux router.
-func WithPreRouter(r PreRouter) Option {
+func WithPreRouter(newPre func() PreRouter) Option {
 	return func(m *muxRouter) {
-		if cloner, ok := r.(preRouterCloner); ok {
-			m.pre = cloner.clonePreRouter()
-			return
-		}
-		m.pre = r
+		m.pre = newPre()
 	}
 }
 
