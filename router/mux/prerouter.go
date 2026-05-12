@@ -49,7 +49,7 @@ type exactRouter struct {
 
 // NewExactRouter returns an experimental exact pre-router. Use it at your own
 // risk.
-func NewExactRouter() *exactRouter {
+func NewExactRouter() PreRouter {
 	return &exactRouter{
 		handlers: make(map[string][]exactEntry),
 	}
