@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -79,15 +78,13 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	}
 	return func(builderCtx *BuildContext, endpoint *config.Endpoint) (Client, error) {
 		picker := o.pickerBuilder.Build()
-		ctx, cancel := context.WithCancel(context.Background())
 		applier := &nodeApplier{
-			cancel:       cancel,
 			endpoint:     endpoint,
 			registry:     r,
 			picker:       picker,
 			buildContext: builderCtx,
 		}
-		if err := applier.apply(ctx); err != nil {
+		if err := applier.apply(); err != nil {
 			return nil, err
 		}
 		client := newClient(applier, picker)
@@ -98,13 +95,12 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 type nodeApplier struct {
 	canceled     int64
 	buildContext *BuildContext
-	cancel       context.CancelFunc
 	endpoint     *config.Endpoint
 	registry     registry.Discovery
 	picker       selector.Selector
 }
 
-func (na *nodeApplier) apply(ctx context.Context) error {
+func (na *nodeApplier) apply() error {
 	var nodes []selector.Node
 	for _, backend := range na.endpoint.Backends {
 		target, err := parseTarget(backend.Target)
@@ -118,7 +114,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 			nodes = append(nodes, node)
 			na.picker.Apply(nodes)
 		case "discovery":
-			existed := AddWatch(ctx, na.registry, target.Endpoint, na)
+			existed := AddWatch(na.registry, target.Endpoint, na)
 			if existed {
 				log.Infof("watch target %+v already existed", target)
 			}
@@ -168,7 +164,6 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 func (na *nodeApplier) Cancel() {
 	log.Infof("Closing node applier for endpoint: %+v", na.endpoint)
 	atomic.StoreInt64(&na.canceled, 1)
-	na.cancel()
 }
 
 func (na *nodeApplier) Canceled() bool {

@@ -55,6 +55,7 @@ func instancesSetHash(instances []*registry.ServiceInstance) string {
 }
 
 type watcherStatus struct {
+	cancel            context.CancelFunc
 	watcher           registry.Watcher
 	initializedChan   chan struct{}
 	selectedInstances []*registry.ServiceInstance
@@ -109,7 +110,7 @@ type Applier interface {
 	Canceled() bool
 }
 
-func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, endpoint string, applier Applier) (watcherExisted bool) {
+func (s *serviceWatcher) Add(discovery registry.Discovery, endpoint string, applier Applier) (watcherExisted bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -131,12 +132,15 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 		ws = &watcherStatus{
 			initializedChan: make(chan struct{}),
 		}
-		watcher, err := discovery.Watch(ctx, endpoint)
+		watcherCtx, watcherCancel := context.WithCancel(context.Background())
+		watcher, err := discovery.Watch(watcherCtx, endpoint)
 		if err != nil {
+			watcherCancel()
 			LOG.Errorf("Failed to initialize watcher on endpoint: %s, err: %+v", endpoint, err)
 			return false
 		}
 		LOG.Infof("Succeeded to initialize watcher on endpoint: %s", endpoint)
+		ws.cancel = watcherCancel
 		ws.watcher = watcher
 		s.watcherStatus[endpoint] = ws
 
@@ -159,9 +163,9 @@ func (s *serviceWatcher) Add(ctx context.Context, discovery registry.Discovery, 
 			var initialResolveCtx context.Context
 			var initialResolveCancel context.CancelFunc
 			if _initialResolveTimeout > 0 {
-				initialResolveCtx, initialResolveCancel = context.WithTimeout(ctx, _initialResolveTimeout)
+				initialResolveCtx, initialResolveCancel = context.WithTimeout(watcherCtx, _initialResolveTimeout)
 			} else {
-				initialResolveCtx, initialResolveCancel = context.WithCancel(ctx)
+				initialResolveCtx, initialResolveCancel = context.WithCancel(watcherCtx)
 			}
 			defer initialResolveCancel()
 
@@ -261,6 +265,14 @@ func (s *serviceWatcher) proccleanup() {
 					delete(appliers, id)
 				}
 				LOG.Infof("Succeeded to clean %d appliers on endpoint: %q, now %d appliers are available", len(cleanup), endpoint, len(appliers))
+				if len(appliers) == 0 {
+					if ws, ok := s.watcherStatus[endpoint]; ok {
+						ws.cancel()
+						delete(s.watcherStatus, endpoint)
+					}
+					delete(s.appliers, endpoint)
+					LOG.Infof("Remove empty appliers and watcherStatus record on endpoint: %q", endpoint)
+				}
 			}()
 		}
 	}
@@ -290,6 +302,6 @@ func (s *serviceWatcher) DebugHandler() http.Handler {
 	return debugMux
 }
 
-func AddWatch(ctx context.Context, registry registry.Discovery, endpoint string, applier Applier) bool {
-	return globalServiceWatcher.Add(ctx, registry, endpoint, applier)
+func AddWatch(registry registry.Discovery, endpoint string, applier Applier) bool {
+	return globalServiceWatcher.Add(registry, endpoint, applier)
 }
