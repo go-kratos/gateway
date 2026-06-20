@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package gateway.middleware.waf.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/waf/v1";
+
+// Waf middleware config.
+message Waf {
+    // Maximum allowed request body size in bytes. 0 means unlimited.
+    int64 max_request_body_size = 1;
+    // List of active rules. Supported: "sqli", "xss"
+    repeated string rules = 2;
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package gateway.middleware.auth.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/auth/v1";
+
+message Auth {
+    repeated string valid_api_keys = 1;
+}

@@ -11,10 +11,10 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 
+	"github.com/go-kratos/gateway/client/consistenthash"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/selector/p2c"
 )
 
 type BuildContext struct {
@@ -72,7 +72,7 @@ func NewBuildContext(cfg *config.Gateway) *BuildContext {
 // NewFactory new a client factory.
 func NewFactory(r registry.Discovery, opts ...Option) Factory {
 	o := &options{
-		pickerBuilder: p2c.NewBuilder(),
+		pickerBuilder: consistenthash.NewBuilder(),
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -86,6 +86,7 @@ func NewFactory(r registry.Discovery, opts ...Option) Factory {
 			registry:     r,
 			picker:       picker,
 			buildContext: builderCtx,
+			healthCheck:  NewHealthChecker(picker),
 		}
 		if err := applier.apply(ctx); err != nil {
 			return nil, err
@@ -102,6 +103,7 @@ type nodeApplier struct {
 	endpoint     *config.Endpoint
 	registry     registry.Discovery
 	picker       selector.Selector
+	healthCheck  *HealthChecker
 }
 
 func (na *nodeApplier) apply(ctx context.Context) error {
@@ -116,7 +118,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 			weighted := backend.Weight // weight is only valid for direct scheme
 			node := newNode(na.buildContext, backend.Target, na.endpoint.Protocol, weighted, backend.Metadata, "", "", WithTLS(backend.Tls), WithTLSConfigName(backend.TlsConfigName))
 			nodes = append(nodes, node)
-			na.picker.Apply(nodes)
+			na.healthCheck.UpdateNodes(nodes)
 		case "discovery":
 			existed := AddWatch(ctx, na.registry, target.Endpoint, na)
 			if existed {
@@ -161,7 +163,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 		node := newNode(na.buildContext, addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name, WithTLS(false))
 		nodes = append(nodes, node)
 	}
-	na.picker.Apply(nodes)
+	na.healthCheck.UpdateNodes(nodes)
 	return nil
 }
 
@@ -169,6 +171,9 @@ func (na *nodeApplier) Cancel() {
 	log.Infof("Closing node applier for endpoint: %+v", na.endpoint)
 	atomic.StoreInt64(&na.canceled, 1)
 	na.cancel()
+	if na.healthCheck != nil {
+		na.healthCheck.Stop()
+	}
 }
 
 func (na *nodeApplier) Canceled() bool {

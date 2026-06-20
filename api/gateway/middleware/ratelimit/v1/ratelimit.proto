@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package gateway.middleware.ratelimit.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/ratelimit/v1";
+
+message RateLimit {
+    double requests_per_second = 1;
+    int32 burst = 2;
+}

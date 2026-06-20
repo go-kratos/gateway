@@ -28,6 +28,12 @@ import (
 	_ "github.com/go-kratos/gateway/middleware/streamrecorder"
 	_ "github.com/go-kratos/gateway/middleware/tracing"
 	_ "github.com/go-kratos/gateway/middleware/transcoder"
+	_ "github.com/go-kratos/gateway/middleware/waf"
+	_ "github.com/go-kratos/gateway/middleware/cache"
+	_ "github.com/go-kratos/gateway/middleware/auth"
+	_ "github.com/go-kratos/gateway/middleware/ratelimit"
+	_ "github.com/go-kratos/gateway/middleware/hashkey"
+	_ "github.com/go-kratos/gateway/middleware/wasm"
 	_ "go.uber.org/automaxprocs"
 
 	"github.com/go-kratos/kratos/v2"

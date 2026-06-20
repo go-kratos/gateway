@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package gateway.middleware.cache.v1;
+
+option go_package = "github.com/go-kratos/gateway/api/gateway/middleware/cache/v1";
+
+message Cache {
+    bool enabled = 1;
+    int32 ttl_seconds = 2;
+}
