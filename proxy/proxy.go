@@ -27,6 +27,11 @@ import (
 	"github.com/go-kratos/kratos/v2/selector"
 )
 
+// RouterFactory creates a new router.Router instance. It receives the not-found
+// and method-not-allowed handlers, and the caller is responsible for passing
+// them into the router constructor.
+type RouterFactory func(notFound, methodNotAllowed http.Handler) router.Router
+
 // Option is proxy option.
 type Option func(*Proxy)
 
@@ -58,9 +63,19 @@ func WithAttemptTimeoutContext(f AttemptTimeoutContext) Option {
 	}
 }
 
+// WithRouter sets a custom router factory. When set, mux-specific options
+// (WithRouterOptions) are ignored.
+func WithRouter(f RouterFactory) Option {
+	return func(p *Proxy) {
+		p.routerFactory = f
+	}
+}
+
+// WithRouterOptions sets options for the default mux router. Ignored when a
+// custom router factory is provided via WithRouter.
 func WithRouterOptions(opts ...mux.Option) Option {
 	return func(p *Proxy) {
-		p.routerOptions = opts
+		p.routerOptions = append(p.routerOptions, opts...)
 	}
 }
 
@@ -70,6 +85,7 @@ type AttemptTimeoutContext func(ctx context.Context, req *http.Request, timeout 
 // Proxy is a gateway proxy.
 type Proxy struct {
 	router                       atomic.Value
+	routerFactory                RouterFactory
 	routerOptions                []mux.Option
 	clientFactory                client.Factory
 	middlewareFactory            middleware.FactoryV2
@@ -95,12 +111,17 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 	if p.observable == nil {
 		p.observable = NewObservable()
 	}
-	p.router.Store(mux.NewRouter(
-		p.notFoundHandler,
-		p.methodNotAllowedHandler,
-		p.routerOptions...,
-	))
+	p.router.Store(p.newRouter())
 	return p, nil
+}
+
+// newRouter creates a router using the configured factory, falling back to
+// the default mux router when no custom factory is set.
+func (p *Proxy) newRouter() router.Router {
+	if p.routerFactory != nil {
+		return p.routerFactory(p.notFoundHandler, p.methodNotAllowedHandler)
+	}
+	return mux.NewRouter(p.notFoundHandler, p.methodNotAllowedHandler, p.routerOptions...)
 }
 
 func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper) (http.RoundTripper, error) {
@@ -310,11 +331,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 
 // Update updates service endpoint.
 func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (retError error) {
-	router := mux.NewRouter(
-		http.HandlerFunc(notFoundHandler),
-		http.HandlerFunc(methodNotAllowedHandler),
-		p.routerOptions...,
-	)
+	router := p.newRouter()
 	for _, e := range c.Endpoints {
 		handler, closer, err := p.buildEndpoint(buildContext, e, c.Middlewares)
 		if err != nil {
