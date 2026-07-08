@@ -98,7 +98,7 @@ func TestRouteOrder(t *testing.T) {
 				router := NewRouter(
 					testHandler("not-found"),
 					testHandler("method-not-allowed"),
-					WithPreRouter(func() PreRouter { return NewExactRouter() }),
+					WithPreRouter(NewExactRouter()),
 				).(*muxRouter)
 				for _, route := range tc.routes {
 					mustHandle(t, router, path, route.method, route.host, testHandler(route.name))
@@ -175,7 +175,7 @@ func newBenchmarkRouter(b *testing.B, routeCount int, exactRouter bool) *muxRout
 	b.Helper()
 	opts := []Option{}
 	if exactRouter {
-		opts = append(opts, WithPreRouter(func() PreRouter { return NewExactRouter() }))
+		opts = append(opts, WithPreRouter(NewExactRouter()))
 	}
 	router := NewRouter(
 		benchmarkHandler("not-found"),
