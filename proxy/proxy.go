@@ -28,9 +28,10 @@ import (
 )
 
 // RouterFactory creates a new router.Router instance. It receives the not-found
-// and method-not-allowed handlers, and the caller is responsible for passing
-// them into the router constructor.
-type RouterFactory func(notFound, methodNotAllowed http.Handler) router.Router
+// and method-not-allowed handlers, plus any mux-specific options set via
+// WithRouterOptions. Implementations may choose to pass those options through
+// or ignore them in favor of their own configuration.
+type RouterFactory func(notFound, methodNotAllowed http.Handler, opts ...mux.Option) router.Router
 
 // Option is proxy option.
 type Option func(*Proxy)
@@ -119,7 +120,7 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 // the default mux router when no custom factory is set.
 func (p *Proxy) newRouter() router.Router {
 	if p.routerFactory != nil {
-		return p.routerFactory(p.notFoundHandler, p.methodNotAllowedHandler)
+		return p.routerFactory(p.notFoundHandler, p.methodNotAllowedHandler, p.routerOptions...)
 	}
 	return mux.NewRouter(p.notFoundHandler, p.methodNotAllowedHandler, p.routerOptions...)
 }
