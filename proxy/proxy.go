@@ -28,10 +28,8 @@ import (
 )
 
 // RouterFactory creates a new router.Router instance. It receives the not-found
-// and method-not-allowed handlers, plus any mux-specific options set via
-// WithRouterOptions. Implementations may choose to pass those options through
-// or ignore them in favor of their own configuration.
-type RouterFactory func(notFound, methodNotAllowed http.Handler, opts ...mux.Option) router.Router
+// and method-not-allowed handlers.
+type RouterFactory func(notFound, methodNotAllowed http.Handler) router.Router
 
 // Option is proxy option.
 type Option func(*Proxy)
@@ -65,15 +63,14 @@ func WithAttemptTimeoutContext(f AttemptTimeoutContext) Option {
 }
 
 // WithRouter sets a custom router factory. When set, mux-specific options
-// (WithRouterOptions) are ignored.
+// set via WithRouterOptions apply only to the default mux router fallback.
 func WithRouter(f RouterFactory) Option {
 	return func(p *Proxy) {
 		p.routerFactory = f
 	}
 }
 
-// WithRouterOptions sets options for the default mux router. Ignored when a
-// custom router factory is provided via WithRouter.
+// WithRouterOptions sets options for the default mux router.
 func WithRouterOptions(opts ...mux.Option) Option {
 	return func(p *Proxy) {
 		p.routerOptions = append(p.routerOptions, opts...)
@@ -120,7 +117,7 @@ func New(clientFactory client.Factory, middlewareFactory middleware.FactoryV2, o
 // the default mux router when no custom factory is set.
 func (p *Proxy) newRouter() router.Router {
 	if p.routerFactory != nil {
-		return p.routerFactory(p.notFoundHandler, p.methodNotAllowedHandler, p.routerOptions...)
+		return p.routerFactory(p.notFoundHandler, p.methodNotAllowedHandler)
 	}
 	return mux.NewRouter(p.notFoundHandler, p.methodNotAllowedHandler, p.routerOptions...)
 }
