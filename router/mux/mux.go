@@ -44,9 +44,9 @@ type muxRouter struct {
 type Option func(*muxRouter)
 
 // WithPreRouter sets the pre-router for mux router.
-func WithPreRouter(newPre func() PreRouter) Option {
+func WithPreRouter(pre PreRouter) Option {
 	return func(m *muxRouter) {
-		m.pre = newPre()
+		m.pre = pre
 	}
 }
 
