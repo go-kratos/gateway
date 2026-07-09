@@ -1,7 +1,8 @@
-package mux
+package exact_mux
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -33,8 +34,20 @@ var _ = new(router.Router)
 
 type muxRouter struct {
 	*mux.Router
+	pre PreRouter
+
 	wg        *sync.WaitGroup
 	allCloser []io.Closer
+}
+
+// Option is mux router option.
+type Option func(*muxRouter)
+
+// WithPreRouter sets the pre-router for mux router.
+func WithPreRouter(pre PreRouter) Option {
+	return func(m *muxRouter) {
+		m.pre = pre
+	}
 }
 
 func ProtectedHandler(h http.Handler) http.Handler {
@@ -48,10 +61,14 @@ func ProtectedHandler(h http.Handler) http.Handler {
 }
 
 // NewRouter new a mux router.
-func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler) router.Router {
+func NewRouter(notFoundHandler, methodNotAllowedHandler http.Handler, opts ...Option) router.Router {
 	r := &muxRouter{
 		Router: mux.NewRouter().StrictSlash(EnableStrictSlash),
+		pre:    NewNopRouter(),
 		wg:     &sync.WaitGroup{},
+	}
+	for _, opt := range opts {
+		opt(r)
 	}
 	r.Router.Handle("/metrics", ProtectedHandler(promhttp.Handler()))
 	r.Router.NotFoundHandler = notFoundHandler
@@ -80,6 +97,10 @@ func (r *muxRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.wg.Add(1)
 	defer r.wg.Done()
 	req.URL.Path = cleanPath(req.URL.Path)
+	if handler, ok := r.pre.Match(req); ok {
+		handler.ServeHTTP(w, req)
+		return
+	}
 	r.Router.ServeHTTP(w, req)
 }
 
@@ -103,6 +124,7 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 	if err := next.GetError(); err != nil {
 		return err
 	}
+	r.pre.Register(next, handler)
 	r.allCloser = append(r.allCloser, closer)
 	return nil
 }
@@ -142,19 +164,27 @@ type RouterInspect struct {
 	Methods          []string `json:"methods"`
 }
 
-func InspectMuxRouter(in interface{}) []*RouterInspect {
+type InspectResponse struct {
+	Routers    []*RouterInspect `json:"routers"`
+	PreRouters json.RawMessage  `json:"pre_routers"`
+}
+
+func InspectMuxRouter(in interface{}) *InspectResponse {
 	r, ok := in.(*muxRouter)
 	if !ok {
 		return nil
 	}
-	var out []*RouterInspect
+	out := &InspectResponse{
+		Routers:    []*RouterInspect{},
+		PreRouters: r.pre.Inspect(),
+	}
 	_ = r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		pathTemplate, _ := route.GetPathTemplate()
 		pathRegexp, _ := route.GetPathRegexp()
 		queriesTemplates, _ := route.GetQueriesTemplates()
 		queriesRegexps, _ := route.GetQueriesRegexp()
 		methods, _ := route.GetMethods()
-		out = append(out, &RouterInspect{
+		out.Routers = append(out.Routers, &RouterInspect{
 			PathTemplate:     pathTemplate,
 			PathRegexp:       pathRegexp,
 			QueriesTemplates: queriesTemplates,

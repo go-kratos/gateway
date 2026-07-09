@@ -15,6 +15,8 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy"
 	"github.com/go-kratos/gateway/proxy/debug"
+	"github.com/go-kratos/gateway/router"
+	rmux "github.com/go-kratos/gateway/router/exact_mux"
 	"github.com/go-kratos/gateway/server"
 
 	_ "net/http/pprof"
@@ -94,7 +96,11 @@ func main() {
 	flag.Parse()
 
 	clientFactory := client.NewFactory(makeDiscovery())
-	p, err := proxy.New(clientFactory, middleware.Create)
+	p, err := proxy.New(clientFactory, middleware.Create,
+		proxy.WithRouter(func(notFound, methodNotAllowed http.Handler) router.Router {
+			return rmux.NewRouter(notFound, methodNotAllowed, rmux.WithPreRouter(rmux.NewExactRouter()))
+		}),
+	)
 	if err != nil {
 		log.Fatalf("failed to new proxy: %v", err)
 	}

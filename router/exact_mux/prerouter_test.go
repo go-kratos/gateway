@@ -1,4 +1,4 @@
-package mux
+package exact_mux
 
 import (
 	"net/http"
