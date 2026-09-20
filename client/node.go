@@ -188,7 +188,7 @@ func newNode(ctx *BuildContext, addr string, protocol config.Protocol, weight *i
 		o(opt)
 	}
 	node.tls = opt.TLS
-	if ctx != nil && ctx.httpClient != nil {
+	if ctx.httpClient != nil {
 		node.client = ctx.httpClient
 		return node
 	}
