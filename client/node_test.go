@@ -7,34 +7,37 @@ import (
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 )
 
-func TestDefaultNodeClientSelection(t *testing.T) {
+func TestNodeHTTPClientSelection(t *testing.T) {
 	namedClient := &http.Client{}
+	customClient := &http.Client{}
 	for _, tt := range []struct {
 		name     string
 		protocol config.Protocol
-		opts     []NewNodeOption
-		want     *http.Client
 		tls      bool
+		tlsName  string
+		override *http.Client
+		want     *http.Client
 	}{
-		{"http", config.Protocol_HTTP, nil, _globalClient, false},
-		{"grpc", config.Protocol_GRPC, nil, _globalH2CClient, false},
-		{"https", config.Protocol_HTTP, []NewNodeOption{WithTLS(true)}, _globalHTTPSClient, true},
-		{"grpc TLS", config.Protocol_GRPC, []NewNodeOption{WithTLS(true)}, _globalHTTPSClient, true},
-		{"named TLS", config.Protocol_HTTP, []NewNodeOption{WithTLS(true), WithTLSConfigName("named")}, namedClient, true},
-		{"missing TLS", config.Protocol_HTTP, []NewNodeOption{WithTLS(true), WithTLSConfigName("missing")}, _globalHTTPSClient, true},
+		{"http", config.Protocol_HTTP, false, "", nil, _globalClient},
+		{"grpc", config.Protocol_GRPC, false, "", nil, _globalH2CClient},
+		{"https", config.Protocol_HTTP, true, "", nil, _globalHTTPSClient},
+		{"grpc TLS", config.Protocol_GRPC, true, "", nil, _globalHTTPSClient},
+		{"named TLS", config.Protocol_HTTP, true, "named", nil, namedClient},
+		{"missing TLS", config.Protocol_HTTP, true, "missing", nil, _globalHTTPSClient},
+		{"http override", config.Protocol_HTTP, false, "", customClient, customClient},
+		{"grpc override", config.Protocol_GRPC, false, "", customClient, customClient},
+		{"TLS override", config.Protocol_HTTP, true, "named", customClient, customClient},
+		{"grpc TLS override", config.Protocol_GRPC, true, "", customClient, customClient},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, explicitNil := range []bool{false, true} {
-				var opts []BuildOption
-				if explicitNil {
-					opts = append(opts, WithHTTPClient(nil))
-				}
-				ctx := NewBuildContext(&config.Gateway{}, opts...)
-				ctx.TLSClientStore.clients["named"] = namedClient
-				n := newNode(ctx, "backend.example", tt.protocol, nil, nil, "", "", tt.opts...)
-				if n.client != tt.want || n.tls != tt.tls || n.protocol != tt.protocol {
-					t.Fatalf("default client selection changed (explicit nil = %v)", explicitNil)
-				}
+			ctx := NewBuildContext(&config.Gateway{}, WithHTTPClient(tt.override))
+			ctx.TLSClientStore.clients["named"] = namedClient
+			n := newNode(ctx, "backend.example", tt.protocol, nil, nil, "", "", WithTLS(tt.tls), WithTLSConfigName(tt.tlsName))
+			if n.client != tt.want {
+				t.Errorf("client = %p, want %p", n.client, tt.want)
+			}
+			if n.tls != tt.tls {
+				t.Errorf("TLS = %v, want %v", n.tls, tt.tls)
 			}
 		})
 	}
