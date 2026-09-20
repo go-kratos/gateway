@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -20,6 +21,24 @@ import (
 type BuildContext struct {
 	TLSConfigs     map[string]*tls.Config
 	TLSClientStore *HTTPSClientStore
+	httpClient     *http.Client
+}
+
+// BuildOption configures a client build context.
+type BuildOption func(*BuildContext)
+
+// WithHTTPClient sets the HTTP client for every backend built with the context,
+// including nodes added by service discovery. A nil client retains the default
+// client selection.
+//
+// The supplied client is used as-is, including its transport, TLS configuration,
+// redirect policy, and timeout. The caller owns the client and its transport;
+// the gateway does not modify them or close their idle connections. Configure
+// them before use and reuse them across builds when appropriate.
+func WithHTTPClient(c *http.Client) BuildOption {
+	return func(ctx *BuildContext) {
+		ctx.httpClient = c
+	}
 }
 
 // Factory is returns service client.
@@ -36,11 +55,17 @@ func WithPickerBuilder(in selector.Builder) Option {
 	}
 }
 
-func EmptyBuildContext() *BuildContext {
-	return &BuildContext{}
+// EmptyBuildContext creates a build context without named TLS configurations.
+func EmptyBuildContext(opts ...BuildOption) *BuildContext {
+	ctx := &BuildContext{}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+	return ctx
 }
 
-func NewBuildContext(cfg *config.Gateway) *BuildContext {
+// NewBuildContext creates a build context with the gateway's TLS configurations.
+func NewBuildContext(cfg *config.Gateway, opts ...BuildOption) *BuildContext {
 	tlsConfigs := make(map[string]*tls.Config, len(cfg.TlsStore))
 	for k, v := range cfg.TlsStore {
 		cfg := &tls.Config{
@@ -63,10 +88,14 @@ func NewBuildContext(cfg *config.Gateway) *BuildContext {
 		}
 		tlsConfigs[k] = cfg
 	}
-	return &BuildContext{
+	ctx := &BuildContext{
 		TLSConfigs:     tlsConfigs,
 		TLSClientStore: NewHTTPSClientStore(tlsConfigs),
 	}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+	return ctx
 }
 
 // NewFactory new a client factory.

@@ -187,8 +187,12 @@ func newNode(ctx *BuildContext, addr string, protocol config.Protocol, weight *i
 	for _, o := range opts {
 		o(opt)
 	}
+	node.tls = opt.TLS
+	if ctx != nil && ctx.httpClient != nil {
+		node.client = ctx.httpClient
+		return node
+	}
 	if opt.TLS {
-		node.tls = true
 		node.client = _globalHTTPSClient
 		if opt.TLSConfigName != "" {
 			node.client = ctx.TLSClientStore.GetClient(opt.TLSConfigName)
