@@ -25,6 +25,12 @@ var _globalClient *http.Client = nil
 var _globalH2CClient *http.Client = nil
 var _globalHTTPSClient *http.Client = nil
 
+// DefaultHTTPSClient returns the shared HTTPS client.
+// The caller is responsible for synchronizing any changes with its use.
+func DefaultHTTPSClient() *http.Client {
+	return _globalHTTPSClient
+}
+
 func init() {
 	var err error
 	if v := os.Getenv("PROXY_DIAL_TIMEOUT"); v != "" {
