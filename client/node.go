@@ -25,6 +25,24 @@ var _globalClient *http.Client = nil
 var _globalH2CClient *http.Client = nil
 var _globalHTTPSClient *http.Client = nil
 
+// DefaultHTTPClient returns the shared HTTP client.
+// The caller is responsible for synchronizing any changes with its use.
+func DefaultHTTPClient() *http.Client {
+	return _globalClient
+}
+
+// DefaultH2CClient returns the shared cleartext HTTP/2 client.
+// The caller is responsible for synchronizing any changes with its use.
+func DefaultH2CClient() *http.Client {
+	return _globalH2CClient
+}
+
+// DefaultHTTPSClient returns the shared HTTPS client.
+// The caller is responsible for synchronizing any changes with its use.
+func DefaultHTTPSClient() *http.Client {
+	return _globalHTTPSClient
+}
+
 func init() {
 	var err error
 	if v := os.Getenv("PROXY_DIAL_TIMEOUT"); v != "" {
@@ -187,8 +205,12 @@ func newNode(ctx *BuildContext, addr string, protocol config.Protocol, weight *i
 	for _, o := range opts {
 		o(opt)
 	}
+	node.tls = opt.TLS
+	if ctx.httpClient != nil {
+		node.client = ctx.httpClient
+		return node
+	}
 	if opt.TLS {
-		node.tls = true
 		node.client = _globalHTTPSClient
 		if opt.TLSConfigName != "" {
 			node.client = ctx.TLSClientStore.GetClient(opt.TLSConfigName)
