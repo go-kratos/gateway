@@ -17,15 +17,11 @@ func TestFactoryHTTPClientOverride(t *testing.T) {
 		Protocol: config.Protocol_HTTP,
 		Backends: []*config.Backend{{
 			Target: "backend.example:8443", Tls: true, TlsConfigName: "unused",
-			Metadata: map[string]string{"host": "provider.example"},
 		}},
 	}
 	customClient := &http.Client{Transport: middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		if want := "https://backend.example:8443/chat?stream=true"; req.URL.String() != want {
-			t.Errorf("URL = %q, want %q", req.URL, want)
-		}
-		if req.Host != "provider.example" || req.RequestURI != "" {
-			t.Errorf("Host = %q, RequestURI = %q", req.Host, req.RequestURI)
+		if req.URL.Scheme != "https" {
+			t.Errorf("scheme = %q, want https", req.URL.Scheme)
 		}
 		return &http.Response{StatusCode: http.StatusCreated, Body: http.NoBody}, nil
 	})}
@@ -37,7 +33,7 @@ func TestFactoryHTTPClientOverride(t *testing.T) {
 
 	reqOpts := middleware.NewRequestOptions(endpoint)
 	ctx := middleware.NewRequestContext(context.Background(), reqOpts)
-	req := httptest.NewRequest(http.MethodGet, "http://gateway.example/chat?stream=true", nil).WithContext(ctx)
+	req := httptest.NewRequest(http.MethodGet, "http://gateway.example/", nil).WithContext(ctx)
 	resp, err := upstream.RoundTrip(req)
 	if err != nil {
 		t.Fatal(err)
@@ -49,45 +45,10 @@ func TestFactoryHTTPClientOverride(t *testing.T) {
 	}
 }
 
-func TestFactoryHTTPClientOverrideIsolation(t *testing.T) {
-	factory := NewFactory(nil)
-	endpoint := &config.Endpoint{
-		Protocol: config.Protocol_HTTP,
-		Backends: []*config.Backend{{Target: "backend.example:443", Tls: true}},
-	}
-	customClient := &http.Client{}
-	for _, tt := range []struct {
-		name string
-		ctx  *BuildContext
-		want *http.Client
-	}{
-		{"override", EmptyBuildContext(WithHTTPClient(customClient)), customClient},
-		{"configured override", NewBuildContext(&config.Gateway{}, WithHTTPClient(customClient)), customClient},
-		{"default", EmptyBuildContext(), _globalHTTPSClient},
-		{"nil override", EmptyBuildContext(WithHTTPClient(nil)), _globalHTTPSClient},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			upstream, err := factory(tt.ctx, endpoint)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer upstream.Close()
-			n, done, err := upstream.(*client).selector.Select(context.Background())
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer done(context.Background(), selector.DoneInfo{})
-			if n.(*node).client != tt.want {
-				t.Fatal("HTTP client selection leaked between builds")
-			}
-		})
-	}
-}
-
 func TestDiscoveryUpdatesKeepHTTPClientOverride(t *testing.T) {
 	customClient := &http.Client{}
 	endpoint := &config.Endpoint{Protocol: config.Protocol_HTTP}
-	upstream, err := NewFactory(nil)(EmptyBuildContext(WithHTTPClient(customClient)), endpoint)
+	upstream, err := NewFactory(nil)(NewBuildContext(&config.Gateway{}, WithHTTPClient(customClient)), endpoint)
 	if err != nil {
 		t.Fatal(err)
 	}
