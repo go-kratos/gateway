@@ -25,6 +25,18 @@ var _globalClient *http.Client = nil
 var _globalH2CClient *http.Client = nil
 var _globalHTTPSClient *http.Client = nil
 
+// DefaultHTTPClient returns the shared HTTP client.
+// The caller is responsible for synchronizing any changes with its use.
+func DefaultHTTPClient() *http.Client {
+	return _globalClient
+}
+
+// DefaultH2CClient returns the shared cleartext HTTP/2 client.
+// The caller is responsible for synchronizing any changes with its use.
+func DefaultH2CClient() *http.Client {
+	return _globalH2CClient
+}
+
 // DefaultHTTPSClient returns the shared HTTPS client.
 // The caller is responsible for synchronizing any changes with its use.
 func DefaultHTTPSClient() *http.Client {
