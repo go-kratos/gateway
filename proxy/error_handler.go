@@ -3,12 +3,13 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/transport/http/status"
+	"github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/transport/http/status"
 )
 
 func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err error, observer Observer) {
@@ -20,7 +21,7 @@ func writeError(w http.ResponseWriter, r *http.Request, e *config.Endpoint, err 
 	case errors.Is(err, context.DeadlineExceeded):
 		statusCode = 504
 	default:
-		log.Errorf("Failed to handle request: %s: %+v", r.URL.String(), err)
+		log.Error(fmt.Sprintf("Failed to handle request: %s: %+v", r.URL.String(), err))
 		statusCode = 502
 	}
 	observer.HandleRequest(r, w.Header(), statusCode, err)
@@ -40,7 +41,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusNotFound
 	message := "404 page not found"
 	http.Error(w, message, code)
-	log.Context(r.Context()).Errorw(
+	log.ErrorContext(r.Context(), message,
 		"source", "accesslog",
 		"host", r.Host,
 		"method", r.Method,
@@ -57,7 +58,7 @@ func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusMethodNotAllowed
 	message := http.StatusText(code)
 	http.Error(w, message, code)
-	log.Context(r.Context()).Errorw(
+	log.ErrorContext(r.Context(), message,
 		"source", "accesslog",
 		"host", r.Host,
 		"method", r.Method,

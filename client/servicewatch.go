@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/crc32"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -13,14 +15,31 @@ import (
 	"time"
 
 	"github.com/go-kratos/gateway/proxy/debug"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/registry"
+	"github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/registry"
 	"github.com/google/uuid"
 )
 
 var ErrCancelWatch = errors.New("cancel watch")
 var globalServiceWatcher = newServiceWatcher()
-var LOG = log.NewHelper(log.With(log.GetLogger(), "source", "servicewatch"))
+
+type loggerHelper struct {
+	logger *slog.Logger
+}
+
+func (h *loggerHelper) Infof(format string, args ...any) {
+	h.logger.Info(fmt.Sprintf(format, args...))
+}
+
+func (h *loggerHelper) Warnf(format string, args ...any) {
+	h.logger.Warn(fmt.Sprintf(format, args...))
+}
+
+func (h *loggerHelper) Errorf(format string, args ...any) {
+	h.logger.Error(fmt.Sprintf(format, args...))
+}
+
+var LOG = &loggerHelper{logger: log.With("source", "servicewatch")}
 
 var _initialResolveTimeout = time.Duration(0)
 
