@@ -7,7 +7,7 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 	"github.com/go-kratos/gateway/middleware"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 				if ok {
 					go func() {
 						<-streamBody.CloseNotify()
-						log.Context(ctx).Log(level,
+						log.Log(ctx, level, "",
 							"source", "accesslog",
 							"host", req.Host,
 							"method", req.Method,
@@ -62,7 +62,7 @@ func Middleware(c *config.Middleware) (middleware.Middleware, error) {
 					return reply, err
 				}
 			}
-			log.Context(ctx).Log(level,
+			log.Log(ctx, level, "",
 				"source", "accesslog",
 				"host", req.Host,
 				"method", req.Method,

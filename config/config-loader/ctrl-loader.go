@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/feature"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 	"github.com/google/uuid"
 	"go.uber.org/atomic"
 	"golang.org/x/exp/rand"
@@ -66,13 +66,13 @@ func prepareCtrlService(in string) []string {
 	for _, part := range parts {
 		u, err := url.Parse(part)
 		if err != nil {
-			log.Warnf("Failed to parse control service url %s: %s, will skip this one", part, err)
+			log.Warn(fmt.Sprintf("Failed to parse control service url %s: %s, will skip this one", part, err))
 			continue
 		}
 		out = append(out, u.String())
 	}
 	if len(out) == 0 {
-		log.Warnf("No control service url found, control service will not be available")
+		log.Warn("No control service url found, control service will not be available")
 	}
 	rand.Shuffle(len(out), func(i, j int) {
 		out[i], out[j] = out[j], out[i]
@@ -120,7 +120,7 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 	cfgBytes, err := c.load(ctx)
 	if err != nil {
 		if err == errNotModified {
-			log.Infof("Skip loading config, %q-%q config is up to date: %q", c.advertiseName, c.advertiseAddr, c.lastVersion.String())
+			log.Info(fmt.Sprintf("Skip loading config, %q-%q config is up to date: %q", c.advertiseName, c.advertiseAddr, c.lastVersion.String()))
 			return nil
 		}
 		return err
@@ -147,7 +147,7 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 
 	// write priority configs
 	if err := c.writePriorityConfigs(resp); err != nil {
-		log.Warnf("Failed to write priority configs, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+		log.Warn(fmt.Sprintf("Failed to write priority configs, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err))
 	}
 	return nil
 }
@@ -155,7 +155,7 @@ func (c *CtrlConfigLoader) Load(ctx context.Context) (err error) {
 func (c *CtrlConfigLoader) cleanUpPriorityConfigs(versions map[string]string) {
 	entrys, err := os.ReadDir(c.dstPriorityConfigDir)
 	if err != nil {
-		log.Warnf("Failed to read priority config dir, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+		log.Warn(fmt.Sprintf("Failed to read priority config dir, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err))
 		return
 	}
 	for _, e := range entrys {
@@ -171,7 +171,7 @@ func (c *CtrlConfigLoader) cleanUpPriorityConfigs(versions map[string]string) {
 		}
 		// not in the current version, remove it
 		if err := os.Remove(path.Join(c.dstPriorityConfigDir, e.Name())); err != nil {
-			log.Warnf("Failed to remove expired priority config %s, %q-%q, %+v", e.Name(), c.advertiseName, c.advertiseAddr, err)
+			log.Warn(fmt.Sprintf("Failed to remove expired priority config %s, %q-%q, %+v", e.Name(), c.advertiseName, c.advertiseAddr, err))
 		}
 	}
 }
@@ -282,10 +282,10 @@ func (c *CtrlConfigLoader) getAdvertiseAddr() string {
 	}
 	advAddr, err := c.getIPInterface(advDevice)
 	if err != nil {
-		log.Errorf("%q There was a problem with the IP %+v", c.advertiseName, err)
+		log.Error(fmt.Sprintf("%q There was a problem with the IP %+v", c.advertiseName, err))
 		return ""
 	}
-	log.Infof("%s uses IP %s\n", c.advertiseName, advAddr)
+	log.Info(fmt.Sprintf("%s uses IP %s\n", c.advertiseName, advAddr))
 	return advAddr
 }
 
@@ -295,7 +295,7 @@ func (c *CtrlConfigLoader) load(ctx context.Context) ([]byte, error) {
 	params.Set("ip_addr", c.advertiseAddr)
 	params.Set("last_version", c.lastVersion.Load())
 	c.encodeLastPriorityVersion(params)
-	log.Infof("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params)
+	log.Info(fmt.Sprintf("%s is requesting config from %s with params: %+v", c.advertiseName, c.ctrlService, params))
 	api, err := c.urlfor("/v1/control/gateway/release", params)
 	if err != nil {
 		return nil, err
@@ -327,7 +327,7 @@ func (c *CtrlConfigLoader) loadFeatures(ctx context.Context) ([]byte, error) {
 	params := url.Values{}
 	params.Set("gateway", c.advertiseName)
 	params.Set("ip_addr", c.advertiseAddr)
-	log.Infof("%s is requesting features from %s with params: %+v", c.advertiseName, c.ctrlService, params)
+	log.Info(fmt.Sprintf("%s is requesting features from %s with params: %+v", c.advertiseName, c.ctrlService, params))
 	api, err := c.urlfor("/v1/control/gateway/features", params)
 	if err != nil {
 		return nil, err
@@ -359,11 +359,11 @@ func (c *CtrlConfigLoader) Run(ctx context.Context) {
 	c.cancel = cancel
 	for {
 		if err := c.Load(ctx); err != nil {
-			log.Warnf("Failed to load config, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+			log.Warn(fmt.Sprintf("Failed to load config, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err))
 			continue
 		}
 		if err := c.LoadFeatures(ctx); err != nil {
-			log.Warnf("Failed to load gateway features, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err)
+			log.Warn(fmt.Sprintf("Failed to load gateway features, %q-%q, %+v", c.advertiseName, c.advertiseAddr, err))
 		}
 		select {
 		case <-ctx.Done():

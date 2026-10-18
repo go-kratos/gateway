@@ -23,8 +23,8 @@ import (
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/router"
 	"github.com/go-kratos/gateway/router/mux"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/selector"
 )
 
 // Option is proxy option.
@@ -97,7 +97,7 @@ func (p *Proxy) buildMiddleware(ms []*config.Middleware, next http.RoundTripper)
 		m, err := p.middlewareFactory(ms[i])
 		if err != nil {
 			if errors.Is(err, middleware.ErrNotFound) {
-				log.Errorf("Skip does not exist middleware: %s", ms[i].Name)
+				log.Error(fmt.Sprintf("Skip does not exist middleware: %s", ms[i].Name))
 				continue
 			}
 			return nil, err
@@ -234,7 +234,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			resp, err = tripper.RoundTrip(req.Clone(tryCtx))
 			if err != nil {
 				markFailed(w, req, i, err)
-				log.Errorf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err)
+				log.Error(fmt.Sprintf("Attempt at [%d/%d], failed to handle request: %s: %+v", i+1, retryStrategy.attempts, req.URL.String(), err))
 				continue
 			}
 			if !judgeRetryRequired(retryStrategy.conditions, resp) {
@@ -281,7 +281,7 @@ func (p *Proxy) buildEndpoint(buildCtx *client.BuildContext, e *config.Endpoint,
 			if err != nil {
 				observer.HandleSentBytes(req, sent)
 				reqOpts.DoneFunc(ctx, selector.DoneInfo{Err: err})
-				log.Errorf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err)
+				log.Error(fmt.Sprintf("Failed to copy backend response body to client: [%s] %s %s %d %+v\n", e.Protocol, e.Method, e.Path, sent, err))
 				return false, err
 			}
 			observer.HandleSentBytes(req, sent)
@@ -309,7 +309,7 @@ func (p *Proxy) Update(buildContext *client.BuildContext, c *config.Gateway) (re
 		if err = router.Handle(e.Path, e.Method, e.Host, handler, closer); err != nil {
 			return err
 		}
-		log.Infof("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path)
+		log.Info(fmt.Sprintf("build endpoint: [%s] %s %s", e.Protocol, e.Method, e.Path))
 	}
 	old := p.router.Swap(router)
 	tryCloseRouter(old)
@@ -325,7 +325,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 			buf := make([]byte, 64<<10) //nolint:gomnd
 			n := runtime.Stack(buf, false)
-			log.Errorf("panic recovered: %+v\n%s", err, buf[:n])
+			log.Error(fmt.Sprintf("panic recovered: %+v\n%s", err, buf[:n]))
 			fmt.Fprintf(os.Stderr, "panic recovered: %+v\n%s\n", err, buf[:n])
 		}
 	}()

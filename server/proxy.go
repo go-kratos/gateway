@@ -3,12 +3,13 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -68,7 +69,7 @@ func NewProxy(handler http.Handler, addr string) *ProxyServer {
 
 // Start the server.
 func (s *ProxyServer) Start(ctx context.Context) error {
-	log.Infof("proxy listening on %s", s.Addr)
+	log.Info(fmt.Sprintf("proxy listening on %s", s.Addr))
 	err := s.ListenAndServe()
 	if errors.Is(err, http.ErrServerClosed) {
 		return nil
