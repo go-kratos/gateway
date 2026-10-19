@@ -12,7 +12,7 @@ jobs:
   build:
     strategy:
       matrix:
-        go: [ "1.21", "1.22", "1.23", "1.24" ]
+        go: ["1.27"]
     name: build & test
     runs-on: ubuntu-latest
     steps:
@@ -25,13 +25,13 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Go Build
-        run: go build -v ./...
+        run: go build -tags http2legacy -v ./...
 
       - name: Go Vet
-        run: go vet ./...
+        run: go vet -tags http2legacy ./...
 
       - name: Go Test
-        run: go test -v -coverprofile=coverage.out -covermode=atomic -race ./...
+        run: go test -tags http2legacy -v -coverprofile=coverage.out -covermode=atomic -race ./...
 
       - name: Upload coverage to Codecov
         run: bash <(curl -s https://codecov.io/bash)

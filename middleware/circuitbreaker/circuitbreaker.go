@@ -15,7 +15,7 @@ import (
 	"github.com/go-kratos/gateway/client"
 	"github.com/go-kratos/gateway/middleware"
 	"github.com/go-kratos/gateway/proxy/condition"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/rand"
 	"google.golang.org/protobuf/proto"
@@ -98,7 +98,7 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 	case *v1.CircuitBreaker_Ratio:
 		return newRatioTrigger(trigger)
 	default:
-		log.Warnf("Unrecoginzed circuit breaker trigger: %+v", trigger)
+		log.Warn("Unrecoginzed circuit breaker trigger", "trigger", trigger)
 		return nopTrigger{}
 	}
 }
@@ -106,14 +106,14 @@ func makeBreakerTrigger(in *v1.CircuitBreaker) circuitbreaker.CircuitBreaker {
 func makeOnBreakHandler(buildContext *client.BuildContext, in *v1.CircuitBreaker, factory client.Factory) (http.RoundTripper, io.Closer, error) {
 	switch action := in.Action.(type) {
 	case *v1.CircuitBreaker_BackupService:
-		log.Infof("Making backup service as on break handler: %+v", action)
+		log.Info("Making backup service as on break handler", "action", action)
 		client, err := factory(buildContext, action.BackupService.Endpoint)
 		if err != nil {
 			return nil, nil, err
 		}
 		return client, client, nil
 	case *v1.CircuitBreaker_ResponseData:
-		log.Infof("Making static response data as on break handler: %+v", action)
+		log.Info("Making static response data as on break handler", "action", action)
 		return middleware.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			resp := &http.Response{
 				StatusCode: int(action.ResponseData.StatusCode),
@@ -126,7 +126,7 @@ func makeOnBreakHandler(buildContext *client.BuildContext, in *v1.CircuitBreaker
 			return resp, nil
 		}), io.NopCloser(nil), nil
 	default:
-		log.Warnf("Unrecoginzed circuit breaker aciton: %+v", action)
+		log.Warn("Unrecoginzed circuit breaker aciton", "action", action)
 		return middleware.RoundTripperFunc(func(*http.Request) (*http.Response, error) {
 			// TBD: on break response
 			return &http.Response{

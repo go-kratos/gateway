@@ -30,10 +30,10 @@ import (
 	_ "github.com/go-kratos/gateway/middleware/transcoder"
 	_ "go.uber.org/automaxprocs"
 
-	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/registry"
-	"github.com/go-kratos/kratos/v2/transport"
+	"github.com/go-kratos/kratos/v3"
+	"github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/go-kratos/kratos/v3/transport"
 	"golang.org/x/exp/rand"
 )
 
@@ -85,7 +85,8 @@ func makeDiscovery() registry.Discovery {
 	}
 	d, err := discovery.Create(discoveryDSN)
 	if err != nil {
-		log.Fatalf("failed to create discovery: %v", err)
+		log.Error("failed to create discovery", "error", err)
+		os.Exit(1)
 	}
 	return d
 }
@@ -96,51 +97,55 @@ func main() {
 	clientFactory := client.NewFactory(makeDiscovery())
 	p, err := proxy.New(clientFactory, middleware.Create)
 	if err != nil {
-		log.Fatalf("failed to new proxy: %v", err)
+		log.Error("failed to new proxy", "error", err)
+		os.Exit(1)
 	}
 
 	ctx := context.Background()
 	var ctrlLoader *configLoader.CtrlConfigLoader
 	if ctrlService != "" {
-		log.Infof("setup control service to: %q", ctrlService)
+		log.Info("setup control service", "target", ctrlService)
 		ctrlLoader = configLoader.New(ctrlName, ctrlService, proxyConfig, priorityConfigDir)
 		if err := ctrlLoader.Load(ctx); err != nil {
-			log.Errorf("failed to do initial load from control service: %v, using local config instead", err)
+			log.Error("failed to do initial load from control service, using local config instead", "error", err)
 		}
 		if err := ctrlLoader.LoadFeatures(ctx); err != nil {
-			log.Errorf("failed to do initial feature load from control service: %v, using default value instead", err)
+			log.Error("failed to do initial feature load from control service, using default value instead", "error", err)
 		}
 		go ctrlLoader.Run(ctx)
 	}
 
 	confLoader, err := config.NewFileLoader(proxyConfig, priorityConfigDir)
 	if err != nil {
-		log.Fatalf("failed to create config file loader: %v", err)
+		log.Error("failed to create config file loader", "error", err)
+		os.Exit(1)
 	}
 	defer confLoader.Close()
 	bc, err := confLoader.Load(context.Background())
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		log.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
 
 	buildContext := client.NewBuildContext(bc)
 	circuitbreaker.Init(buildContext, clientFactory)
 	if err := p.Update(buildContext, bc); err != nil {
-		log.Fatalf("failed to update service config: %v", err)
+		log.Error("failed to update service config", "error", err)
+		os.Exit(1)
 	}
 	reloader := func() error {
 		bc, err := confLoader.Load(context.Background())
 		if err != nil {
-			log.Errorf("failed to load config: %v", err)
+			log.Error("failed to load config", "error", err)
 			return err
 		}
 		buildContext := client.NewBuildContext(bc)
 		circuitbreaker.SetBuildContext(buildContext)
 		if err := p.Update(buildContext, bc); err != nil {
-			log.Errorf("failed to update service config: %v", err)
+			log.Error("failed to update service config", "error", err)
 			return err
 		}
-		log.Infof("config reloaded")
+		log.Info("config reloaded")
 		return nil
 	}
 	confLoader.Watch(reloader)
@@ -166,6 +171,6 @@ func main() {
 		),
 	)
 	if err := app.Run(); err != nil {
-		log.Errorf("failed to run servers: %v", err)
+		log.Error("failed to run servers", "error", err)
 	}
 }

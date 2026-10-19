@@ -65,7 +65,7 @@ func prepareRetryStrategy(e *config.Endpoint) (*retryStrategy, error) {
 		timeout:       calcTimeout(e),
 		perTryTimeout: calcPerTryTimeout(e),
 	}
-	conditions, err := parseRetryConditon(e)
+	conditions, err := parseRetryCondition(e)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func prepareRetryStrategy(e *config.Endpoint) (*retryStrategy, error) {
 	return strategy, nil
 }
 
-func parseRetryConditon(endpoint *config.Endpoint) ([]condition.Condition, error) {
+func parseRetryCondition(endpoint *config.Endpoint) ([]condition.Condition, error) {
 	if endpoint.Retry == nil {
 		return []condition.Condition{}, nil
 	}
