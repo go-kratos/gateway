@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	pb "github.com/go-kratos/examples/helloworld/helloworld"
+	pb "github.com/go-kratos/gateway/examples/helloworld/helloworld"
 	"google.golang.org/protobuf/proto"
 )
 

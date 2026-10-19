@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/go-kratos/kratos/v3/selector"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/http2"
 
@@ -144,7 +144,7 @@ func (s *HTTPSClientStore) GetClient(name string) *http.Client {
 	}
 	tlsConfig, ok := s.clientConfigs[name]
 	if !ok {
-		LOG.Warnf("tls config not found for %s, using default instead", name)
+		LOG.Warn("tls config not found, using default instead", "name", name)
 		return _globalHTTPSClient
 	}
 	client = createHTTPSClient(tlsConfig)

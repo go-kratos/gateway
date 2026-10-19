@@ -11,10 +11,10 @@ import (
 
 	config "github.com/go-kratos/gateway/api/gateway/config/v1"
 
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/registry"
-	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/selector/p2c"
+	"github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/registry"
+	"github.com/go-kratos/kratos/v3/selector"
+	"github.com/go-kratos/kratos/v3/selector/p2c"
 )
 
 type BuildContext struct {
@@ -49,14 +49,14 @@ func NewBuildContext(cfg *config.Gateway) *BuildContext {
 		}
 		cert, err := tls.X509KeyPair([]byte(v.Cert), []byte(v.Key))
 		if err != nil {
-			LOG.Warnf("failed to load tls cert: %q: %v", k, err)
+			LOG.Warn("failed to load tls cert", "key", k, "error", err)
 			continue
 		}
 		cfg.Certificates = []tls.Certificate{cert}
 		if v.Cacert != "" {
 			roots := x509.NewCertPool()
 			if ok := roots.AppendCertsFromPEM([]byte(v.Cacert)); !ok {
-				LOG.Warnf("failed to load tls cacert: %q", k)
+				LOG.Warn("failed to load tls cacert", "key", k)
 				continue
 			}
 			cfg.RootCAs = roots
@@ -120,7 +120,7 @@ func (na *nodeApplier) apply(ctx context.Context) error {
 		case "discovery":
 			existed := AddWatch(ctx, na.registry, target.Endpoint, na)
 			if existed {
-				log.Infof("watch target %+v already existed", target)
+				log.Info("watch target already existed", "target", target)
 			}
 		default:
 			return fmt.Errorf("unknown scheme: %s", target.Scheme)
@@ -155,7 +155,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 	for _, ser := range services {
 		addr, err := parseEndpoint(ser.Endpoints, scheme, false)
 		if err != nil || addr == "" {
-			log.Errorf("failed to parse endpoint: %v/%s: %v", ser.Endpoints, scheme, err)
+			log.Error("failed to parse endpoint", "endpoints", ser.Endpoints, "scheme", scheme, "error", err)
 			continue
 		}
 		node := newNode(na.buildContext, addr, na.endpoint.Protocol, nodeWeight(ser), ser.Metadata, ser.Version, ser.Name, WithTLS(false))
@@ -166,7 +166,7 @@ func (na *nodeApplier) Callback(services []*registry.ServiceInstance) error {
 }
 
 func (na *nodeApplier) Cancel() {
-	log.Infof("Closing node applier for endpoint: %+v", na.endpoint)
+	log.Info("Closing node applier", "endpoint", na.endpoint)
 	atomic.StoreInt64(&na.canceled, 1)
 	na.cancel()
 }

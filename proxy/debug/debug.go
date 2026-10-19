@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	rmux "github.com/go-kratos/gateway/router/mux"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 	"github.com/gorilla/mux"
 )
 
@@ -69,5 +69,5 @@ func (d *debugService) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (d *debugService) Register(name string, debuggable Debuggable) {
 	path := path.Join(_debugPrefix, name)
 	d.mux.PathPrefix(path).Handler(debuggable.DebugHandler())
-	log.Infof("register debug: %s", path)
+	log.Info("register debug", "path", path)
 }

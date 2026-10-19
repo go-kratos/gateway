@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/gateway/middleware"
-	"github.com/go-kratos/kratos/v2/selector"
+	"github.com/go-kratos/kratos/v3/selector"
 )
 
 type client struct {

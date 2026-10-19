@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/go-kratos/gateway/router"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -109,11 +109,11 @@ func (r *muxRouter) Handle(pattern, method, host string, handler http.Handler, c
 
 func (r *muxRouter) SyncClose(ctx context.Context) error {
 	if timeout := waitTimeout(ctx, r.wg); timeout {
-		log.Warnf("Time out to wait all requests complete, processing force close")
+		log.Warn("Time out to wait all requests complete, processing force close")
 	}
 	for _, closer := range r.allCloser {
 		if err := closer.Close(); err != nil {
-			log.Errorf("Failed to execute close function: %+v", err)
+			log.Error("Failed to execute close function", "error", err)
 			continue
 		}
 	}

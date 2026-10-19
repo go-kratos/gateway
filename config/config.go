@@ -15,7 +15,7 @@ import (
 	"time"
 
 	configv1 "github.com/go-kratos/gateway/api/gateway/config/v1"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v3/log"
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/yaml"
 )
@@ -62,9 +62,9 @@ func (f *FileLoader) initialize() error {
 		return err
 	}
 	f.confSHA256 = sha256hex
-	log.Infof("the initial config file sha256: %s", sha256hex)
+	log.Info("the initial config file sha256", "sha256", sha256hex)
 	f.priorityConfigHash = pfHash
-	log.Infof("the initial priority config file sha256 map: %+v", f.priorityConfigHash)
+	log.Info("the initial priority config file sha256 map", "map", f.priorityConfigHash)
 
 	watchCtx, cancel := context.WithCancel(context.Background())
 	f.watchCancel = cancel
@@ -85,7 +85,7 @@ func (f *FileLoader) configSHA256() (string, map[string]string, error) {
 	hash := sha256sum(configData)
 	phHash, err := f.priorityConfigSHA256()
 	if err != nil {
-		log.Warnf("failed to get priority config sha256: %+v", err)
+		log.Warn("failed to get priority config sha256", "error", err)
 	}
 	return hash, phHash, nil
 }
@@ -116,7 +116,7 @@ func (f *FileLoader) priorityConfigSHA256() (map[string]string, error) {
 }
 
 func (f *FileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
-	log.Infof("loading config file: %s", f.confPath)
+	log.Info("loading config file", "path", f.confPath)
 
 	configData, err := os.ReadFile(f.confPath)
 	if err != nil {
@@ -132,7 +132,7 @@ func (f *FileLoader) Load(_ context.Context) (*configv1.Gateway, error) {
 		return nil, err
 	}
 	if err := f.mergePriorityConfig(out); err != nil {
-		log.Warnf("failed to merge priority config: %+v", err)
+		log.Warn("failed to merge priority config", "error", err)
 	}
 	return out, nil
 }
@@ -156,13 +156,13 @@ func (f *FileLoader) mergePriorityConfig(dst *configv1.Gateway) error {
 		cfgPath := filepath.Join(f.priorityDirectory, e.Name())
 		pCfg, err := f.parsePriorityConfig(cfgPath)
 		if err != nil {
-			log.Warnf("failed to parse priority config: %s: %+v, skip merge this file", cfgPath, err)
+			log.Warn("failed to parse priority config, skip merge this file", "path", cfgPath, "error", err)
 			continue
 		}
 		for _, e := range pCfg.Endpoints {
 			dst.Endpoints = replaceOrPrependEndpoint(dst.Endpoints, e)
 		}
-		log.Infof("succeeded to merge priority config: %s, %d endpoints effected", cfgPath, len(pCfg.Endpoints))
+		log.Info("succeeded to merge priority config", "path", cfgPath, "endpoints", len(pCfg.Endpoints))
 	}
 	return nil
 }
@@ -216,7 +216,7 @@ func (f *FileLoader) executeLoader() error {
 	var chainedError error
 	for _, fn := range f.onChangeHandlers {
 		if err := fn(); err != nil {
-			log.Errorf("execute config loader error on handler: %+v: %+v", fn, err)
+			log.Error("execute config loader error on handler", "handler", fn, "error", err)
 			chainedError = errors.New(err.Error())
 		}
 	}
@@ -234,13 +234,13 @@ func (f *FileLoader) watchproc(ctx context.Context) {
 		func() {
 			sha256hex, pfHash, err := f.configSHA256()
 			if err != nil {
-				log.Errorf("watch config file error: %+v", err)
+				log.Error("watch config file error", "error", err)
 				return
 			}
 			if sha256hex != f.confSHA256 || !reflect.DeepEqual(pfHash, f.priorityConfigHash) {
-				log.Infof("config file changed, reload config, last sha256: %s, new sha256: %s, last pfHash: %+v, new pfHash: %+v", f.confSHA256, sha256hex, f.priorityConfigHash, pfHash)
+				log.Info("config file changed, reload config", "last_sha256", f.confSHA256, "new_sha256", sha256hex, "last_pfHash", f.priorityConfigHash, "new_pfHash", pfHash)
 				if err := f.executeLoader(); err != nil {
-					log.Errorf("execute config loader error with new sha256: %s: %+v, config digest will not be changed until all loaders are succeeded", sha256hex, err)
+					log.Error("execute config loader error, config digest will not be changed until all loaders are succeeded", "sha256", sha256hex, "error", err)
 					return
 				}
 				f.confSHA256 = sha256hex
